@@ -17,6 +17,8 @@ export type ToolContext = {
   customer: { id: string; phone: string; name: string | null };
   /** Messages to send to the business owner once the turn ends. */
   ownerNotices: string[];
+  /** Set when the model hands the conversation over to the owner. */
+  handoffReason?: string;
 };
 
 const date = z.string().refine(isValidDate, "use o formato AAAA-MM-DD");
@@ -36,6 +38,7 @@ const inputs = {
   list_customer_appointments: z.object({}),
   cancel_appointment: z.object({ appointment_id: z.string().uuid() }),
   save_customer_name: z.object({ name: z.string().trim().min(1).max(80) }),
+  transfer_to_owner: z.object({ reason: z.string().trim().min(1).max(300) }),
 };
 
 type ToolName = keyof typeof inputs;
@@ -91,6 +94,18 @@ export const tools: Anthropic.Tool[] = [
       type: "object",
       properties: { name: { type: "string" } },
       required: ["name"],
+    },
+  },
+  {
+    name: "transfer_to_owner",
+    description:
+      "Passa a conversa para a dona do estabelecimento. Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista ou qualquer pedido que você não consiga resolver.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reason: { type: "string", description: "Resumo curto para a dona: o que a cliente quer" },
+      },
+      required: ["reason"],
     },
   },
 ];
@@ -164,6 +179,18 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
     await ctx.sql`update customers set name = ${input.name} where id = ${ctx.customer.id}`;
     ctx.customer.name = input.name;
     return { saved: true };
+  },
+
+  async transfer_to_owner(ctx, input) {
+    ctx.handoffReason = input.reason;
+    ctx.ownerNotices.push(
+      `A ${ctx.tenant.assistantName} passou uma conversa para você responder.\nCliente: ${customerLabel(ctx)}\nPedido: ${input.reason}`,
+    );
+    return {
+      transferred: true,
+      instruction:
+        "Responda à cliente de forma simpática, em uma ou duas frases: diga que vai chamar a dona para cuidar desse pedido e que ela responde por aqui em breve.",
+    };
   },
 };
 

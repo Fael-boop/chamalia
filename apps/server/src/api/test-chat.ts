@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CollectingChannel } from "../channels/channel.js";
-import { handleIncomingMessage, type EngineDeps } from "../conversation/engine.js";
+import { handleIncomingMessage, HUMAN_STATE, releaseToAssistant, type EngineDeps } from "../conversation/engine.js";
 
 const params = z.object({ tenantId: z.string().uuid() });
 const phone = z
@@ -17,17 +17,37 @@ const phone = z
 export function registerTestChatRoutes(app: FastifyInstance, deps: Omit<EngineDeps, "anthropic"> & Partial<EngineDeps>) {
   const { sql } = deps;
 
+  async function findConversation(tenantId: string, customerPhone: string) {
+    const [conversation] = await sql<{ id: string; state: string; context: { handoffReason?: string } }[]>`
+      select c.id, c.state, c.context
+      from conversations c join customers cu on cu.id = c.customer_id
+      where c.tenant_id = ${tenantId} and cu.phone = ${customerPhone}
+    `;
+    return conversation;
+  }
+
   app.get("/api/tenants/:tenantId/test-chat", async (request) => {
     const { tenantId } = params.parse(request.params);
     const query = z.object({ phone }).parse(request.query);
-    return sql`
-      select m.id, m.direction, m.body, m.created_at
-      from messages m
-      join conversations c on c.id = m.conversation_id
-      join customers cu on cu.id = c.customer_id
-      where m.tenant_id = ${tenantId} and cu.phone = ${query.phone}
-      order by m.created_at
+    const conversation = await findConversation(tenantId, query.phone);
+    if (!conversation) return { withOwner: false, handoffReason: null, messages: [] };
+    const messages = await sql`
+      select id, direction, body, created_at from messages
+      where conversation_id = ${conversation.id} order by created_at
     `;
+    return {
+      withOwner: conversation.state === HUMAN_STATE,
+      handoffReason: conversation.context.handoffReason ?? null,
+      messages,
+    };
+  });
+
+  app.post("/api/tenants/:tenantId/test-chat/release", async (request) => {
+    const { tenantId } = params.parse(request.params);
+    const body = z.object({ phone }).parse(request.body);
+    const conversation = await findConversation(tenantId, body.phone);
+    if (conversation) await releaseToAssistant(sql, tenantId, conversation.id);
+    return { released: Boolean(conversation) };
   });
 
   app.post("/api/tenants/:tenantId/test-chat", async (request, reply) => {

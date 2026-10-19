@@ -26,6 +26,8 @@ export type EngineDeps = {
 const HISTORY_WINDOW_HOURS = 24;
 const HISTORY_MAX_MESSAGES = 30;
 const MAX_TOOL_ROUNDS = 8;
+/** conversations.state while the owner is handling the conversation. */
+export const HUMAN_STATE = "human";
 const FALLBACK_REPLY = "Desculpe, tive um probleminha aqui. Pode me mandar de novo em alguns instantes?";
 
 const lock = new KeyedLock();
@@ -52,10 +54,10 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     on conflict (tenant_id, phone) do update set updated_at = now()
     returning id, phone, name
   `;
-  const [conversation] = await sql<{ id: string }[]>`
+  const [conversation] = await sql<{ id: string; state: string }[]>`
     insert into conversations (tenant_id, customer_id) values (${tenant.id}, ${customer!.id})
     on conflict (tenant_id, customer_id) do update set last_message_at = now()
-    returning id
+    returning id, state
   `;
   const inserted = await sql`
     insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
@@ -66,6 +68,10 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
   if (inserted.length === 0) {
     log.info({ tenantId: tenant.id }, "duplicated message ignored");
     return;
+  }
+  // The owner took over this conversation: store the message, stay quiet.
+  if (conversation!.state === HUMAN_STATE) {
+    return { reply: null, ownerNotices: [], ownerPhoneMissing: !tenant.ownerPhone, withOwner: true };
   }
 
   const ctx: ToolContext = { sql, tenant, customer: customer!, ownerNotices: [] };
@@ -81,14 +87,36 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     insert into messages (tenant_id, conversation_id, direction, body)
     values (${tenant.id}, ${conversation!.id}, 'outbound', ${reply})
   `;
-  await sql`update conversations set last_message_at = now() where id = ${conversation!.id}`;
+  if (ctx.handoffReason) {
+    const context = { handoffReason: ctx.handoffReason, handoffAt: new Date().toISOString() };
+    await sql`
+      update conversations set state = ${HUMAN_STATE}, context = ${sql.json(context)}, last_message_at = now()
+      where id = ${conversation!.id}
+    `;
+  } else {
+    await sql`update conversations set last_message_at = now() where id = ${conversation!.id}`;
+  }
 
   await channel.sendText(message.fromPhone, reply);
   for (const notice of ctx.ownerNotices) {
     if (tenant.ownerPhone) await channel.sendText(tenant.ownerPhone, notice);
     else log.warn({ tenantId: tenant.id }, "owner phone not set; notification not sent");
   }
-  return { reply, ownerNotices: ctx.ownerNotices, ownerPhoneMissing: !tenant.ownerPhone };
+  return {
+    reply,
+    ownerNotices: ctx.ownerNotices,
+    ownerPhoneMissing: !tenant.ownerPhone,
+    withOwner: Boolean(ctx.handoffReason),
+  };
+}
+
+/** Gives a conversation back to the assistant after the owner handled it. */
+export async function releaseToAssistant(sql: Sql, tenantId: string, conversationId: string) {
+  return sql`
+    update conversations set state = 'idle', context = '{}'
+    where tenant_id = ${tenantId} and id = ${conversationId}
+    returning id
+  `;
 }
 
 async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: string): Promise<string> {
