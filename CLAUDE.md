@@ -45,7 +45,7 @@ fechar todas as janelas do VS Code e reabrir.
 - **Multi-tenant:** toda tabela de negócio tem `tenant_id`; FKs entre dados de tenant incluem
   `tenant_id` (composite FK) para impedir referência cruzada. Toda query filtra por `tenant_id`.
   Tabelas novas: `enable row level security` (fecha a API pública do Supabase).
-- **Commits pequenos**, mensagem em português, um assunto por commit.
+- **Commits pequenos**, mensagem curta em português, sem acento e sem emoji, um assunto por commit.
 - **Comunicação:** explicar ao dono do projeto em português, sem jargão desnecessário.
   Mostrar cada item funcionando antes de passar ao próximo.
 
