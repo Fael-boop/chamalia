@@ -6,29 +6,37 @@ const optionalString = z
   .transform((value) => (value === "" ? undefined : value))
   .optional();
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  PORT: z.coerce.number().int().positive().default(3000),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
-  PUBLIC_URL: z.string().url().default("http://localhost:3000"),
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    PORT: z.coerce.number().int().positive().default(3000),
+    LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+    PUBLIC_URL: z.string().url().default("http://localhost:3000"),
 
-  // Postgres (Supabase em dev, container no VPS). Obrigatório a partir do item 2.
-  DATABASE_URL: optionalString,
+    // Postgres (Supabase em dev, container no VPS).
+    DATABASE_URL: optionalString,
 
-  ANTHROPIC_API_KEY: optionalString,
-  ANTHROPIC_MODEL: z.string().default("claude-haiku-5-5"),
+    ANTHROPIC_API_KEY: optionalString,
+    ANTHROPIC_MODEL: z.string().default("claude-haiku-5-5"),
 
-  WHATSAPP_PROVIDER: z.enum(["evolution", "meta_cloud"]).default("evolution"),
-  EVOLUTION_API_URL: optionalString,
-  EVOLUTION_API_KEY: optionalString,
-  WEBHOOK_SECRET: optionalString,
+    WHATSAPP_PROVIDER: z.enum(["evolution", "meta_cloud"]).default("evolution"),
+    EVOLUTION_API_URL: optionalString,
+    EVOLUTION_API_KEY: optionalString,
+    WEBHOOK_SECRET: optionalString,
 
-  META_ACCESS_TOKEN: optionalString,
-  META_APP_SECRET: optionalString,
-  META_VERIFY_TOKEN: optionalString,
+    META_ACCESS_TOKEN: optionalString,
+    META_APP_SECRET: optionalString,
+    META_VERIFY_TOKEN: optionalString,
 
-  DEFAULT_TIMEZONE: z.string().default("America/Sao_Paulo"),
-});
+    DEFAULT_TIMEZONE: z.string().default("America/Sao_Paulo"),
+
+    // Senha do painel. Opcional em desenvolvimento (painel aberto), obrigatória em produção.
+    ADMIN_PASSWORD: optionalString,
+  })
+  .refine((env) => env.NODE_ENV !== "production" || (env.ADMIN_PASSWORD?.length ?? 0) >= 12, {
+    path: ["ADMIN_PASSWORD"],
+    message: "obrigatória em produção, com pelo menos 12 caracteres",
+  });
 
 export type Config = z.infer<typeof envSchema>;
 
