@@ -16,6 +16,7 @@ WORKDIR /app
 COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/apps/server/package.json apps/server/
 COPY --from=build /app/apps/server/dist apps/server/dist
+COPY --from=build /app/apps/server/migrations apps/server/migrations
 COPY --from=build /app/apps/panel/dist apps/panel/dist
 USER node
 EXPOSE 3000

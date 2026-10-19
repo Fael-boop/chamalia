@@ -8,6 +8,8 @@ type Health = {
 };
 
 const labels: Record<string, string> = {
+  ok: "conectado",
+  error: "erro de conexão",
   configured: "configurado",
   not_configured: "não configurado",
 };
