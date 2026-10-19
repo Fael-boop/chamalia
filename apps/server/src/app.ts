@@ -1,7 +1,12 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import Anthropic from "@anthropic-ai/sdk";
 import Fastify, { type FastifyBaseLogger } from "fastify";
 import fastifyStatic from "@fastify/static";
+import { ZodError } from "zod";
+import { registerAuth } from "./api/auth.js";
+import { registerPanelRoutes } from "./api/panel.js";
+import { registerTestChatRoutes } from "./api/test-chat.js";
 import type { Config } from "./config.js";
 import type { Sql } from "./db/client.js";
 import { loggerOptions } from "./lib/logger.js";
@@ -13,12 +18,33 @@ const panelDist = fileURLToPath(new URL("../../panel/dist", import.meta.url));
 export async function buildApp(config: Config, sql?: Sql) {
   const app = Fastify({ logger: loggerOptions(config.LOG_LEVEL) });
 
+  app.setErrorHandler((error, request, reply) => {
+    if (error instanceof ZodError) {
+      const message = error.issues.map((issue) => `${issue.path.join(".") || "valor"}: ${issue.message}`).join("; ");
+      return reply.code(400).send({ error: "invalid_input", message });
+    }
+    request.log.error({ err: error }, "request failed");
+    const status = (error as { statusCode?: number }).statusCode ?? 500;
+    return reply
+      .code(status)
+      .send({ error: "internal_error", message: status < 500 ? (error as Error).message : "Erro interno." });
+  });
+
   app.get("/health", async () => ({
     status: "ok",
     whatsappProvider: config.WHATSAPP_PROVIDER,
     database: sql ? await checkDatabase(sql, app.log) : "not_configured",
     ai: config.ANTHROPIC_API_KEY ? "configured" : "not_configured",
   }));
+
+  registerAuth(app, config.ADMIN_PASSWORD);
+  app.get("/api/session", async () => ({ authenticated: true }));
+
+  if (sql) {
+    const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
+    registerPanelRoutes(app, sql);
+    registerTestChatRoutes(app, { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log });
+  }
 
   if (existsSync(panelDist)) {
     await app.register(fastifyStatic, { root: panelDist });
