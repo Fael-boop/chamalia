@@ -1,0 +1,13 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+// In dev the panel runs on :5173 and forwards API calls to the bot on :3000.
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      "/api": "http://localhost:3000",
+      "/health": "http://localhost:3000",
+    },
+  },
+});
