@@ -10,18 +10,31 @@ Setup R$ 1.500 + R$ 297/mês por cliente. Cada cliente é um *tenant* com seu pr
 
 ## Cliente piloto
 Salão de beleza (cabelo) da mãe do dono do projeto. Hoje agenda tudo pelo WhatsApp Business no
-celular. Vai usar a **WhatsApp Cloud API oficial em coexistência** com o app (ver abaixo).
+celular. Testes do piloto: tela "Testar a Lia" e depois Evolution com chip pré-pago.
 
-Requisitos que o piloto trouxe (registrados em 2026-10-19):
-- Serviço com **duração variável** (ex.: escova em cabelo curto x longo).
-- **Combos** (ex.: corte + escova), podendo envolver mais de uma profissional.
-- Serviço que **ocupa a profissional por horas** (química).
-- **Mais de uma profissional**.
-- **Encaixe** (agendar mesmo em horário cheio, por decisão da dona).
-- **Modo assistente**: a Lia propõe o horário, a dona aprova, e só então a cliente recebe a
-  confirmação. (Modo automático continua existindo: a Lia confirma sozinha.)
+## Escopo do MVP (reduzido em 2026-10-19)
+Dentro:
+- Serviços simples com **duração fixa**, uma ou mais profissionais (modelo da migration 001).
+- A Lia agenda, consulta, remarca e cancela esses serviços sozinha.
+- **Lembrete na véspera** com resposta "1 confirmar, 2 remarcar".
+- **Passar para a dona**: química, combos (mais de um serviço no mesmo atendimento), encaixe,
+  serviço fora da lista ou qualquer pedido que a Lia não resolva → a Lia avisa a cliente que vai
+  chamar a dona, a conversa fica marcada como "com a dona" e a Lia **para de responder** nela até
+  a dona devolver (pelo painel).
+- Canal **trocável** (interface `Channel`): Evolution agora; Cloud API da Meta depois, sem mexer
+  no motor.
 
-## WhatsApp Cloud API: coexistência com o app Business (pesquisado em 2026-10-19)
+Fora (depois do primeiro cliente pagante):
+- Química com etapas/pausa, combos, encaixe, duração variável, modo assistente (aprovação da dona).
+- Meta: Tech Provider, coexistência, Cloud API. Não implementar agora.
+
+Ordem de trabalho:
+1. Tela "Testar a Lia" funcionando (prioridade).
+2. Evolution no PC do dono com Docker Desktop, testando com chip pré-pago.
+3. Lembrete da véspera. 4. Resto do painel. 5. README de onboarding.
+
+## Referência futura: Cloud API em coexistência com o app Business (pesquisado em 2026-10-19)
+Não implementar no MVP. Guardado para quando houver cliente pagante.
 Fonte principal: doc da Meta "Onboard WhatsApp Business app users" (Embedded Signup).
 - A dona continua usando o app WhatsApp Business no celular **no mesmo número**; a API roda junto.
   Mensagens enviadas por ela no app chegam para nós pelo webhook `smb_message_echoes`.
@@ -103,24 +116,10 @@ fechar todas as janelas do VS Code e reabrir.
    Feito: API do painel com senha (`ADMIN_PASSWORD`), motor de conversa com Claude (tools:
    buscar horários, agendar, listar, cancelar, salvar nome) e canal de teste
    (`CollectingChannel`). Telas React começadas (api.ts, format.ts, styles.css, não commitadas).
-   **Pausado** para redesenhar o modelo de dados do piloto (abaixo).
+   Falta: "passar para a dona" no motor; telas (Testar a Lia primeiro).
 6. [ ] README com passo a passo de onboarding de um cliente novo.
 
-## Redesenho do modelo para o piloto (proposta, aguardando aprovação)
-Migration nova `002_...` (nunca editar a 001). Ideia:
-- `service_variants`: duração/preço por variação (ex.: cabelo curto/médio/longo); a Lia pergunta.
-- `service_steps`: etapas do serviço com duração e se ocupa a profissional (ex.: aplicação 40 min
-  ocupa, pausa 40 min livre, finalização 30 min ocupa). Química "ocupa por horas" = etapas todas
-  ocupadas. Padrão: 1 etapa ocupada.
-- Combos: `bookings` (o pedido da cliente: status, aprovação, origem) com vários
-  `appointments` (um por serviço, em sequência, cada um com sua profissional).
-- O bloqueio de horário duplicado passa a valer por **trecho ocupado** da profissional, não pelo
-  atendimento inteiro.
-- Encaixe: flag no agendamento que dispensa o bloqueio de conflito.
-- Modo assistente: `tenants.booking_mode` (`auto` | `assistant`); booking com status
-  `pending_approval` segura o horário por um prazo até a dona aprovar.
-- Pendências para decidir com o dono: canal de aprovação da dona, quem pode fazer encaixe,
-  duração variável por tamanho de cabelo e/ou por profissional, se a pausa da química libera a
-  profissional, caminho Tech Provider x BSP.
+Decisões: modelo de dados continua o da 001, sem migration nova no MVP. "Com a dona" usa
+`conversations.state = 'human'` (+ motivo em `context`); não precisa de coluna nova.
 
 Atualizar esta seção ao fim de cada etapa.
