@@ -12,7 +12,35 @@ export type Tenant = {
   ownerName: string | null;
   ownerPhone: string | null;
   active: boolean;
+  address: string | null;
+  tone: "friendly" | "formal";
+  useEmoji: boolean;
+  extraInfo: string | null;
+  handoffRules: string | null;
+  minNoticeMinutes: number;
+  bookingHorizonDays: number;
+  whatsappInstance: string | null;
 };
+
+export const TENANT_COLUMNS = [
+  "id",
+  "slug",
+  "name",
+  "assistant_name",
+  "business_type",
+  "timezone",
+  "owner_name",
+  "owner_phone",
+  "active",
+  "address",
+  "tone",
+  "use_emoji",
+  "extra_info",
+  "handoff_rules",
+  "min_notice_minutes",
+  "booking_horizon_days",
+  "whatsapp_instance",
+];
 
 export type Service = {
   id: string;
@@ -31,9 +59,6 @@ export type BookedAppointment = {
   professionalName: string;
 };
 
-/** How far ahead customers can book. */
-export const BOOKING_HORIZON_DAYS = 60;
-
 const ACTIVE_STATUSES = ["scheduled", "confirmed"];
 
 export class SchedulingError extends Error {
@@ -46,10 +71,7 @@ export class SchedulingError extends Error {
 }
 
 export async function getTenant(sql: Sql, tenantId: string): Promise<Tenant | undefined> {
-  const [tenant] = await sql<Tenant[]>`
-    select id, slug, name, assistant_name, business_type, timezone, owner_name, owner_phone, active
-    from tenants where id = ${tenantId}
-  `;
+  const [tenant] = await sql<Tenant[]>`select ${sql(TENANT_COLUMNS)} from tenants where id = ${tenantId}`;
   return tenant;
 }
 
@@ -60,11 +82,9 @@ export async function findAvailableSlots(
 ): Promise<{ service: Service; slots: AvailableSlot[] }> {
   const now = params.now ?? new Date();
   const today = utcToZoned(now, tenant.timezone).date;
-  if (params.date < today || params.date > addDays(today, BOOKING_HORIZON_DAYS)) {
-    throw new SchedulingError(
-      "invalid_date",
-      `Só é possível agendar entre ${today} e ${addDays(today, BOOKING_HORIZON_DAYS)}.`,
-    );
+  const lastDay = addDays(today, tenant.bookingHorizonDays);
+  if (params.date < today || params.date > lastDay) {
+    throw new SchedulingError("invalid_date", `Só é possível agendar entre ${today} e ${lastDay}.`);
   }
 
   const [service] = await sql<Service[]>`
@@ -121,6 +141,7 @@ export async function findAvailableSlots(
     timeZone: tenant.timezone,
     durationMinutes: service.durationMinutes,
     now,
+    minLeadMinutes: tenant.minNoticeMinutes,
     busy,
     professionals: professionals.map((professional) => ({
       ...professional,
