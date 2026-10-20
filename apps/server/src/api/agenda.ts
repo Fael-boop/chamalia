@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { Sql } from "../db/client.js";
+import { withCountryCode } from "../lib/phone.js";
 import { addDays, isValidDate, utcToZoned, zonedToUtc } from "../lib/time.js";
 import {
   findAvailableSlots,
@@ -15,6 +16,20 @@ const date = z.string().refine(isValidDate, "data no formato AAAA-MM-DD");
 const tenantParams = z.object({ tenantId: uuid });
 const itemParams = tenantParams.extend({ id: uuid });
 const MAX_RANGE_DAYS = 42;
+
+const customerBody = z.object({
+  name: z.string().trim().min(1, "Informe o nome").max(80),
+  phone: z
+    .string()
+    .transform(withCountryCode)
+    .pipe(z.string().regex(/^\d{12,13}$/, "telefone com DDD, ex.: (11) 99999-0000")),
+  notes: z
+    .string()
+    .trim()
+    .max(1000)
+    .nullable()
+    .transform((value) => value || null),
+});
 
 /** Agenda (range), free slots, rescheduling and the business's customers. */
 export function registerAgendaRoutes(app: FastifyInstance, sql: Sql) {
@@ -106,7 +121,7 @@ export function registerAgendaRoutes(app: FastifyInstance, sql: Sql) {
       ? sql`and (c.name ilike ${`%${search}%`} ${digits ? sql`or c.phone like ${`%${digits}%`}` : sql``})`
       : sql``;
     return sql`
-      select c.id, c.name, c.phone, c.created_at,
+      select c.id, c.name, c.phone, c.notes, c.created_at,
              count(a.id) filter (where a.status in ('completed', 'confirmed', 'scheduled') and a.starts_at < now())::int as visits,
              max(a.starts_at) filter (where a.starts_at < now() and a.status <> 'cancelled') as last_visit,
              min(a.starts_at) filter (where a.starts_at >= now() and a.status in ('scheduled', 'confirmed')) as next_appointment
@@ -119,10 +134,47 @@ export function registerAgendaRoutes(app: FastifyInstance, sql: Sql) {
     `;
   });
 
+  // Phone numbers are unique per business: a duplicate gets a clear message.
+  const phoneTaken = (reply: FastifyReply) =>
+    reply.code(409).send({ error: "phone_taken", message: "Já existe uma cliente com este telefone." });
+
+  app.post("/api/tenants/:tenantId/customers", async (request, reply) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    const body = customerBody.partial({ notes: true }).parse(request.body);
+    try {
+      const [customer] = await sql`
+        insert into customers (tenant_id, name, phone, notes)
+        values (${tenantId}, ${body.name}, ${body.phone}, ${body.notes ?? null})
+        returning id, name, phone, notes, created_at
+      `;
+      return reply.code(201).send(customer);
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") return phoneTaken(reply);
+      throw error;
+    }
+  });
+
+  app.patch("/api/tenants/:tenantId/customers/:id", async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const changes = customerBody.partial().parse(request.body);
+    if (Object.keys(changes).length === 0) return reply.code(400).send({ error: "empty_update" });
+    try {
+      const [customer] = await sql`
+        update customers set ${sql(changes)}, updated_at = now()
+        where tenant_id = ${tenantId} and id = ${id}
+        returning id, name, phone, notes, created_at
+      `;
+      return customer ?? reply.code(404).send({ error: "not_found" });
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") return phoneTaken(reply);
+      throw error;
+    }
+  });
+
   app.get("/api/tenants/:tenantId/customers/:id", async (request, reply) => {
     const { tenantId, id } = itemParams.parse(request.params);
     const [customer] = await sql`
-      select id, name, phone, created_at from customers where tenant_id = ${tenantId} and id = ${id}
+      select id, name, phone, notes, created_at from customers where tenant_id = ${tenantId} and id = ${id}
     `;
     if (!customer) return reply.code(404).send({ error: "not_found" });
     const appointments = await sql`

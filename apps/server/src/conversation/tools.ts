@@ -11,6 +11,7 @@ import {
   type Tenant,
 } from "../scheduling/service.js";
 import { bookCombo, findComboSlots, MAX_COMBO_SERVICES } from "../scheduling/combo.js";
+import { loadPriceTable, type PriceTable } from "./price-table.js";
 
 export type ToolContext = {
   sql: Sql;
@@ -20,6 +21,8 @@ export type ToolContext = {
   ownerNotices: string[];
   /** Handoff notices for a team member other than the owner. */
   teamNotices: { name: string; phone: string; text: string }[];
+  /** The price list to send after the reply (set by send_price_table). */
+  priceTable?: PriceTable;
   /** Set when the model hands the conversation over to a person. */
   handoffReason?: string;
   /** Who got it (name), for the panel. */
@@ -50,6 +53,7 @@ const inputs = {
     time: z.string().regex(/^\d{2}:\d{2}$/),
     professional_ids: z.array(z.string().uuid()).optional(),
   }),
+  send_price_table: z.object({}),
   list_customer_appointments: z.object({}),
   cancel_appointment: z.object({ appointment_id: z.string().uuid() }),
   save_customer_name: z.object({ name: z.string().trim().min(1).max(80) }),
@@ -120,6 +124,12 @@ export const tools: Anthropic.Tool[] = [
       },
       required: ["service_ids", "date", "time"],
     },
+  },
+  {
+    name: "send_price_table",
+    description:
+      "Envia à cliente a tabela de preços cadastrada pela dona (texto e/ou imagem ou PDF). Use quando a cliente pedir a tabela, a lista de preços, o catálogo ou todos os valores. Não serve para perguntar o preço de um serviço só: esse você responde pela lista de serviços.",
+    input_schema: { type: "object", properties: {} },
   },
   {
     name: "list_customer_appointments",
@@ -315,6 +325,23 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
       `Novo combo pela ${ctx.tenant.assistantName} (${when}):\n${lines.join("\n")}\nCliente: ${customerLabel(ctx)}`,
     );
     return { booked: true, when, ends_at: utcToZoned(parts.at(-1)!.endsAt, ctx.tenant.timezone).time, parts: lines };
+  },
+
+  async send_price_table(ctx) {
+    const table = await loadPriceTable(ctx.sql, ctx.tenant.id);
+    if (!table) {
+      return {
+        sent: false,
+        note: "Não há tabela de preços cadastrada. Responda com os preços da lista de serviços e, se a cliente quiser mais, ofereça chamar a equipe.",
+      };
+    }
+    ctx.priceTable = table;
+    return {
+      sent: true,
+      includes: [table.body ? "tabela escrita" : null, table.file ? "arquivo (imagem/PDF)" : null].filter(Boolean),
+      instruction:
+        "A tabela será enviada logo depois da sua resposta. Diga em uma frase curta que está mandando a tabela e pergunte se a cliente quer agendar algo. Não repita os valores.",
+    };
   },
 
   async list_customer_appointments(ctx) {

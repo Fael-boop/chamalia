@@ -7,6 +7,15 @@ export function normalizePhone(raw: string): string {
 }
 
 /**
+ * Digits only; a Brazilian number typed without country code (10 or 11
+ * digits) gets 55 in front, as WhatsApp expects.
+ */
+export function withCountryCode(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+}
+
+/**
  * Phone numbers must never be logged in full. Keeps the country/area prefix
  * and the last 4 digits: "5511987654321" -> "5511*****4321".
  */

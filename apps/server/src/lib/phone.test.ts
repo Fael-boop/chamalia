@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maskPhone, normalizePhone } from "./phone.js";
+import { maskPhone, normalizePhone, withCountryCode } from "./phone.js";
 
 describe("normalizePhone", () => {
   it("strips formatting and WhatsApp JID suffix", () => {
@@ -17,5 +17,16 @@ describe("maskPhone", () => {
   it("never returns a short number in full", () => {
     expect(maskPhone("98765432")).toBe("****5432");
     expect(maskPhone("1234")).toBe("****");
+  });
+});
+
+describe("withCountryCode", () => {
+  it("adds 55 to numbers typed with DDD only", () => {
+    expect(withCountryCode("(11) 98888-7777")).toBe("5511988887777");
+    expect(withCountryCode("1133334444")).toBe("551133334444");
+  });
+
+  it("keeps numbers that already have a country code", () => {
+    expect(withCountryCode("+55 11 98888-7777")).toBe("5511988887777");
   });
 });

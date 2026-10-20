@@ -1,4 +1,4 @@
-import type { Channel } from "./channel.js";
+import type { Channel, OutgoingFile } from "./channel.js";
 
 export class EvolutionError extends Error {
   constructor(
@@ -93,6 +93,18 @@ export class EvolutionClient {
     await this.request("DELETE", `/instance/logout/${instance}`);
   }
 
+  async sendFile(instance: string, toPhone: string, file: OutgoingFile): Promise<string | undefined> {
+    const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendMedia/${instance}`, {
+      number: toPhone,
+      mediatype: file.mime.startsWith("image/") ? "image" : "document",
+      mimetype: file.mime,
+      fileName: file.name,
+      caption: file.caption,
+      media: file.data.toString("base64"),
+    });
+    return result.key?.id;
+  }
+
   async sendText(instance: string, toPhone: string, text: string): Promise<string | undefined> {
     const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendText/${instance}`, {
       number: toPhone,
@@ -113,5 +125,9 @@ export class EvolutionChannel implements Channel {
 
   async sendText(toPhone: string, text: string) {
     return { providerMessageId: await this.client.sendText(this.instance, toPhone, text) };
+  }
+
+  async sendFile(toPhone: string, file: OutgoingFile) {
+    return { providerMessageId: await this.client.sendFile(this.instance, toPhone, file) };
   }
 }

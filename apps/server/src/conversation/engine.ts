@@ -6,6 +6,7 @@ import { KeyedLock } from "../lib/keyed-lock.js";
 import { formatDateTimePtBr } from "../lib/time.js";
 import type { PendingReminder } from "../reminders/reminders.js";
 import { cancelCustomerAppointment, getTenant, SchedulingError, type Service } from "../scheduling/service.js";
+import type { PriceTable } from "./price-table.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { executeTool, tools, type ToolContext } from "./tools.js";
 
@@ -119,6 +120,7 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
     values (${tenant.id}, ${conversation.id}, 'outbound', ${reply}, ${replyId})
   `;
+  if (ctx.priceTable) await sendPriceTable(deps, channel, conversation.id, tenant.id, message.fromPhone, ctx.priceTable);
   if (ctx.handoffReason) {
     const context = { handoffReason: ctx.handoffReason, handoffTo: ctx.handoffTo, handoffAt: new Date().toISOString() };
     await sql`
@@ -140,6 +142,33 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     ownerPhoneMissing: !tenant.ownerPhone,
     withOwner: Boolean(ctx.handoffReason),
   };
+}
+
+/** Sends the price list after the reply: the written table, then the file. Both are kept in the history. */
+async function sendPriceTable(
+  deps: Pick<EngineDeps, "sql" | "log">,
+  channel: Channel,
+  conversationId: string,
+  tenantId: string,
+  to: string,
+  table: PriceTable,
+) {
+  const { sql, log } = deps;
+  const store = (body: string, providerId: string | null) =>
+    sql`
+      insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
+      values (${tenantId}, ${conversationId}, 'outbound', ${body}, ${providerId})
+    `;
+  if (table.body) await store(table.body, await safeSend(channel, log, tenantId, to, table.body));
+  if (table.file) {
+    let id: string | null = null;
+    try {
+      id = (await channel.sendFile(to, table.file)).providerMessageId ?? null;
+    } catch (error) {
+      log.error({ err: error, tenantId, to, channel: channel.name }, "failed to send price table file");
+    }
+    await store(`[Tabela de preços enviada: ${table.file.name}]`, id);
+  }
 }
 
 /**
