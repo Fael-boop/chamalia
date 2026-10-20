@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { api, type Service, type Tenant } from "@/api";
+import { ConfirmDelete } from "@/components/confirm-delete";
 import { Hint, PageHeader } from "@/components/page-header";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
 import { Button } from "@/components/ui/button";
@@ -13,17 +14,6 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDuration, formatPrice } from "@/format";
@@ -109,6 +99,7 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                 </div>
               </button>
               <Switch checked={s.active} onCheckedChange={() => toggle.mutate(s)} aria-label={`Ativar ${s.name}`} />
+              <DeleteService tenant={tenant} service={s} compact />
             </li>
           ))}
         </ul>
@@ -121,7 +112,7 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                 <TableHead>Duração</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead className="w-28">Ativo</TableHead>
-                <TableHead className="w-24" />
+                <TableHead className="w-36" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,10 +132,11 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                   <TableCell>
                     <Switch checked={s.active} onCheckedChange={() => toggle.mutate(s)} aria-label={`Ativar ${s.name}`} />
                   </TableCell>
-                  <TableCell className="pr-4 text-right">
+                  <TableCell className="pr-4 text-right whitespace-nowrap">
                     <Button variant="ghost" size="sm" onClick={() => openForm(s)}>
                       Editar
                     </Button>
+                    <DeleteService tenant={tenant} service={s} compact />
                   </TableCell>
                 </TableRow>
               ))}
@@ -338,7 +330,8 @@ function ServiceForm({
   );
 }
 
-function DeleteService({ tenant, service, onDeleted }: { tenant: Tenant; service: Service; onDeleted: () => void }) {
+/** Trash button; `compact` is the small icon used in the list rows. */
+function DeleteService({ tenant, service, onDeleted, compact }: { tenant: Tenant; service: Service; onDeleted?: () => void; compact?: boolean }) {
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: () => api(`/tenants/${tenant.id}/services/${service.id}`, { method: "DELETE" }),
@@ -346,33 +339,26 @@ function DeleteService({ tenant, service, onDeleted }: { tenant: Tenant; service
       toast.success(`${service.name} excluído`);
       void queryClient.invalidateQueries({ queryKey: keys.services(tenant.id) });
       void queryClient.invalidateQueries({ queryKey: keys.professionals(tenant.id) });
-      onDeleted();
+      onDeleted?.();
     },
     onError: (e) => toast.error((e as Error).message),
   });
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
+    <ConfirmDelete
+      title={`Excluir ${service.name}?`}
+      description={`A ${tenant.assistantName} para de oferecer este serviço. Horários já marcados continuam na agenda. Para só pausar, desligue "Ativo".`}
+      onConfirm={() => remove.mutate()}
+    >
+      {compact ? (
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" aria-label={`Excluir ${service.name}`} disabled={remove.isPending}>
+          <Trash2 />
+        </Button>
+      ) : (
         <Button variant="outline" size="lg" className="text-destructive hover:text-destructive" disabled={remove.isPending}>
           Excluir
         </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Excluir {service.name}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            A {tenant.assistantName} para de oferecer este serviço. Horários já marcados continuam na agenda. Para só pausar, desligue
-            "Ativo".
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Voltar</AlertDialogCancel>
-          <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={() => remove.mutate()}>
-            Excluir
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      )}
+    </ConfirmDelete>
   );
 }

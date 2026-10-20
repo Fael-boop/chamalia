@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api, type Professional, type Tenant } from "@/api";
+import { ConfirmDelete } from "@/components/confirm-delete";
 import { Hint, PageHeader } from "@/components/page-header";
 import { ProfessionalHours } from "@/components/professional-hours";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,17 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
     onSuccess: (_d, { p, changes }) => {
       if ("active" in changes) toast.success(p.active ? `${p.name} desativada` : `${p.name} ativada`);
       else toast.success(`WhatsApp de ${p.name} salvo`);
+    },
+    onError: fail,
+    onSettled: refresh,
+  });
+  const remove = useMutation({
+    mutationFn: (p: Professional) => api(`/tenants/${tenant.id}/professionals/${p.id}`, { method: "DELETE" }),
+    onSuccess: (_d, p) => {
+      toast.success(`${p.name} excluída`);
+      void queryClient.invalidateQueries({ queryKey: ["handoff-topics", tenant.id] });
+      void queryClient.invalidateQueries({ queryKey: keys.tenant(tenant.id) });
+      void queryClient.invalidateQueries({ queryKey: keys.services(tenant.id) });
     },
     onError: fail,
     onSettled: refresh,
@@ -106,10 +118,21 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
                       : `${p.serviceIds.filter((id) => activeServices.some((s) => s.id === id)).length} de ${activeServices.length} serviços`}
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {p.active ? "Ativa" : "Inativa"}
-                  <Switch checked={p.active} onCheckedChange={() => update.mutate({ p, changes: { active: !p.active } })} />
-                </label>
+                <div className="flex items-center gap-1">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {p.active ? "Ativa" : "Inativa"}
+                    <Switch checked={p.active} onCheckedChange={() => update.mutate({ p, changes: { active: !p.active } })} />
+                  </label>
+                  <ConfirmDelete
+                    title={`Excluir ${p.name}?`}
+                    description={`${p.name} some da lista e a ${tenant.assistantName} para de oferecer horários com ela. Horários já marcados continuam na agenda. Avisos que iriam para ela passam a ir para a dona. Para só pausar, desligue "Ativa".`}
+                    onConfirm={() => remove.mutate(p)}
+                  >
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" aria-label={`Excluir ${p.name}`}>
+                      <Trash2 />
+                    </Button>
+                  </ConfirmDelete>
+                </div>
               </div>
               {p.kind === "professional" && (
                 <div className="grid grid-cols-1 gap-1 p-2 sm:grid-cols-2">

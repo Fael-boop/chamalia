@@ -171,6 +171,7 @@ Cada serviço "com a dona" e cada assunto escolhe quem resolve (`handoff_profess
 Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde pelo WhatsApp do salão.
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
+Excluir profissional (migration 006, `archived_at`): mesmo critério do serviço; ao arquivar, serviços/assuntos/padrão que a citavam voltam para a dona. Botão de lixeira também na lista de serviços.
 Excluir serviço: apaga se nunca teve agendamento; senão arquiva (`archived_at`, some do painel e da Lia).
 Corrigido: PATCH de serviço apagava preço/descrição (defaults do zod no partial).
 
