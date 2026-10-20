@@ -63,6 +63,8 @@ const serviceCreate = serviceFields.partial({
   handoffProfessionalId: true,
 });
 
+const faqBody = z.object({ question: z.string().trim().min(1).max(200), answer: z.string().trim().min(1).max(1000) });
+
 const topicBody = z.object({
   topic: z.string().trim().min(1).max(200),
   reason: optionalText(300),
@@ -275,6 +277,35 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
       return deleted.length ? { deleted: true } : null;
     });
     return result ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  // --- Ready answers (FAQ) ---
+
+  app.get("/api/tenants/:tenantId/faq", async (request) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    return sql`select id, question, answer from faq_entries where tenant_id = ${tenantId} order by created_at`;
+  });
+
+  app.post("/api/tenants/:tenantId/faq", async (request, reply) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    const body = faqBody.parse(request.body);
+    const [entry] = await sql`insert into faq_entries ${sql({ tenantId, ...body })} returning id, question, answer`;
+    return reply.code(201).send(entry);
+  });
+
+  app.patch("/api/tenants/:tenantId/faq/:id", async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const body = faqBody.parse(request.body);
+    const [entry] = await sql`
+      update faq_entries set ${sql(body)} where tenant_id = ${tenantId} and id = ${id} returning id, question, answer
+    `;
+    return entry ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  app.delete("/api/tenants/:tenantId/faq/:id", async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const deleted = await sql`delete from faq_entries where tenant_id = ${tenantId} and id = ${id} returning id`;
+    return deleted.length ? { deleted: true } : reply.code(404).send({ error: "not_found" });
   });
 
   // --- Subjects always handed over to the owner ---

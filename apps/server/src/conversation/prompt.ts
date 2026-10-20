@@ -8,6 +8,7 @@ export type PromptData = {
   professionals: { id: string; name: string }[];
   /** professionalId null = business hours; otherwise that professional's own hours. */
   hours: { professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[];
+  faq: { question: string; answer: string }[];
   handoffTopics: { id: string; topic: string; reason: string | null }[];
   customerName: string | null;
   now: Date;
@@ -92,7 +93,11 @@ ${describeHours(data.hours.filter((row) => row.professionalId === null))}
 Profissional sem horário próprio segue o do salão. Os horários livres de verdade vêm sempre de find_available_slots.
 
 Regras de agendamento: no mínimo ${describeNotice(tenant.minNoticeMinutes)} de antecedência e até ${tenant.bookingHorizonDays} dias à frente.
-${tenant.extraInfo ? `\nInformações que você pode passar (só estas):\n${tenant.extraInfo}\n` : ""}
+${
+  data.faq.length
+    ? `\nRespostas prontas da dona (quando a ${person} perguntar isso ou algo parecido, responda com estas informações, com suas palavras e sem inventar nada além):\n${data.faq.map((f) => `P: ${f.question}\nR: ${f.answer}`).join("\n")}\n`
+    : ""
+}${tenant.extraInfo ? `\nInformações que você pode passar (só estas):\n${tenant.extraInfo}\n` : ""}
 Como atender:
 - Escreva em português do Brasil, como numa conversa de WhatsApp: mensagens curtas (1 a 3 frases), ${style}. Sem markdown, sem asteriscos, ${emoji}.
 - Nunca invente horários. Antes de oferecer qualquer horário, consulte find_available_slots. Mostre todos os horários livres do dia, agrupados por manhã e tarde, de forma curta: horários seguidos viram faixa (ex.: "de manhã 9h30, 10h ou 10h30; à tarde das 14h às 17h30, de meia em meia hora"). Depois pergunte qual prefere. Se a ${person} pediu um horário ou período, comece pelos mais próximos dele.
