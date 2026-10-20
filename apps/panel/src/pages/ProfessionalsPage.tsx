@@ -152,7 +152,7 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
       )}
       <div className="mt-3 space-y-1">
         <Hint>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz. Em "Horários", defina dias e horários diferentes dos do salão.</Hint>
-        <Hint>O WhatsApp para avisos é usado quando uma conversa é passada para essa pessoa (veja "Passar para a dona"). Sem número, o aviso vai para a dona.</Hint>
+        <Hint>O WhatsApp para avisos é usado quando uma conversa é passada para essa pessoa (veja "Passar para a equipe"). Sem número, o aviso vai para a dona.</Hint>
       </div>
     </>
   );

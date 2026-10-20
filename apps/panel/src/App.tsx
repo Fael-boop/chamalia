@@ -151,7 +151,7 @@ function BusinessWorkspace({
     { id: "professionals", label: "Profissionais", icon: UsersRound },
     { id: "hours", label: "Horários", icon: Clock },
     { id: "faq", label: "Respostas prontas", icon: MessageSquareText },
-    { id: "handoff", label: "Passar para a dona", icon: UserRoundCheck },
+    { id: "handoff", label: "Passar para a equipe", icon: UserRoundCheck },
     { id: "settings", label: "Configurações", icon: Settings },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
     ...(role === "admin"

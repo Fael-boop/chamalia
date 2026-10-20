@@ -69,12 +69,12 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
       {mobile ? (
         <div className="mb-4 space-y-2">
           {newButton}
-          <Hint>Só serviços com duração fixa. Combos, encaixe e serviços marcados "sempre com a dona" a {tenant.assistantName} passa para você.</Hint>
+          <Hint>Só serviços com duração fixa. Combos, encaixe e serviços marcados "sempre com a equipe" a {tenant.assistantName} passa para você.</Hint>
         </div>
       ) : (
         <PageHeader
           title="Serviços"
-          description={`O que a ${tenant.assistantName} agenda sozinha. Combos, encaixe e serviços marcados "sempre com a dona" ela passa para você.`}
+          description={`O que a ${tenant.assistantName} agenda sozinha. Combos, encaixe e serviços marcados "sempre com a equipe" ela passa para você.`}
           actions={newButton}
         />
       )}
@@ -95,7 +95,7 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {formatDuration(s.durationMinutes)} · {formatPrice(s.priceCents)}
-                  {s.handoff && " · com a dona"}
+                  {s.handoff && " · com a equipe"}
                 </div>
               </button>
               <Switch checked={s.active} onCheckedChange={() => toggle.mutate(s)} aria-label={`Ativar ${s.name}`} />
@@ -123,7 +123,7 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                     {s.description && <div className="text-xs font-normal text-muted-foreground">{s.description}</div>}
                     {s.handoff && (
                       <div className="text-xs font-normal text-muted-foreground">
-                        Sempre com a dona{s.handoffReason ? `: ${s.handoffReason}` : ""}
+                        Sempre com a equipe{s.handoffReason ? `: ${s.handoffReason}` : ""}
                       </div>
                     )}
                   </TableCell>
@@ -300,7 +300,7 @@ function ServiceForm({
             render={({ field }) => (
               <FormItem className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
                 <div className="space-y-1">
-                  <FormLabel>Sempre passar para a dona</FormLabel>
+                  <FormLabel>Sempre passar para a equipe</FormLabel>
                   <FormDescription className="text-xs">A {tenant.assistantName} não agenda: entende o pedido e chama você.</FormDescription>
                 </div>
                 <FormControl>

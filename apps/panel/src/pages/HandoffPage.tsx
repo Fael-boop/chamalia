@@ -93,8 +93,8 @@ export function HandoffPage({ tenant }: { tenant: Tenant }) {
     <>
       {!mobile && (
         <PageHeader
-          title="Passar para a dona"
-          description={`Quando a ${lia} para de responder e chama uma pessoa. Ela avisa a cliente, manda o pedido no WhatsApp de quem vai resolver e fica em silêncio nessa conversa.`}
+          title="Passar para a equipe"
+          description={`Quando a ${lia} para de responder e chama uma pessoa da equipe (dona, profissional ou recepção). Ela avisa a cliente, manda o pedido no WhatsApp de quem vai resolver e fica em silêncio nessa conversa.`}
         />
       )}
       <p className="mb-6 text-xs text-muted-foreground">
@@ -106,6 +106,9 @@ export function HandoffPage({ tenant }: { tenant: Tenant }) {
           </span>
         )}
         Quem recebe o aviso responde a cliente pelo WhatsApp do salão. O WhatsApp de cada pessoa fica em Profissionais.
+        {!professionals.isLoading && !people.some((p) => p.kind === "reception") && (
+          <> Se uma recepcionista cuida das dúvidas (corte, progressiva…), cadastre-a em Profissionais com o botão Recepção: ela vira quem recebe o resto.</>
+        )}
       </p>
 
       <Section title="Assuntos" description={`Temas que alguém da equipe responde pessoalmente. A ${lia} passa assim que a cliente tocar no assunto.`}>

@@ -135,7 +135,7 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
               className="overflow-hidden border-b bg-muted/50"
             >
               <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs">
-                <span className="font-medium">Com a dona</span>
+                <span className="font-medium">Com a equipe</span>
                 <span className="text-muted-foreground">
                   A {tenant.assistantName} não responde até ser devolvida.
                   {state.handoffReason && ` Pedido: ${state.handoffReason}`}
@@ -186,7 +186,7 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
                 animate={{ opacity: 1 }}
                 className="mx-auto max-w-[90%] border-l-2 border-primary/50 pl-3 text-xs whitespace-pre-wrap text-muted-foreground"
               >
-                <span className="font-medium text-foreground">Aviso para a dona no WhatsApp</span>
+                <span className="font-medium text-foreground">Aviso para a equipe no WhatsApp</span>
                 {"\n"}
                 {item.notice.text}
               </motion.div>
@@ -234,7 +234,7 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
         </form>
       </div>
       <div className="mt-2">
-        <Hint>É o mesmo motor que responde no WhatsApp. Avisos para a dona aparecem no meio da conversa.</Hint>
+        <Hint>É o mesmo motor que responde no WhatsApp. Avisos para a equipe aparecem no meio da conversa.</Hint>
       </div>
     </>
   );
