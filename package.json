@@ -19,6 +19,7 @@
     "whatsapp:connect": "npm run whatsapp:connect -w @chamalia/server --",
     "evolution:up": "docker compose -f docker-compose.dev.yml --env-file .env up -d",
     "evolution:down": "docker compose -f docker-compose.dev.yml --env-file .env down",
-    "db:seed:salon": "npm run db:seed:salon -w @chamalia/server"
+    "db:seed:salon": "npm run db:seed:salon -w @chamalia/server",
+    "dev:site": "npm run dev -w @chamalia/site"
   }
 }

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../../../brand/palette.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -11,30 +12,6 @@
  * 3) Status de agendamento: tons discretos, só para status.
  */
 :root {
-  --brand-50: #eff6ff;
-  --brand-100: #dbeafe;
-  --brand-200: #bfdbfe;
-  --brand-300: #93c5fd;
-  --brand-400: #60a5fa;
-  --brand-500: #3b82f6;
-  --brand-600: #2563eb;
-  --brand-700: #1d4ed8;
-  --brand-800: #1e40af;
-  --brand-900: #1e3a8a;
-  --brand-950: #172554;
-
-  --graphite-50: #f7f7f8;
-  --graphite-100: #eeeef0;
-  --graphite-200: #e1e2e5;
-  --graphite-300: #c7c9ce;
-  --graphite-400: #9b9ea6;
-  --graphite-500: #6f727b;
-  --graphite-600: #53565e;
-  --graphite-700: #3e4148;
-  --graphite-800: #2a2c32;
-  --graphite-900: #1a1b20;
-  --graphite-950: #0e0f13;
-
   --radius: 0.5rem;
 
   --background: var(--graphite-50);
