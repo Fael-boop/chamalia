@@ -118,7 +118,7 @@ function Hero() {
   return (
     <section id="topo" className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:py-24 lg:grid-cols-[1.1fr_1fr]">
       <div className="space-y-7">
-        <p className="text-sm font-medium text-primary">Para salões, barbearias e negócios com hora marcada</p>
+        <p className="text-sm font-medium text-primary">Para o seu negócio com hora marcada</p>
         <h1 className="text-4xl leading-[1.08] font-semibold tracking-tight sm:text-5xl lg:text-6xl">
           Sua atendente no WhatsApp, <span className="text-primary">sempre disponível.</span>
         </h1>
@@ -179,9 +179,9 @@ function HowItWorks() {
 const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
   { icon: CalendarCheck, title: "Agenda sozinha", text: "Mostra os horários livres de cada profissional e marca sem dupla reserva." },
   { icon: Bell, title: "Lembra na véspera", text: "Manda o lembrete e, se o cliente não puder ir, remarca na hora." },
-  { icon: Layers, title: "Vários serviços de uma vez", text: "Corte e escova, unha e hidratação: a Lia encaixa um depois do outro, de preferência com a mesma profissional." },
+  { icon: Layers, title: "Vários serviços de uma vez", text: "Quando o cliente quer mais de um serviço no mesmo dia, a Lia encaixa um depois do outro, de preferência com o mesmo profissional." },
   { icon: UserRoundCheck, title: "Chama a pessoa certa", text: "Dúvidas, casos especiais e pedidos fora do comum vão para a recepção ou para a profissional que você escolher." },
-  { icon: Clock, title: "Horários de cada profissional", text: "Cada uma com seus dias e horários, e a Lia só oferece o que realmente existe." },
+  { icon: Clock, title: "Horários de cada profissional", text: "Cada profissional com seus dias e horários, e a Lia só oferece o que realmente existe." },
   { icon: Smartphone, title: "Painel no computador e no celular", text: "Agenda, clientes, serviços, tabela de preços e respostas prontas, tudo à mão e do seu jeito." },
 ];
 
