@@ -165,6 +165,7 @@ Passar para a dona configurável (feito em 2026-10-20, migration 004): tela "Pas
 serviços marcados "sempre com a dona" + motivo (`services.handoff`, `handoff_reason`; as tools recusam
 buscar/agendar esses serviços), assuntos + motivo (tabela `handoff_topics`; o antigo
 `tenants.handoff_rules` virou o primeiro assunto e não é mais usado) e a regra fixa "na dúvida, passa".
+Volta da conversa para a Lia (migration 010, `tenants.handoff_return_hours`, padrão 12 h): (1) botão "Devolver para a Lia" na lista "Conversas com a equipe agora" (tela Passar para a equipe; rotas `GET /handoffs` e `POST /conversations/:id/release`); (2) sozinha, quando a cliente escreve e ninguém da equipe escreveu na conversa há mais que o tempo configurado (conta do `handoffAt` ou do `teamLastAt`, atualizado a cada mensagem da dona pelo celular); aí a dona recebe aviso de pedido pendente. Depois de voltar, `context.returned` (24 h) avisa a Lia para não repassar o mesmo pedido de novo (evita ciclo).
 Passar para outra pessoa (feito em 2026-10-20, migration 005): `professionals.kind` (`professional` ou
 `reception`, recepção não faz serviço nem aparece na agenda) e `notify_phone` (WhatsApp para avisos).
 Cada serviço "com a dona" e cada assunto escolhe quem resolve (`handoff_professional_id` /

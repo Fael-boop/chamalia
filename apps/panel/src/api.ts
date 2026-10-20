@@ -63,6 +63,8 @@ export type Tenant = {
   handoffRules: string | null;
   /** Who gets handoffs nobody configured; null = the owner. */
   defaultHandoffProfessionalId: string | null;
+  /** Hours without the team writing before a handed-over conversation returns to the assistant. */
+  handoffReturnHours: number;
   minNoticeMinutes: number;
   bookingHorizonDays: number;
   whatsappInstance: string | null;
@@ -130,6 +132,18 @@ export type Service = {
 export type PriceTable = {
   body: string | null;
   file: { name: string | null; mime: string | null; size: number; dataUrl: string | null } | null;
+};
+
+export type TeamConversation = {
+  id: string;
+  reason: string | null;
+  handoffTo: string | null;
+  handoffAt: string | null;
+  teamLastAt: string | null;
+  lastMessageAt: string;
+  customerName: string | null;
+  customerPhone: string;
+  lastMessage: string | null;
 };
 
 export type FaqEntry = { id: string; question: string; answer: string };

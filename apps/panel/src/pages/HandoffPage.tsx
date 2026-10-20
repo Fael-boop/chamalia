@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { api, type HandoffTopic, type Professional, type Service, type Tenant } from "@/api";
 import { Hint, PageHeader } from "@/components/page-header";
+import { TeamConversations } from "@/components/team-conversations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -111,6 +112,9 @@ export function HandoffPage({ tenant }: { tenant: Tenant }) {
         )}
       </div>
 
+      <Section title="Conversas com a equipe agora" description={`A ${lia} fica em silêncio nessas conversas até alguém devolver ou o tempo acabar.`}>
+        <TeamConversations tenant={tenant} />
+      </Section>
       <Section title="Assuntos" description={`Temas que alguém da equipe responde pessoalmente. A ${lia} passa assim que a cliente tocar no assunto.`}>
         <TopicsList tenant={tenant} people={people} />
       </Section>
