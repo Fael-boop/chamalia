@@ -97,6 +97,7 @@ Fonte principal: doc da Meta "Onboard WhatsApp Business app users" (Embedded Sig
 ```
 npm run dev:server   # bot em :3000 (lê ../../.env)
 npm run dev:panel    # painel em :5173, faz proxy de /api e /health para :3000
+npm run dev:site     # site de apresentação em :5174 (botão Entrar vai para VITE_APP_URL, padrão https://app.chamalia.com.br)
 npm run db:migrate   # aplica migrations pendentes (o servidor também aplica ao subir)
 npm run db:seed      # cria o tenant "demo" (Barbearia Demo), idempotente
 npm test / npm run typecheck / npm run build
@@ -198,6 +199,7 @@ TanStack Query, date-fns pt-BR, motion + tw-animate-css, PWA (vite-plugin-pwa). 
   Azul = ações e destaques; grafite/preto = estrutura (menu lateral, topo, texto principal).
   Fundo do conteúdo claro; modo escuro (base preta, destaque azul) com botão de alternar
   (`chamalia.theme` no localStorage, sem flash).
+- Site de apresentação (`apps/site`, feito em 2026-10-20): página única para `chamalia.com.br` (Vite + React + Tailwind, estático), com como funciona, o que a Lia faz, para quem é, "Fale com a gente" (WhatsApp 62 99362-1633, sem preço no site de propósito), FAQ e botão **Entrar** para o painel em `app.chamalia.com.br`. Paleta compartilhada em `brand/palette.css` (painel e site importam; trocar a cor da marca é só ali). Plano: site agora → pagamento por link → assinatura automática só depois de uns 5 a 10 clientes. O painel continua em `apps/panel`.
 - Identidade: marca = quadrado escuro com "L" branco e ponto azul (`public/logo.svg`, componente `components/logo.tsx`, que usa os tokens `--graphite-950`/`--brand-500`). Aparece no login (painel preto com frase à esquerda no desktop; marca no topo no celular), menu lateral, barra do topo no celular, tela de carregamento e rodapé de "Mais". Nome com "Lia" na cor da marca. Não usar a marca como enfeite em outros lugares.
 - Cores de status discretas, só para confirmado/pendente/cancelado/concluído
   (`--status-*`). Sem gradiente, sem card colorido, sem ícone decorativo.
