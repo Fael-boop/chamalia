@@ -190,9 +190,9 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
     sql<{ id: string; name: string }[]>`
       select id, name from professionals where tenant_id = ${tenant.id} and active order by name
     `,
-    sql<{ weekday: number; opensAt: string; closesAt: string }[]>`
-      select weekday, opens_at, closes_at from business_hours
-      where tenant_id = ${tenant.id} and professional_id is null order by weekday, opens_at
+    sql<{ professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[]>`
+      select professional_id, weekday, opens_at, closes_at from business_hours
+      where tenant_id = ${tenant.id} order by weekday, opens_at
     `,
     sql<{ direction: "inbound" | "outbound"; body: string }[]>`
       select direction, body from (

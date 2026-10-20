@@ -6,7 +6,8 @@ export type PromptData = {
   tenant: Tenant;
   services: Service[];
   professionals: { id: string; name: string }[];
-  hours: { weekday: number; opensAt: string; closesAt: string }[];
+  /** professionalId null = business hours; otherwise that professional's own hours. */
+  hours: { professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[];
   customerName: string | null;
   now: Date;
 };
@@ -14,12 +15,26 @@ export type PromptData = {
 const formatPrice = (cents: number | null) =>
   cents === null ? "preço sob consulta" : `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
 
+function windowsOf(hours: PromptData["hours"], weekday: number): string[] {
+  return hours
+    .filter((row) => row.weekday === weekday)
+    .map((row) => `${row.opensAt.slice(0, 5)}-${row.closesAt.slice(0, 5)}`);
+}
+
+/** Only the days a professional works, e.g. "terça 09:00-11:00, 14:00-18:00; quarta ...". */
+function describeOwnHours(hours: PromptData["hours"]): string {
+  const days: string[] = [];
+  for (let weekday = 0; weekday <= 6; weekday++) {
+    const windows = windowsOf(hours, weekday);
+    if (windows.length) days.push(`${weekdayName(weekday)} ${windows.join(", ")}`);
+  }
+  return days.join("; ");
+}
+
 function describeHours(hours: PromptData["hours"]): string {
   const lines: string[] = [];
   for (let weekday = 0; weekday <= 6; weekday++) {
-    const windows = hours
-      .filter((row) => row.weekday === weekday)
-      .map((row) => `${row.opensAt.slice(0, 5)}-${row.closesAt.slice(0, 5)}`);
+    const windows = windowsOf(hours, weekday);
     lines.push(`- ${weekdayName(weekday)}: ${windows.length ? windows.join(", ") : "fechado"}`);
   }
   return lines.join("\n");
@@ -55,10 +70,16 @@ Serviços:
 ${data.services.map((s) => `- ${s.name}: ${s.durationMinutes} min, ${formatPrice(s.priceCents)} [service_id: ${s.id}]${s.description ? ` — ${s.description}` : ""}`).join("\n") || "- (nenhum serviço cadastrado: passe para a dona)"}
 
 Profissionais:
-${data.professionals.map((p) => `- ${p.name} [professional_id: ${p.id}]`).join("\n")}
+${data.professionals
+  .map((p) => {
+    const own = data.hours.filter((row) => row.professionalId === p.id);
+    return `- ${p.name} [professional_id: ${p.id}]${own.length ? ` — atende só: ${describeOwnHours(own)}` : ""}`;
+  })
+  .join("\n")}
 
 Horário de funcionamento:
-${describeHours(data.hours)}
+${describeHours(data.hours.filter((row) => row.professionalId === null))}
+Profissional sem horário próprio segue o do salão. Os horários livres de verdade vêm sempre de find_available_slots.
 
 Regras de agendamento: no mínimo ${describeNotice(tenant.minNoticeMinutes)} de antecedência e até ${tenant.bookingHorizonDays} dias à frente.
 ${tenant.extraInfo ? `\nInformações que você pode passar (só estas):\n${tenant.extraInfo}\n` : ""}

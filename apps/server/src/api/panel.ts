@@ -53,6 +53,7 @@ const serviceBody = z.object({
 
 const professionalBody = z.object({ name: z.string().trim().min(1).max(80), active: z.boolean().default(true) });
 
+const hoursQuery = z.object({ professionalId: uuid.optional() });
 const hoursBody = z.array(
   z
     .object({ weekday: z.number().int().min(0).max(6), opensAt: time, closesAt: time })
@@ -278,26 +279,37 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
 
   // --- Business hours ---
 
+  // Without professionalId: the business schedule. With it: that professional's own
+  // schedule; empty means she follows the business schedule.
   app.get("/api/tenants/:tenantId/business-hours", async (request) => {
     const { tenantId } = tenantParams.parse(request.params);
+    const { professionalId } = hoursQuery.parse(request.query);
     return sql`
       select weekday, to_char(opens_at, 'HH24:MI') as opens_at, to_char(closes_at, 'HH24:MI') as closes_at
-      from business_hours where tenant_id = ${tenantId} and professional_id is null
+      from business_hours
+      where tenant_id = ${tenantId}
+        and ${professionalId ? sql`professional_id = ${professionalId}` : sql`professional_id is null`}
       order by weekday, opens_at
     `;
   });
 
-  // Replaces the whole weekly schedule of the business (not per professional).
+  // Replaces the whole weekly schedule (of the business or of one professional).
   app.put("/api/tenants/:tenantId/business-hours", async (request) => {
     const { tenantId } = tenantParams.parse(request.params);
+    const { professionalId = null } = hoursQuery.parse(request.query);
     const rows = hoursBody.parse(request.body);
     await sql.begin(async (tx) => {
-      await tx`delete from business_hours where tenant_id = ${tenantId} and professional_id is null`;
+      await tx`
+        delete from business_hours
+        where tenant_id = ${tenantId}
+          and ${professionalId ? tx`professional_id = ${professionalId}` : tx`professional_id is null`}
+      `;
       if (rows.length > 0) {
         await tx`
           insert into business_hours ${tx(
-            rows.map((row) => ({ tenantId, ...row })),
+            rows.map((row) => ({ tenantId, professionalId, ...row })),
             "tenantId",
+            "professionalId",
             "weekday",
             "opensAt",
             "closesAt",
