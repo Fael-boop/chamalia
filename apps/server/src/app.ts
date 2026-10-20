@@ -7,6 +7,8 @@ import { ZodError } from "zod";
 import { registerAuth } from "./api/auth.js";
 import { registerPanelRoutes } from "./api/panel.js";
 import { registerTestChatRoutes } from "./api/test-chat.js";
+import { registerWebhookRoutes } from "./api/webhooks.js";
+import { EvolutionClient } from "./channels/evolution.js";
 import type { Config } from "./config.js";
 import type { Sql } from "./db/client.js";
 import { loggerOptions } from "./lib/logger.js";
@@ -44,6 +46,16 @@ export async function buildApp(config: Config, sql?: Sql) {
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
     registerPanelRoutes(app, sql);
     registerTestChatRoutes(app, { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log });
+
+    if (anthropic && config.EVOLUTION_API_URL && config.EVOLUTION_API_KEY && config.WEBHOOK_SECRET) {
+      registerWebhookRoutes(app, {
+        engine: { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log },
+        evolution: new EvolutionClient(config.EVOLUTION_API_URL, config.EVOLUTION_API_KEY),
+        secret: config.WEBHOOK_SECRET,
+      });
+    } else {
+      app.log.warn("WhatsApp (Evolution) desligado: faltam ANTHROPIC_API_KEY, EVOLUTION_API_URL, EVOLUTION_API_KEY ou WEBHOOK_SECRET");
+    }
   }
 
   if (existsSync(panelDist)) {

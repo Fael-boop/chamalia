@@ -15,6 +15,9 @@
     "db:seed": "npm run db:seed -w @chamalia/server",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "whatsapp:connect": "npm run whatsapp:connect -w @chamalia/server --",
+    "evolution:up": "docker compose -f docker-compose.dev.yml --env-file .env up -d",
+    "evolution:down": "docker compose -f docker-compose.dev.yml --env-file .env down"
   }
 }

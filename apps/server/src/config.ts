@@ -22,6 +22,8 @@ const envSchema = z
     WHATSAPP_PROVIDER: z.enum(["evolution", "meta_cloud"]).default("evolution"),
     EVOLUTION_API_URL: optionalString,
     EVOLUTION_API_KEY: optionalString,
+    // Address of this bot as seen from the Evolution container.
+    EVOLUTION_WEBHOOK_BASE_URL: z.string().url().default("http://host.docker.internal:3000"),
     WEBHOOK_SECRET: optionalString,
 
     META_ACCESS_TOKEN: optionalString,

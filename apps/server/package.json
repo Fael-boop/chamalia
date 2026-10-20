@@ -11,7 +11,8 @@
     "db:migrate": "tsx --env-file-if-exists=../../.env src/db/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=../../.env src/db/seed.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "whatsapp:connect": "tsx --env-file-if-exists=../../.env src/scripts/whatsapp-connect.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

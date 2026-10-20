@@ -72,6 +72,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-chamalia}:${POSTGRES_PASSWORD}@postgres:5432/chamalia
       EVOLUTION_API_URL: http://evolution:8080
+      EVOLUTION_WEBHOOK_BASE_URL: http://bot:3000
     ports:
       - "127.0.0.1:3000:3000"
 
