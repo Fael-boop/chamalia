@@ -56,15 +56,23 @@ export function AppShell({ brand, context, items, mobileItems, current, onNaviga
   );
 
   if (mobile) {
-    const currentLabel = items.find((item) => item.id === current)?.label ?? brand;
+    const currentLabel = current === "more" ? "Mais" : (items.find((item) => item.id === current)?.label ?? brand);
     return (
       <div className="min-h-dvh pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-sidebar px-4 text-white">
-          <LogoMark size={30} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] font-semibold">{currentLabel}</div>
-            <div className="truncate text-[11px] text-sidebar-foreground">{context ?? brand}</div>
-          </div>
+          {/* Tapping the logo or the title opens "Mais", like the bottom menu item. */}
+          <button
+            type="button"
+            onClick={() => onNavigate("more")}
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity active:opacity-70"
+            aria-label="Abrir o menu Mais"
+          >
+            <LogoMark size={30} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[15px] font-semibold">{currentLabel}</span>
+              <span className="block truncate text-[11px] text-sidebar-foreground">{context ?? brand}</span>
+            </span>
+          </button>
           <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white" />
         </header>
         <main className="px-4 py-4">{content}</main>
