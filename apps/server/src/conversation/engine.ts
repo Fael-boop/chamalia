@@ -13,6 +13,8 @@ export type IncomingMessage = {
   text: string;
   /** Id from WhatsApp; repeated deliveries of the same id are ignored. */
   providerMessageId: string;
+  /** Audio, image, sticker...: stored as-is, answered with a fixed message. */
+  unsupported?: boolean;
 };
 
 export type EngineDeps = {
@@ -29,8 +31,36 @@ const MAX_TOOL_ROUNDS = 8;
 /** conversations.state while the owner is handling the conversation. */
 export const HUMAN_STATE = "human";
 const FALLBACK_REPLY = "Desculpe, tive um probleminha aqui. Pode me mandar de novo em alguns instantes?";
+const UNSUPPORTED_REPLY = "Por enquanto eu só consigo ler mensagens de texto. Pode me escrever? 🙂";
+const OWNER_TOOK_OVER = "A dona respondeu pelo WhatsApp";
 
+// One lock per tenant + customer phone: customer messages, our replies and the
+// owner's own messages for the same chat are processed one at a time.
 const lock = new KeyedLock();
+
+async function upsertConversation(sql: Sql, tenantId: string, phone: string) {
+  const [customer] = await sql<{ id: string; phone: string; name: string | null }[]>`
+    insert into customers (tenant_id, phone) values (${tenantId}, ${phone})
+    on conflict (tenant_id, phone) do update set updated_at = now()
+    returning id, phone, name
+  `;
+  const [conversation] = await sql<{ id: string; state: string }[]>`
+    insert into conversations (tenant_id, customer_id) values (${tenantId}, ${customer!.id})
+    on conflict (tenant_id, customer_id) do update set last_message_at = now()
+    returning id, state
+  `;
+  return { customer: customer!, conversation: conversation! };
+}
+
+/** Sends through the channel; a failure is logged and does not lose the stored message. */
+async function safeSend(channel: Channel, log: FastifyBaseLogger, tenantId: string, to: string, text: string) {
+  try {
+    return (await channel.sendText(to, text)).providerMessageId ?? null;
+  } catch (error) {
+    log.error({ err: error, tenantId, to, channel: channel.name }, "failed to send message");
+    return null;
+  }
+}
 
 /**
  * Handles one customer message end to end: identifies the customer, asks the
@@ -49,19 +79,10 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     return;
   }
 
-  const [customer] = await sql<{ id: string; phone: string; name: string | null }[]>`
-    insert into customers (tenant_id, phone) values (${tenant.id}, ${message.fromPhone})
-    on conflict (tenant_id, phone) do update set updated_at = now()
-    returning id, phone, name
-  `;
-  const [conversation] = await sql<{ id: string; state: string }[]>`
-    insert into conversations (tenant_id, customer_id) values (${tenant.id}, ${customer!.id})
-    on conflict (tenant_id, customer_id) do update set last_message_at = now()
-    returning id, state
-  `;
+  const { customer, conversation } = await upsertConversation(sql, tenant.id, message.fromPhone);
   const inserted = await sql`
     insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
-    values (${tenant.id}, ${conversation!.id}, 'inbound', ${message.text}, ${message.providerMessageId})
+    values (${tenant.id}, ${conversation.id}, 'inbound', ${message.text}, ${message.providerMessageId})
     on conflict (tenant_id, provider_message_id) do nothing
     returning id
   `;
@@ -70,36 +91,41 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     return;
   }
   // The owner took over this conversation: store the message, stay quiet.
-  if (conversation!.state === HUMAN_STATE) {
+  if (conversation.state === HUMAN_STATE) {
     return { reply: null, ownerNotices: [], ownerPhoneMissing: !tenant.ownerPhone, withOwner: true };
   }
 
-  const ctx: ToolContext = { sql, tenant, customer: customer!, ownerNotices: [] };
+  const ctx: ToolContext = { sql, tenant, customer, ownerNotices: [] };
   let reply: string;
-  try {
-    reply = await askModel(deps, ctx, conversation!.id);
-  } catch (error) {
-    log.error({ err: error, tenantId: tenant.id }, "conversation engine failed");
-    reply = FALLBACK_REPLY;
+  if (message.unsupported) {
+    reply = UNSUPPORTED_REPLY;
+  } else {
+    try {
+      reply = await askModel(deps, ctx, conversation.id);
+    } catch (error) {
+      log.error({ err: error, tenantId: tenant.id }, "conversation engine failed");
+      reply = FALLBACK_REPLY;
+    }
   }
 
+  // Send first so the provider id is stored before its echo comes back.
+  const replyId = await safeSend(channel, log, tenant.id, message.fromPhone, reply);
   await sql`
-    insert into messages (tenant_id, conversation_id, direction, body)
-    values (${tenant.id}, ${conversation!.id}, 'outbound', ${reply})
+    insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
+    values (${tenant.id}, ${conversation.id}, 'outbound', ${reply}, ${replyId})
   `;
   if (ctx.handoffReason) {
     const context = { handoffReason: ctx.handoffReason, handoffAt: new Date().toISOString() };
     await sql`
       update conversations set state = ${HUMAN_STATE}, context = ${sql.json(context)}, last_message_at = now()
-      where id = ${conversation!.id}
+      where id = ${conversation.id}
     `;
   } else {
-    await sql`update conversations set last_message_at = now() where id = ${conversation!.id}`;
+    await sql`update conversations set last_message_at = now() where id = ${conversation.id}`;
   }
 
-  await channel.sendText(message.fromPhone, reply);
   for (const notice of ctx.ownerNotices) {
-    if (tenant.ownerPhone) await channel.sendText(tenant.ownerPhone, notice);
+    if (tenant.ownerPhone) await safeSend(channel, log, tenant.id, tenant.ownerPhone, notice);
     else log.warn({ tenantId: tenant.id }, "owner phone not set; notification not sent");
   }
   return {
@@ -108,6 +134,39 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     ownerPhoneMissing: !tenant.ownerPhone,
     withOwner: Boolean(ctx.handoffReason),
   };
+}
+
+/**
+ * A message sent from the business phone itself (fromMe). Our own replies come
+ * back as echoes and are ignored by id; anything else was typed by the owner,
+ * so the assistant steps out of that conversation.
+ */
+export async function handleOwnerMessage(
+  deps: Pick<EngineDeps, "sql" | "log">,
+  message: { tenantId: string; toPhone: string; text: string; providerMessageId: string },
+) {
+  const { sql, log } = deps;
+  return lock.run(`${message.tenantId}:${message.toPhone}`, async () => {
+    const [echo] = await sql`
+      select 1 from messages where tenant_id = ${message.tenantId} and provider_message_id = ${message.providerMessageId}
+    `;
+    if (echo) return;
+
+    const { conversation } = await upsertConversation(sql, message.tenantId, message.toPhone);
+    await sql`
+      insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
+      values (${message.tenantId}, ${conversation.id}, 'outbound', ${message.text}, ${message.providerMessageId})
+      on conflict (tenant_id, provider_message_id) do nothing
+    `;
+    if (conversation.state !== HUMAN_STATE) {
+      const context = { handoffReason: OWNER_TOOK_OVER, handoffAt: new Date().toISOString() };
+      await sql`
+        update conversations set state = ${HUMAN_STATE}, context = ${sql.json(context)}
+        where id = ${conversation.id}
+      `;
+      log.info({ tenantId: message.tenantId }, "owner replied manually; assistant paused for this conversation");
+    }
+  });
 }
 
 /** Gives a conversation back to the assistant after the owner handled it. */

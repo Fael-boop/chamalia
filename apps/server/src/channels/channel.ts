@@ -5,7 +5,8 @@
  */
 export interface Channel {
   readonly name: string;
-  sendText(toPhone: string, text: string): Promise<void>;
+  /** Returns the provider's message id when there is one (used to recognise our own echoes). */
+  sendText(toPhone: string, text: string): Promise<{ providerMessageId?: string }>;
 }
 
 /** Keeps outgoing messages in memory; used by the panel test chat. */
@@ -13,7 +14,8 @@ export class CollectingChannel implements Channel {
   readonly name = "test";
   readonly sent: { to: string; text: string }[] = [];
 
-  async sendText(toPhone: string, text: string): Promise<void> {
+  async sendText(toPhone: string, text: string) {
     this.sent.push({ to: toPhone, text });
+    return {};
   }
 }

@@ -1,0 +1,95 @@
+import type { Channel } from "./channel.js";
+
+export class EvolutionError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export type ConnectionState = "open" | "connecting" | "close" | "unknown";
+
+/** Thin client for the parts of Evolution API v2 we use. */
+export class EvolutionClient {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey: string,
+  ) {}
+
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}${path}`, {
+      method,
+      headers: { apikey: this.apiKey, "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new EvolutionError(response.status, `Evolution ${method} ${path}: ${response.status} ${text.slice(0, 300)}`);
+    return (text ? JSON.parse(text) : {}) as T;
+  }
+
+  async instanceExists(instance: string): Promise<boolean> {
+    try {
+      await this.connectionState(instance);
+      return true;
+    } catch (error) {
+      if (error instanceof EvolutionError && error.status === 404) return false;
+      throw error;
+    }
+  }
+
+  async createInstance(instance: string, webhookUrl: string) {
+    await this.request("POST", "/instance/create", {
+      instanceName: instance,
+      integration: "WHATSAPP-BAILEYS",
+      qrcode: true,
+      // Calls are rejected so the chip does not ring forever on a bot number.
+      rejectCall: true,
+      msgCall: "Oi! Este número não atende ligações, mas responde por mensagem. 🙂",
+      groupsIgnore: true,
+      webhook: { url: webhookUrl, byEvents: false, base64: false, events: ["MESSAGES_UPSERT"] },
+    });
+  }
+
+  async setWebhook(instance: string, webhookUrl: string) {
+    await this.request("POST", `/webhook/set/${instance}`, {
+      webhook: { enabled: true, url: webhookUrl, byEvents: false, base64: false, events: ["MESSAGES_UPSERT"] },
+    });
+  }
+
+  async connectionState(instance: string): Promise<ConnectionState> {
+    const result = await this.request<{ instance?: { state?: string } }>("GET", `/instance/connectionState/${instance}`);
+    const state = result.instance?.state;
+    return state === "open" || state === "connecting" || state === "close" ? state : "unknown";
+  }
+
+  /** Starts (or restarts) pairing and returns the QR code as a data URL. */
+  async qrCode(instance: string): Promise<string | undefined> {
+    const result = await this.request<{ base64?: string }>("GET", `/instance/connect/${instance}`);
+    return result.base64;
+  }
+
+  async sendText(instance: string, toPhone: string, text: string): Promise<string | undefined> {
+    const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendText/${instance}`, {
+      number: toPhone,
+      text,
+    });
+    return result.key?.id;
+  }
+}
+
+/** Channel bound to one tenant's Evolution instance. */
+export class EvolutionChannel implements Channel {
+  readonly name = "evolution";
+
+  constructor(
+    private readonly client: EvolutionClient,
+    private readonly instance: string,
+  ) {}
+
+  async sendText(toPhone: string, text: string) {
+    return { providerMessageId: await this.client.sendText(this.instance, toPhone, text) };
+  }
+}
