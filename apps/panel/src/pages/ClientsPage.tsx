@@ -55,7 +55,7 @@ export function ClientsPage({ onOpen }: { onOpen: (tenantId: string, tab?: Clien
       <div className="page-header">
         <div>
           <h1>Clientes</h1>
-          <p>Os negócios atendidos pela ChamaLia.</p>
+          <p>Os negócios atendidos pela Chama Lia.</p>
         </div>
         {!showForm && (
           <button className="primary" onClick={() => setShowForm(true)}>

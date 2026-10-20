@@ -1,4 +1,4 @@
-# ChamaLia
+# Chama Lia
 
 Atendente virtual no WhatsApp (a "Lia") para clínicas, estética e barbearias:
 agenda, confirma, lembra o cliente e avisa o dono. Cada cliente da agência é um

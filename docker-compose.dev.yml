@@ -47,7 +47,7 @@ services:
       CACHE_REDIS_URI: redis://evolution-redis:6379/6
       CACHE_REDIS_PREFIX_KEY: evolution
       CACHE_LOCAL_ENABLED: "false"
-      CONFIG_SESSION_PHONE_CLIENT: ChamaLia
+      CONFIG_SESSION_PHONE_CLIENT: Chama Lia
       LANGUAGE: pt-BR
       LOG_LEVEL: ERROR,WARN
       DEL_INSTANCE: "false"

@@ -1,4 +1,4 @@
-# ChamaLia
+# Chama Lia
 
 Agência solo de automação no WhatsApp com IA. Nicho principal: **beleza e estética**
 (salões, estética, barbearias, clínicas estéticas).
