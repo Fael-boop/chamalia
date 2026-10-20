@@ -3,7 +3,6 @@ import { z } from "zod";
 import { connectTenantWhatsapp, type WhatsappSetup } from "../channels/evolution-setup.js";
 import type { Sql } from "../db/client.js";
 import { isOwner } from "./auth.js";
-import { addDays, isValidDate, zonedToUtc } from "../lib/time.js";
 import { getTenant, TENANT_COLUMNS, type Tenant } from "../scheduling/service.js";
 import { BUSINESS_TYPES, NICHES, nicheOf, STARTER_HOURS } from "../tenants/niches.js";
 
@@ -310,28 +309,6 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
   });
 
   // --- Agenda ---
-
-  app.get("/api/tenants/:tenantId/appointments", async (request, reply) => {
-    const { tenantId } = tenantParams.parse(request.params);
-    const { date } = z.object({ date: z.string().refine(isValidDate, "data no formato AAAA-MM-DD") }).parse(
-      request.query,
-    );
-    const tenant = await loadTenant(tenantId, reply);
-    if (!tenant) return;
-    const dayStart = zonedToUtc(date, "00:00", tenant.timezone);
-    const dayEnd = zonedToUtc(addDays(date, 1), "00:00", tenant.timezone);
-    return sql`
-      select a.id, a.starts_at, a.ends_at, a.status, a.source, a.notes,
-             c.name as customer_name, c.phone as customer_phone,
-             s.name as service_name, p.name as professional_name
-      from appointments a
-      join customers c on c.id = a.customer_id
-      join services s on s.id = a.service_id
-      join professionals p on p.id = a.professional_id
-      where a.tenant_id = ${tenantId} and a.starts_at >= ${dayStart} and a.starts_at < ${dayEnd}
-      order by a.starts_at, p.name
-    `;
-  });
 
   app.patch("/api/tenants/:tenantId/appointments/:id", async (request, reply) => {
     const { tenantId, id } = itemParams.parse(request.params);

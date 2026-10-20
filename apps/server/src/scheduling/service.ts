@@ -78,7 +78,14 @@ export async function getTenant(sql: Sql, tenantId: string): Promise<Tenant | un
 export async function findAvailableSlots(
   sql: Sql,
   tenant: Tenant,
-  params: { serviceId: string; date: string; professionalId?: string; now?: Date },
+  params: {
+    serviceId: string;
+    date: string;
+    professionalId?: string;
+    now?: Date;
+    /** Ignore this appointment's own time (used when rescheduling it). */
+    excludeAppointmentId?: string;
+  },
 ): Promise<{ service: Service; slots: AvailableSlot[] }> {
   const now = params.now ?? new Date();
   const today = utcToZoned(now, tenant.timezone).date;
@@ -125,6 +132,7 @@ export async function findAvailableSlots(
     select professional_id, starts_at, ends_at from appointments
     where tenant_id = ${tenant.id} and status in ${sql(ACTIVE_STATUSES)}
       and starts_at < ${dayEnd} and ends_at > ${dayStart}
+      ${params.excludeAppointmentId ? sql`and id <> ${params.excludeAppointmentId}` : sql``}
   `;
   const timeOff = await sql<{ professionalId: string | null; startsAt: Date; endsAt: Date }[]>`
     select professional_id, starts_at, ends_at from time_off
@@ -233,4 +241,47 @@ export async function cancelCustomerAppointment(
   `;
   if (!appointment) throw new SchedulingError("appointment_not_found", "Agendamento não encontrado.");
   return appointment;
+}
+
+/** Moves an appointment to another free slot (same service), keeping its id and status. */
+export async function rescheduleAppointment(
+  sql: Sql,
+  tenant: Tenant,
+  params: { appointmentId: string; date: string; time: string; professionalId: string },
+): Promise<BookedAppointment> {
+  const [current] = await sql<{ serviceId: string }[]>`
+    select service_id from appointments
+    where tenant_id = ${tenant.id} and id = ${params.appointmentId} and status in ${sql(ACTIVE_STATUSES)}
+  `;
+  if (!current) throw new SchedulingError("appointment_not_found", "Agendamento não encontrado ou já cancelado.");
+
+  const { service, slots } = await findAvailableSlots(sql, tenant, {
+    serviceId: current.serviceId,
+    date: params.date,
+    professionalId: params.professionalId,
+    excludeAppointmentId: params.appointmentId,
+  });
+  const slot = slots.find((candidate) => utcToZoned(candidate.startsAt, tenant.timezone).time === params.time);
+  if (!slot) throw new SchedulingError("slot_unavailable", "Esse horário não está disponível.");
+
+  try {
+    await sql`
+      update appointments
+      set starts_at = ${slot.startsAt}, ends_at = ${slot.endsAt}, professional_id = ${params.professionalId},
+          reminder_24h_sent_at = null, reminder_2h_sent_at = null
+      where tenant_id = ${tenant.id} and id = ${params.appointmentId}
+    `;
+  } catch (error) {
+    if ((error as { code?: string }).code === "23P01") {
+      throw new SchedulingError("slot_unavailable", "Esse horário acabou de ser ocupado.");
+    }
+    throw error;
+  }
+  return {
+    id: params.appointmentId,
+    startsAt: slot.startsAt,
+    endsAt: slot.endsAt,
+    serviceName: service.name,
+    professionalName: slot.professionals[0]!.name,
+  };
 }

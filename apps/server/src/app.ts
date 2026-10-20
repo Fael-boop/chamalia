@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import Fastify, { type FastifyBaseLogger } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
+import { registerAgendaRoutes } from "./api/agenda.js";
 import { registerAuth } from "./api/auth.js";
 import { registerPanelRoutes } from "./api/panel.js";
 import { registerTestChatRoutes } from "./api/test-chat.js";
@@ -45,6 +46,7 @@ export async function buildApp(config: Config, sql?: Sql) {
 
   if (sql) {
     registerUserRoutes(app, sql);
+    registerAgendaRoutes(app, sql);
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
     const whatsapp =
       config.EVOLUTION_API_URL && config.EVOLUTION_API_KEY && config.WEBHOOK_SECRET
