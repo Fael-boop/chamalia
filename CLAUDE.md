@@ -28,6 +28,17 @@ Fora (depois do primeiro cliente pagante):
 - Química com etapas/pausa, combos, encaixe, duração variável, modo assistente (aprovação da dona).
 - Meta: Tech Provider, coexistência, Cloud API. Não implementar agora.
 
+Domínio: **chamalia.com.br** (já registrado). Plano quando houver VPS: painel e webhook em
+`app.chamalia.com.br`, site/landing em `chamalia.com.br`.
+
+Área "Clientes" (proposta em 2026-10-19, aguardando ok): só o dono da agência acessa.
+Lista + "Novo cliente" (nome, nicho, nome da atendente, dona e WhatsApp dela, endereço) e, por
+cliente: Configurações da Lia (tom, emoji, informações extras, antecedência mínima, dias à frente,
+o que sempre passar para a dona), Serviços, Profissionais, Horários, WhatsApp (QR no painel),
+Testar a Lia, Agenda. Nicho define modelo de serviços inicial e palavras (cliente/paciente).
+Precisa de migration 002 (campos novos em `tenants`, nichos novos). Depois: login da dona, que vê
+só o próprio salão.
+
 Ordem de trabalho:
 1. Tela "Testar a Lia" funcionando (prioridade).
 2. Evolution no PC do dono com Docker Desktop, testando com chip pré-pago.
