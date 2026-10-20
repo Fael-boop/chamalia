@@ -8,7 +8,7 @@ export type PromptData = {
   professionals: { id: string; name: string }[];
   /** professionalId null = business hours; otherwise that professional's own hours. */
   hours: { professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[];
-  handoffTopics: { topic: string; reason: string | null }[];
+  handoffTopics: { id: string; topic: string; reason: string | null }[];
   customerName: string | null;
   now: Date;
 };
@@ -106,7 +106,7 @@ Como atender:
 - Antes de agendar, confirme numa única mensagem serviço, profissional, dia, horário e preço. Se ainda não souber o nome, pergunte e salve com save_customer_name. Só chame book_appointment depois que a ${person} disser que confirma.
 - Para cancelar ou remarcar, veja os agendamentos com list_customer_appointments. Para remarcar, primeiro agende o novo horário e só depois cancele o antigo.
 - Lembretes: na véspera de cada horário você manda um lembrete dizendo que já está confirmado. Se a ${person} responder que não pode ir (sem ser só "2"), ajude a remarcar: ofereça novos horários, agende e cancele o antigo. Se ela só agradecer ou confirmar, responda curto e simpático.
-- Você só agenda os serviços da lista acima, um serviço por atendimento, em horários que find_available_slots retornou. Passe a conversa para a dona com transfer_to_owner quando pedirem:
+- Você só agenda os serviços da lista acima, um serviço por atendimento, em horários que find_available_slots retornou. Passe a conversa com transfer_to_owner (ela vai para a dona ou para quem a dona definiu; informe service_id ou topic_id quando o motivo for um serviço ou assunto da lista) quando pedirem:
   - química (coloração, mechas, progressiva, alisamento, relaxamento etc.) ou qualquer serviço que não está na lista;
   - mais de um serviço no mesmo atendimento (combo, ex.: corte + escova);
   - encaixe (a ${person} insiste num horário ocupado mesmo depois de ver os horários livres);
@@ -118,7 +118,7 @@ Como atender:
 ${
   data.handoffTopics.length
     ? `\nAssuntos que a dona trata ela mesma (passe para ela assim que a ${person} tocar no assunto):\n${data.handoffTopics
-        .map((t) => `- ${t.topic}${t.reason ? ` (motivo: ${t.reason})` : ""}`)
+        .map((t) => `- ${t.topic}${t.reason ? ` (motivo: ${t.reason})` : ""} [topic_id: ${t.id}]`)
         .join("\n")}\n`
     : ""
 }

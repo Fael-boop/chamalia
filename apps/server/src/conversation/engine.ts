@@ -97,7 +97,7 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     return { reply: null, ownerNotices: [], ownerPhoneMissing: !tenant.ownerPhone, withOwner: true };
   }
 
-  const ctx: ToolContext = { sql, tenant, customer, ownerNotices: [] };
+  const ctx: ToolContext = { sql, tenant, customer, ownerNotices: [], teamNotices: [] };
   const answer = message.unsupported ? null : await answerReminder(ctx, conversation, message.text);
   let reply: string;
   if (message.unsupported) {
@@ -120,7 +120,7 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     values (${tenant.id}, ${conversation.id}, 'outbound', ${reply}, ${replyId})
   `;
   if (ctx.handoffReason) {
-    const context = { handoffReason: ctx.handoffReason, handoffAt: new Date().toISOString() };
+    const context = { handoffReason: ctx.handoffReason, handoffTo: ctx.handoffTo, handoffAt: new Date().toISOString() };
     await sql`
       update conversations set state = ${HUMAN_STATE}, context = ${sql.json(context)}, last_message_at = now()
       where id = ${conversation.id}
@@ -133,9 +133,10 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     if (tenant.ownerPhone) await safeSend(channel, log, tenant.id, tenant.ownerPhone, notice);
     else log.warn({ tenantId: tenant.id }, "owner phone not set; notification not sent");
   }
+  for (const notice of ctx.teamNotices) await safeSend(channel, log, tenant.id, notice.phone, notice.text);
   return {
     reply,
-    ownerNotices: ctx.ownerNotices,
+    ownerNotices: [...ctx.ownerNotices, ...ctx.teamNotices.map((notice) => `[Para ${notice.name}] ${notice.text}`)],
     ownerPhoneMissing: !tenant.ownerPhone,
     withOwner: Boolean(ctx.handoffReason),
   };
@@ -266,7 +267,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
       from services where tenant_id = ${tenant.id} and active and archived_at is null order by name
     `,
     sql<{ id: string; name: string }[]>`
-      select id, name from professionals where tenant_id = ${tenant.id} and active order by name
+      select id, name from professionals where tenant_id = ${tenant.id} and active and kind = 'professional' order by name
     `,
     sql<{ professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[]>`
       select professional_id, weekday, opens_at, closes_at from business_hours
@@ -290,8 +291,8 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
         and a.status = 'cancelled' and a.cancelled_at > now() - make_interval(hours => ${HISTORY_WINDOW_HOURS})
       order by a.cancelled_at
     `,
-    sql<{ topic: string; reason: string | null }[]>`
-      select topic, reason from handoff_topics where tenant_id = ${tenant.id} order by created_at
+    sql<{ id: string; topic: string; reason: string | null }[]>`
+      select id, topic, reason from handoff_topics where tenant_id = ${tenant.id} order by created_at
     `,
   ]);
   const cancelledNote = recentlyCancelled.length

@@ -17,8 +17,12 @@ export type ToolContext = {
   customer: { id: string; phone: string; name: string | null };
   /** Messages to send to the business owner once the turn ends. */
   ownerNotices: string[];
-  /** Set when the model hands the conversation over to the owner. */
+  /** Handoff notices for a team member other than the owner. */
+  teamNotices: { name: string; phone: string; text: string }[];
+  /** Set when the model hands the conversation over to a person. */
   handoffReason?: string;
+  /** Who got it (name), for the panel. */
+  handoffTo?: string;
 };
 
 const date = z.string().refine(isValidDate, "use o formato AAAA-MM-DD");
@@ -38,7 +42,9 @@ const inputs = {
   list_customer_appointments: z.object({}),
   cancel_appointment: z.object({ appointment_id: z.string().uuid() }),
   save_customer_name: z.object({ name: z.string().trim().min(1).max(80) }),
-  transfer_to_owner: z.object({ reason: z.string().trim().min(1).max(300) }),
+  transfer_to_owner: z.object({
+    service_id: z.string().uuid().optional(),
+    topic_id: z.string().uuid().optional(), reason: z.string().trim().min(1).max(300) }),
 };
 
 type ToolName = keyof typeof inputs;
@@ -99,11 +105,13 @@ export const tools: Anthropic.Tool[] = [
   {
     name: "transfer_to_owner",
     description:
-      "Passa a conversa para a dona do estabelecimento. Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista ou qualquer pedido que você não consiga resolver.",
+      "Passa a conversa para uma pessoa da equipe (a dona ou quem ela definiu para o caso). Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista, os serviços e assuntos marcados e qualquer pedido que você não consiga resolver. Informe service_id ou topic_id quando o motivo for um deles: assim o pedido vai para a pessoa certa.",
     input_schema: {
       type: "object",
       properties: {
-        reason: { type: "string", description: "Resumo curto para a dona: o que a cliente quer" },
+        reason: { type: "string", description: "Resumo curto para quem vai atender: o que a cliente quer" },
+        service_id: { type: "string", description: "Opcional: service_id quando o motivo é um serviço" },
+        topic_id: { type: "string", description: "Opcional: topic_id quando o motivo é um dos assuntos da lista" },
       },
       required: ["reason"],
     },
@@ -112,6 +120,36 @@ export const tools: Anthropic.Tool[] = [
 
 function customerLabel(ctx: ToolContext): string {
   return `${ctx.customer.name ?? "Cliente sem nome"} (${ctx.customer.phone})`;
+}
+
+/**
+ * Who resolves a handoff: the person set on the service or topic, else the
+ * business default. undefined = the owner (also when that person is inactive
+ * or has no WhatsApp for notices, so nobody is left without an answer).
+ */
+async function handoffTarget(
+  ctx: ToolContext,
+  input: { service_id?: string; topic_id?: string },
+): Promise<{ name: string; kind: string; notifyPhone: string } | undefined> {
+  const { sql, tenant } = ctx;
+  let personId = tenant.defaultHandoffProfessionalId;
+  if (input.topic_id) {
+    const [topic] = await sql<{ professionalId: string | null }[]>`
+      select professional_id from handoff_topics where tenant_id = ${tenant.id} and id = ${input.topic_id}
+    `;
+    if (topic) personId = topic.professionalId;
+  } else if (input.service_id) {
+    const [service] = await sql<{ handoffProfessionalId: string | null }[]>`
+      select handoff_professional_id from services where tenant_id = ${tenant.id} and id = ${input.service_id} and handoff
+    `;
+    if (service) personId = service.handoffProfessionalId;
+  }
+  if (!personId) return undefined;
+  const [person] = await sql<{ name: string; kind: string; notifyPhone: string }[]>`
+    select name, kind, notify_phone from professionals
+    where tenant_id = ${tenant.id} and id = ${personId} and active and notify_phone is not null
+  `;
+  return person;
 }
 
 /** Services the owner marked "always hand over" are never offered or booked by the assistant. */
@@ -210,14 +248,20 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
   },
 
   async transfer_to_owner(ctx, input) {
+    const person = await handoffTarget(ctx, input);
+    const notice = `A ${ctx.tenant.assistantName} passou uma conversa para você responder.\nCliente: ${customerLabel(ctx)}\nPedido: ${input.reason}`;
     ctx.handoffReason = input.reason;
-    ctx.ownerNotices.push(
-      `A ${ctx.tenant.assistantName} passou uma conversa para você responder.\nCliente: ${customerLabel(ctx)}\nPedido: ${input.reason}`,
-    );
+    if (person) {
+      ctx.handoffTo = person.name;
+      ctx.teamNotices.push({ name: person.name, phone: person.notifyPhone, text: `${notice}\nResponda pelo WhatsApp do salão.` });
+    } else {
+      ctx.handoffTo = ctx.tenant.ownerName ?? "dona";
+      ctx.ownerNotices.push(notice);
+    }
+    const who = person ? (person.kind === "reception" ? "a recepção" : `a ${person.name}`) : "a dona";
     return {
       transferred: true,
-      instruction:
-        "Responda à cliente de forma simpática, em uma ou duas frases: diga que vai chamar a dona para cuidar desse pedido e que ela responde por aqui em breve.",
+      instruction: `Quem vai atender é ${who}. Responda à cliente de forma simpática, em uma ou duas frases: diga que vai chamar ${who} para cuidar desse pedido e que a resposta vem por aqui em breve. Use exatamente esse nome; não fale em dona se não for ela.`,
     };
   },
 };
