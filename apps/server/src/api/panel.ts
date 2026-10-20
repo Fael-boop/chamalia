@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { connectTenantWhatsapp, type WhatsappSetup } from "../channels/evolution-setup.js";
+import { EvolutionError } from "../channels/evolution.js";
+import { connectTenantWhatsapp, syncConnectedNumber, type WhatsappSetup } from "../channels/evolution-setup.js";
 import type { Sql } from "../db/client.js";
 import { isOwner } from "./auth.js";
 import { getTenant, TENANT_COLUMNS, type Tenant } from "../scheduling/service.js";
@@ -510,15 +511,18 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
     if (!tenant.whatsappInstance) return { available: true, instance: null, state: "close" };
     try {
       const state = await whatsapp.evolution.connectionState(tenant.whatsappInstance);
-      return { available: true, instance: tenant.whatsappInstance, state };
+      const number =
+        state === "open" ? await syncConnectedNumber(sql, whatsapp, tenantId, tenant.whatsappInstance) : undefined;
+      return { available: true, instance: tenant.whatsappInstance, state, number };
     } catch (error) {
       request.log.warn({ err: error, tenantId }, "evolution unreachable");
       return { available: false, instance: tenant.whatsappInstance, state: "unknown" };
     }
   });
 
-  // Creates/updates the instance and returns the QR code while not connected.
-  app.post("/api/tenants/:tenantId/whatsapp/connect", { config: { adminOnly: true } }, async (request, reply) => {
+  // Creates/updates the instance and returns the QR code (or a pairing code when a
+  // phone is given) while not connected. The owner can do this for her own business.
+  app.post("/api/tenants/:tenantId/whatsapp/connect", async (request, reply) => {
     const { tenantId } = tenantParams.parse(request.params);
     const tenant = await loadTenant(tenantId, reply);
     if (!tenant) return;
@@ -528,6 +532,25 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
         message: "Evolution não configurada. Confira o .env e se o Docker está rodando.",
       });
     }
-    return connectTenantWhatsapp(sql, whatsapp, tenant);
+    const { phone: pairingPhone } = z.object({ phone: phone.optional() }).parse(request.body ?? {});
+    return connectTenantWhatsapp(sql, whatsapp, tenant, { pairingPhone });
+  });
+
+  // Unpairs the current number so another one can be connected. The assistant
+  // stops answering until a number is connected again.
+  app.post("/api/tenants/:tenantId/whatsapp/disconnect", async (request, reply) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    const tenant = await loadTenant(tenantId, reply);
+    if (!tenant) return;
+    if (!whatsapp || !tenant.whatsappInstance) return { disconnected: false };
+    try {
+      await whatsapp.evolution.logout(tenant.whatsappInstance);
+    } catch (error) {
+      // Already logged out is fine; anything else is reported.
+      if (!(error instanceof EvolutionError && (error.status === 400 || error.status === 404))) throw error;
+    }
+    await sql`update tenants set whatsapp_number = null where id = ${tenantId}`;
+    request.log.info({ tenantId }, "whatsapp disconnected from the panel");
+    return { disconnected: true };
   });
 }

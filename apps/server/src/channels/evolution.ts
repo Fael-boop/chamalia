@@ -71,6 +71,28 @@ export class EvolutionClient {
     return result.base64;
   }
 
+  /** Pairing by code (typed in the phone) instead of QR; useful when the owner only has the phone at hand. */
+  async pairingCode(instance: string, phone: string): Promise<string | undefined> {
+    const result = await this.request<{ pairingCode?: string }>("GET", `/instance/connect/${instance}?number=${phone}`);
+    return result.pairingCode;
+  }
+
+  /** The WhatsApp number paired to the instance (digits only), when connected. */
+  async connectedNumber(instance: string): Promise<string | undefined> {
+    const result = await this.request<{ ownerJid?: string | null }[] | { ownerJid?: string | null }>(
+      "GET",
+      `/instance/fetchInstances?instanceName=${instance}`,
+    );
+    const owner = (Array.isArray(result) ? result[0] : result)?.ownerJid;
+    const digits = owner?.split("@")[0]?.replace(/\D/g, "");
+    return digits && /^\d{10,15}$/.test(digits) ? digits : undefined;
+  }
+
+  /** Unpairs the phone; the instance stays so a new number can be connected later. */
+  async logout(instance: string) {
+    await this.request("DELETE", `/instance/logout/${instance}`);
+  }
+
   async sendText(instance: string, toPhone: string, text: string): Promise<string | undefined> {
     const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendText/${instance}`, {
       number: toPhone,
