@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Niche, type Tenant } from "../api";
+import type { Role } from "./ClientPage";
 
 type Form = {
   name: string;
@@ -35,7 +36,7 @@ function toForm(t: Tenant): Form {
   };
 }
 
-export function SettingsPage({ tenant, onSaved }: { tenant: Tenant; onSaved: (tenant: Tenant) => void }) {
+export function SettingsPage({ tenant, role, onSaved }: { tenant: Tenant; role: Role; onSaved: (tenant: Tenant) => void }) {
   const [form, setForm] = useState<Form>(() => toForm(tenant));
   const [niches, setNiches] = useState<Niche[]>([]);
   const [status, setStatus] = useState("");
@@ -70,7 +71,7 @@ export function SettingsPage({ tenant, onSaved }: { tenant: Tenant; onSaved: (te
           handoffRules: form.handoffRules || null,
           minNoticeMinutes: Math.round(Number(form.minNoticeHours.replace(",", ".")) * 60),
           bookingHorizonDays: Number(form.bookingHorizonDays),
-          active: form.active,
+          ...(role === "admin" ? { active: form.active } : {}),
         },
       });
       onSaved(saved);
@@ -115,10 +116,12 @@ export function SettingsPage({ tenant, onSaved }: { tenant: Tenant; onSaved: (te
             Endereço
             <input value={form.address} onChange={(e) => set("address", e.target.value)} />
           </label>
+          {role === "admin" && (
           <label className="form-field check" style={{ gridColumn: "1 / -1" }}>
             <input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} />
             Cliente ativo (desmarcado, a atendente não responde ninguém)
           </label>
+          )}
         </div>
       </div>
 

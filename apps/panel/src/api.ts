@@ -79,6 +79,17 @@ export type TenantSummary = {
 
 export type Niche = { value: string; label: string };
 
+export type SessionInfo = { role: "admin" } | { role: "owner"; tenantId: string; name: string };
+
+export type TenantUser = {
+  id: string;
+  name: string;
+  login: string;
+  active: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+};
+
 export type Professional = { id: string; name: string; active: boolean; serviceIds: string[] };
 
 export type WhatsappStatus = {
