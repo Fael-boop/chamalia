@@ -11,10 +11,11 @@ import { registerPanelRoutes } from "./api/panel.js";
 import { registerTestChatRoutes } from "./api/test-chat.js";
 import { registerUserRoutes } from "./api/users.js";
 import { registerWebhookRoutes } from "./api/webhooks.js";
-import { EvolutionClient } from "./channels/evolution.js";
+import { EvolutionChannel, EvolutionClient } from "./channels/evolution.js";
 import type { Config } from "./config.js";
 import type { Sql } from "./db/client.js";
 import { loggerOptions } from "./lib/logger.js";
+import { startReminderJob } from "./reminders/reminders.js";
 
 // Built panel (apps/panel/dist). Served by the bot in production so the VPS
 // runs a single Node container.
@@ -65,7 +66,17 @@ export async function buildApp(config: Config, sql?: Sql) {
         evolution: whatsapp.evolution,
         secret: whatsapp.webhookSecret,
       });
-    } else {
+    }
+    if (whatsapp) {
+      // Day-before reminders only make sense where a real WhatsApp is connected.
+      const stopReminders = startReminderJob({
+        sql,
+        log: app.log,
+        channelFor: (instance) => new EvolutionChannel(whatsapp.evolution, instance),
+      });
+      app.addHook("onClose", async () => stopReminders());
+    }
+    if (!anthropic || !whatsapp) {
       app.log.warn("WhatsApp (Evolution) desligado: faltam ANTHROPIC_API_KEY, EVOLUTION_API_URL, EVOLUTION_API_KEY ou WEBHOOK_SECRET");
     }
   }

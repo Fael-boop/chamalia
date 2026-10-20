@@ -1,4 +1,4 @@
-import { RotateCcw, SendHorizontal, UserRoundCheck } from "lucide-react";
+import { BellRing, RotateCcw, SendHorizontal, UserRoundCheck } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -73,6 +73,16 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
     toast.success("Nova conversa iniciada");
   }
 
+  async function simulateReminder() {
+    try {
+      await api(`${base}/reminder`, { method: "POST", body: { phone } });
+      await load();
+      toast.success("Lembrete enviado. Responda 1 ou 2 como a cliente.");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   async function release() {
     await api(`${base}/release`, { method: "POST", body: { phone } });
     await load();
@@ -107,6 +117,9 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
           </label>
           <span className="text-xs text-muted-foreground">{validPhone ? formatPhone(phone) : "DDI + DDD + número"}</span>
           <div className="flex-1" />
+          <Button variant="ghost" size="sm" onClick={simulateReminder} disabled={!validPhone || Boolean(pending)}>
+            <BellRing /> Simular lembrete
+          </Button>
           <Button variant="ghost" size="sm" onClick={reset} disabled={!validPhone || Boolean(pending)}>
             <RotateCcw /> Nova conversa
           </Button>

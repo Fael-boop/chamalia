@@ -3,7 +3,9 @@ import type { FastifyBaseLogger } from "fastify";
 import type { Channel } from "../channels/channel.js";
 import type { Sql } from "../db/client.js";
 import { KeyedLock } from "../lib/keyed-lock.js";
-import { getTenant, type Service } from "../scheduling/service.js";
+import { formatDateTimePtBr } from "../lib/time.js";
+import type { PendingReminder } from "../reminders/reminders.js";
+import { cancelCustomerAppointment, getTenant, SchedulingError, type Service } from "../scheduling/service.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { executeTool, tools, type ToolContext } from "./tools.js";
 
@@ -44,10 +46,10 @@ async function upsertConversation(sql: Sql, tenantId: string, phone: string) {
     on conflict (tenant_id, phone) do update set updated_at = now()
     returning id, phone, name
   `;
-  const [conversation] = await sql<{ id: string; state: string }[]>`
+  const [conversation] = await sql<{ id: string; state: string; context: { reminder?: PendingReminder } }[]>`
     insert into conversations (tenant_id, customer_id) values (${tenantId}, ${customer!.id})
     on conflict (tenant_id, customer_id) do update set last_message_at = now()
-    returning id, state
+    returning id, state, context
   `;
   return { customer: customer!, conversation: conversation! };
 }
@@ -96,12 +98,15 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
   }
 
   const ctx: ToolContext = { sql, tenant, customer, ownerNotices: [] };
+  const answer = message.unsupported ? null : await answerReminder(ctx, conversation, message.text);
   let reply: string;
   if (message.unsupported) {
     reply = UNSUPPORTED_REPLY;
+  } else if (answer?.reply) {
+    reply = answer.reply;
   } else {
     try {
-      reply = await askModel(deps, ctx, conversation.id);
+      reply = await askModel(deps, ctx, conversation.id, answer?.note);
     } catch (error) {
       log.error({ err: error, tenantId: tenant.id }, "conversation engine failed");
       reply = FALLBACK_REPLY;
@@ -169,6 +174,79 @@ export async function handleOwnerMessage(
   });
 }
 
+/**
+ * A message we start (reminder), not an answer. Stored in the conversation so
+ * the model sees it in the history, with `context` merged into the conversation.
+ * Returns false when the channel could not deliver it.
+ */
+export async function sendProactiveMessage(
+  deps: Pick<EngineDeps, "sql" | "log">,
+  channel: Channel,
+  message: { tenantId: string; toPhone: string; text: string; context: { reminder: PendingReminder } },
+): Promise<boolean> {
+  const { sql, log } = deps;
+  return lock.run(`${message.tenantId}:${message.toPhone}`, async () => {
+    const { conversation } = await upsertConversation(sql, message.tenantId, message.toPhone);
+    try {
+      const sent = await channel.sendText(message.toPhone, message.text);
+      await sql`
+        insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
+        values (${message.tenantId}, ${conversation.id}, 'outbound', ${message.text}, ${sent.providerMessageId ?? null})
+      `;
+    } catch (error) {
+      log.error({ err: error, tenantId: message.tenantId, to: message.toPhone, channel: channel.name }, "failed to send message");
+      return false;
+    }
+    await sql`
+      update conversations set context = context || ${sql.json(message.context)}, last_message_at = now()
+      where id = ${conversation.id}
+    `;
+    return true;
+  });
+}
+
+/** How long a "1"/"2" still counts as an answer to the reminder. */
+const REMINDER_ANSWER_HOURS = 36;
+
+/**
+ * Answers to the day-before reminder. "1" gets a fixed reply. "2" frees the
+ * slot right away and lets the model offer new times (`note`). Anything else
+ * goes to the model as usual, with the reminder in the history.
+ */
+async function answerReminder(
+  ctx: ToolContext,
+  conversation: { id: string; context: { reminder?: PendingReminder } },
+  text: string,
+): Promise<{ reply?: string; note?: string } | null> {
+  const pending = conversation.context.reminder;
+  if (!pending || Date.now() - Date.parse(pending.sentAt) > REMINDER_ANSWER_HOURS * 3_600_000) return null;
+  const choice = text.trim().replace(/[.!\s]+$/, "");
+  if (choice !== "1" && choice !== "2") return null;
+
+  const { sql, tenant } = ctx;
+  await sql`update conversations set context = context - 'reminder' where id = ${conversation.id}`;
+  if (choice === "1") {
+    return { reply: tenant.useEmoji ? "Combinado, te esperamos! 😊" : "Combinado, te esperamos!" };
+  }
+
+  try {
+    const appointment = await cancelCustomerAppointment(sql, tenant, ctx.customer.id, pending.appointmentId);
+    const when = formatDateTimePtBr(appointment.startsAt, tenant.timezone);
+    ctx.ownerNotices.push(
+      `Cliente pediu para remarcar pelo lembrete. Horário liberado:\n${appointment.serviceName} com ${appointment.professionalName}\n${when}\nCliente: ${ctx.customer.name ?? "Cliente sem nome"} (${ctx.customer.phone})\nA ${tenant.assistantName} está oferecendo outro horário.`,
+    );
+    return {
+      note:
+        `A cliente respondeu 2 ao lembrete. O sistema JÁ DESMARCOU o horário de ${appointment.serviceName} com ` +
+        `${appointment.professionalName} (${when}); não cancele nada. Diga que desmarcou e ofereça novos horários ` +
+        `para o mesmo serviço, de preferência com a mesma profissional, e agende quando ela escolher.`,
+    };
+  } catch (error) {
+    if (error instanceof SchedulingError) return null; // already cancelled or gone: just talk
+    throw error;
+  }
+}
+
 /** Gives a conversation back to the assistant after the owner handled it. */
 export async function releaseToAssistant(sql: Sql, tenantId: string, conversationId: string) {
   return sql`
@@ -178,11 +256,11 @@ export async function releaseToAssistant(sql: Sql, tenantId: string, conversatio
   `;
 }
 
-async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: string): Promise<string> {
+async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: string, note?: string): Promise<string> {
   const { sql } = deps;
   const { tenant } = ctx;
 
-  const [services, professionals, hours, history] = await Promise.all([
+  const [services, professionals, hours, history, recentlyCancelled] = await Promise.all([
     sql<Service[]>`
       select id, name, description, duration_minutes, price_cents, active
       from services where tenant_id = ${tenant.id} and active order by name
@@ -202,16 +280,35 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
         order by created_at desc limit ${HISTORY_MAX_MESSAGES}
       ) recent order by created_at
     `,
+    // So the model knows these are already gone and doesn't think it failed.
+    sql<{ startsAt: Date; serviceName: string; professionalName: string }[]>`
+      select a.starts_at, s.name as service_name, p.name as professional_name
+      from appointments a
+      join services s on s.id = a.service_id
+      join professionals p on p.id = a.professional_id
+      where a.tenant_id = ${tenant.id} and a.customer_id = ${ctx.customer.id}
+        and a.status = 'cancelled' and a.cancelled_at > now() - make_interval(hours => ${HISTORY_WINDOW_HOURS})
+      order by a.cancelled_at
+    `,
   ]);
+  const cancelledNote = recentlyCancelled.length
+    ? "\n\nHorários desta cliente desmarcados nas últimas horas (já cancelados de verdade, não aparecem em list_customer_appointments):\n" +
+      recentlyCancelled
+        .map((a) => `- ${a.serviceName} com ${a.professionalName}, ${formatDateTimePtBr(a.startsAt, tenant.timezone)}`)
+        .join("\n")
+    : "";
 
-  const system = buildSystemPrompt({
-    tenant,
-    services,
-    professionals,
-    hours,
-    customerName: ctx.customer.name,
-    now: new Date(),
-  });
+  const system =
+    buildSystemPrompt({
+      tenant,
+      services,
+      professionals,
+      hours,
+      customerName: ctx.customer.name,
+      now: new Date(),
+    }) +
+    cancelledNote +
+    (note ? `\n\nAviso do sistema sobre esta mensagem: ${note}` : "");
 
   const messages: Anthropic.MessageParam[] = history.map((row) => ({
     role: row.direction === "inbound" ? "user" : "assistant",

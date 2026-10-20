@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CollectingChannel } from "../channels/channel.js";
+import { findNextReminderFor, sendReminder } from "../reminders/reminders.js";
 import { handleIncomingMessage, HUMAN_STATE, releaseToAssistant, type EngineDeps } from "../conversation/engine.js";
 
 const params = z.object({ tenantId: z.string().uuid() });
@@ -69,6 +70,21 @@ export function registerTestChatRoutes(app: FastifyInstance, deps: Omit<EngineDe
     });
     if (!result) return reply.code(404).send({ error: "not_found", message: "Cliente inativo ou inexistente." });
     return result;
+  });
+
+  // Sends the day-before reminder of the test customer's next appointment now,
+  // ignoring the usual time window, so the owner can try answering "1" or "2".
+  app.post("/api/tenants/:tenantId/test-chat/reminder", async (request, reply) => {
+    const { tenantId } = params.parse(request.params);
+    const body = z.object({ phone }).parse(request.body);
+    const reminder = await findNextReminderFor(sql, tenantId, body.phone);
+    if (!reminder) {
+      return reply.code(404).send({ error: "not_found", message: "Esta cliente de teste não tem horário marcado. Agende um primeiro." });
+    }
+    // Lets the test resend a reminder that was already sent.
+    await sql`update appointments set reminder_24h_sent_at = null where id = ${reminder.appointmentId}`;
+    const sent = await sendReminder(deps, new CollectingChannel(), reminder);
+    return { sent };
   });
 
   // Starts a new conversation for the test phone. Customer and appointments stay.

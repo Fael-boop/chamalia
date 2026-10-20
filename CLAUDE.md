@@ -142,7 +142,15 @@ fechar todas as janelas do VS Code e reabrir.
    Mensagem enviada pelo próprio celular do chip (fromMe) que não é eco nosso → conversa vai
    para a dona. Áudio/foto → resposta fixa pedindo texto. LID: usa `remoteJidAlt`.
    Falta: teste real com chip pré-pago.
-4. [ ] Lembretes 24h e 2h antes, com resposta "1 confirmar, 2 remarcar".
+4. [x] Lembrete da véspera (`apps/server/src/reminders/reminders.ts`), feito em 2026-10-20.
+   Job a cada 5 min (só liga com Evolution configurada): horários entre 2h e 24h à frente, marcados
+   há mais de 2h, enviados só das 08h às 21h no fuso do negócio, só para negócio com WhatsApp.
+   Decisão do dono: **sem resposta = confirmado** (ao enviar, status vira `confirmed`).
+   Resposta "1" → "Combinado, te esperamos!". Resposta "2" → desmarca na hora, avisa a dona e a Lia
+   oferece novos horários. Outro texto ("não vou poder") → a Lia trata pela conversa.
+   Pendente fica em `conversations.context.reminder` (vale 36h). Painel: botão "Simular lembrete"
+   em Testar a Lia (manda o lembrete do próximo horário da cliente de teste na hora).
+   Lembrete de 2h antes: não feito (coluna `reminder_2h_sent_at` existe, sem uso).
 5. [~] Painel web (React) por tenant: agenda do dia, serviços, horários + tela "Testar a Lia".
    Feito: API do painel com senha (`ADMIN_PASSWORD`), motor de conversa com Claude (tools:
    buscar horários, agendar, listar, cancelar, salvar nome) e canal de teste
@@ -151,6 +159,9 @@ fechar todas as janelas do VS Code e reabrir.
    devolver para a Lia). Testado com o Haiku 5.5: agendar, remarcar, química, encaixe.
    Painel refeito (ver seção "Painel: regras de UI"). Falta: validar no celular real.
 6. [ ] README com passo a passo de onboarding de um cliente novo.
+
+Histórico para a IA guarda só texto (sem as chamadas de ferramenta): o prompt avisa que ações
+anteriores aconteceram de verdade, e mostra horários cancelados nas últimas 24h.
 
 Decisões: modelo de dados continua o da 001, sem migration nova no MVP. "Com a dona" usa
 `conversations.state = 'human'` (+ motivo em `context`); não precisa de coluna nova.
