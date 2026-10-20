@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDuration, formatPrice } from "@/format";
+import { formatDuration, formatPrice, fromCents, toCents } from "@/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { keys, useServices } from "@/lib/queries";
 
@@ -35,8 +35,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 const EMPTY: FormValues = { name: "", durationMinutes: 30, price: "", description: "", handoff: false, handoffReason: "" };
 
-const toCents = (price: string) => (price.trim() === "" ? null : Math.round(Number(price.trim().replace(",", ".")) * 100));
-const fromCents = (cents: number | null) => (cents === null ? "" : (cents / 100).toFixed(2).replace(".", ","));
 
 export function ServicesPage({ tenant }: { tenant: Tenant }) {
   const mobile = useIsMobile();

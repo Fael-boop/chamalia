@@ -85,7 +85,19 @@ export type TenantSummary = {
   upcoming: number;
 };
 
-export type Niche = { value: string; label: string };
+export type NicheStarterService = { name: string; durationMinutes: number; priceCents: number | null };
+export type NicheStarterHour = { weekday: number; opensAt: string; closesAt: string };
+
+export type Niche = {
+  id: string;
+  /** Also the value sent as a tenant's businessType. */
+  slug: string;
+  label: string;
+  place: string;
+  customerWord: string;
+  starterServices: NicheStarterService[];
+  starterHours: NicheStarterHour[];
+};
 
 export type SessionInfo = { role: "admin" } | { role: "owner"; tenantId: string; name: string };
 

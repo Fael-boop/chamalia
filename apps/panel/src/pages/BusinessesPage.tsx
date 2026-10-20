@@ -36,7 +36,7 @@ export function BusinessesPage({ onOpen }: { onOpen: (tenantId: string) => void 
   const [open, setOpen] = useState(false);
   const businesses = useQuery({ queryKey: ["businesses"], queryFn: () => api<TenantSummary[]>("/tenants") });
   const niches = useQuery({ queryKey: ["niches"], queryFn: () => api<Niche[]>("/niches") });
-  const nicheLabel = (value: string) => niches.data?.find((n) => n.value === value)?.label ?? value;
+  const nicheLabel = (value: string) => niches.data?.find((n) => n.slug === value)?.label ?? value;
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -190,7 +190,7 @@ export function BusinessesPage({ onOpen }: { onOpen: (tenantId: string) => void 
                     </FormControl>
                     <SelectContent>
                       {(niches.data ?? []).map((n) => (
-                        <SelectItem key={n.value} value={n.value}>
+                        <SelectItem key={n.id} value={n.slug}>
                           {n.label}
                         </SelectItem>
                       ))}

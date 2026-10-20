@@ -142,7 +142,7 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
                     </FormControl>
                     <SelectContent>
                       {(niches.data ?? []).map((n) => (
-                        <SelectItem key={n.value} value={n.value}>
+                        <SelectItem key={n.id} value={n.slug}>
                           {n.label}
                         </SelectItem>
                       ))}

@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   Scissors,
   Settings,
+  Tags,
   MessageSquareText,
   Receipt,
   Smartphone,
@@ -31,6 +32,7 @@ import { HandoffPage } from "./pages/HandoffPage";
 import { HoursPage } from "./pages/HoursPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MorePage } from "./pages/MorePage";
+import { NichesPage } from "./pages/NichesPage";
 import { PriceTablePage } from "./pages/PriceTablePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
 import { ServicesPage } from "./pages/ServicesPage";
@@ -100,7 +102,10 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
     return <BusinessWorkspace tenantId={tenantId} role="admin" onLogout={onLogout} onBackToBusinesses={() => setTenantId(null)} />;
   }
 
-  const items: NavItem[] = [{ id: "businesses", label: "Negócios", icon: Building2 }];
+  const items: NavItem[] = [
+    { id: "businesses", label: "Negócios", icon: Building2 },
+    { id: "niches", label: "Nichos", icon: Tags },
+  ];
   return (
     <AppShell
       brand={BRAND}
@@ -114,6 +119,8 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
     >
       {page === "more" && mobile ? (
         <MorePage items={items} onNavigate={setPage} onLogout={onLogout} />
+      ) : page === "niches" ? (
+        <NichesPage />
       ) : (
         <BusinessesPage onOpen={setTenantId} />
       )}

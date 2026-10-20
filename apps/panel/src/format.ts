@@ -55,6 +55,13 @@ export function formatPrice(cents: number | null | undefined): string {
     : (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** "45,50" -> 4550; empty -> null (price "sob consulta"). */
+export const toCents = (price: string): number | null =>
+  price.trim() === "" ? null : Math.round(Number(price.trim().replace(",", ".")) * 100);
+
+/** 4550 -> "45,50"; null -> "". */
+export const fromCents = (cents: number | null): string => (cents === null ? "" : (cents / 100).toFixed(2).replace(".", ","));
+
 /** 5511987654321 -> (11) 98765-4321 */
 export function formatPhone(phone: string): string {
   const match = phone.match(/^55(\d{2})(\d{4,5})(\d{4})$/);
