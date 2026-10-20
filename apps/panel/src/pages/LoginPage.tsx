@@ -26,10 +26,10 @@ function ConversationPreview() {
       </div>
       <div className="space-y-2.5 text-[13px] leading-snug">
         <div className={cn("ml-auto w-fit max-w-[80%] rounded-2xl rounded-br-md bg-brand-600 px-3.5 py-2 text-white", ENTER)} style={appear(300)}>
-          Oi! Quero marcar uma unha amanhã
+          Oi! Quero marcar um corte de cabelo amanhã
         </div>
         <div className={cn("w-fit max-w-[85%] rounded-2xl rounded-bl-md bg-white/10 px-3.5 py-2 text-white/90", ENTER)} style={appear(900)}>
-          Tenho às 9h30, 10h ou 14h com a Carla. Qual prefere?
+          Tenho às 9h30, 10h ou 14h com a Ana. Qual prefere?
         </div>
         <div className={cn("ml-auto w-fit max-w-[80%] rounded-2xl rounded-br-md bg-brand-600 px-3.5 py-2 text-white", ENTER)} style={appear(1500)}>
           10h, por favor
@@ -37,7 +37,7 @@ function ConversationPreview() {
         <div className={cn("flex w-fit items-center gap-2 rounded-xl border border-white/15 px-3.5 py-2 text-white", ENTER)} style={appear(2100)}>
           <Check className="size-4 text-brand-400" />
           <span>
-            Agendado · <span className="text-white/70">amanhã às 10h · Unha com a Carla</span>
+            Agendado · <span className="text-white/70">amanhã às 10h · Corte com a Ana</span>
           </span>
         </div>
       </div>
