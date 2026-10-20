@@ -56,6 +56,36 @@ export type Tenant = {
   ownerName: string | null;
   ownerPhone: string | null;
   active: boolean;
+  address: string | null;
+  tone: "friendly" | "formal";
+  useEmoji: boolean;
+  extraInfo: string | null;
+  handoffRules: string | null;
+  minNoticeMinutes: number;
+  bookingHorizonDays: number;
+  whatsappInstance: string | null;
+};
+
+export type TenantSummary = {
+  id: string;
+  slug: string;
+  name: string;
+  businessType: string;
+  ownerName: string | null;
+  active: boolean;
+  whatsappInstance: string | null;
+  upcoming: number;
+};
+
+export type Niche = { value: string; label: string };
+
+export type Professional = { id: string; name: string; active: boolean; serviceIds: string[] };
+
+export type WhatsappStatus = {
+  available: boolean;
+  instance: string | null;
+  state: "open" | "connecting" | "close" | "unknown";
+  qrCode?: string;
 };
 
 export type Service = {

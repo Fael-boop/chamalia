@@ -77,7 +77,6 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
 
   return (
     <>
-      <h1>Testar a {tenant.assistantName}</h1>
       <p className="muted">
         Converse como se fosse uma cliente no WhatsApp. É o mesmo motor que vai responder no WhatsApp; os agendamentos
         feitos aqui entram na agenda de verdade.

@@ -1,57 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, getToken, setToken, setUnauthorizedHandler, type Tenant } from "./api";
-import { TestChatPage } from "./pages/TestChatPage";
+import { api, ApiError, getToken, setToken, setUnauthorizedHandler } from "./api";
+import { ClientPage, type ClientTab } from "./pages/ClientPage";
+import { ClientsPage } from "./pages/ClientsPage";
 
-type TenantSummary = { id: string; slug: string; name: string };
-type Page = "test-chat";
-
-const PAGES: { id: Page; label: string }[] = [{ id: "test-chat", label: "Testar a Lia" }];
-const TENANT_KEY = "chamalia.tenantId";
-
-function readStoredTenant(): string {
-  try {
-    return localStorage.getItem(TENANT_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
+type View = { name: "clients" } | { name: "client"; tenantId: string; tab: ClientTab };
 
 export function App() {
   const [authState, setAuthState] = useState<"checking" | "login" | "ok">("checking");
-  const [tenants, setTenants] = useState<TenantSummary[]>([]);
-  const [tenantId, setTenantId] = useState(readStoredTenant);
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [page, setPage] = useState<Page>("test-chat");
-  const [error, setError] = useState("");
+  const [view, setView] = useState<View>({ name: "clients" });
 
-  const loadTenants = useCallback(async () => {
+  const checkSession = useCallback(async () => {
     try {
-      const list = await api<TenantSummary[]>("/tenants");
-      setTenants(list);
+      await api("/session");
       setAuthState("ok");
-      setTenantId((current) => (list.some((t) => t.id === current) ? current : (list[0]?.id ?? "")));
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) setAuthState("login");
-      else setError((e as Error).message);
+      setAuthState(e instanceof ApiError && e.status === 401 ? "login" : "ok");
     }
   }, []);
 
   useEffect(() => {
     setUnauthorizedHandler(() => setAuthState("login"));
-    void loadTenants();
-  }, [loadTenants]);
-
-  useEffect(() => {
-    if (!tenantId) return;
-    try {
-      localStorage.setItem(TENANT_KEY, tenantId);
-    } catch {
-      // Not critical: the first tenant is selected again next time.
-    }
-    api<Tenant>(`/tenants/${tenantId}`)
-      .then(setTenant)
-      .catch((e: Error) => setError(e.message));
-  }, [tenantId]);
+    void checkSession();
+  }, [checkSession]);
 
   if (authState === "login") {
     return (
@@ -59,7 +29,7 @@ export function App() {
         onLogin={(password) => {
           setToken(password);
           setAuthState("checking");
-          void loadTenants();
+          void checkSession();
         }}
       />
     );
@@ -69,21 +39,10 @@ export function App() {
     <>
       <header>
         <strong>ChamaLia</strong>
-        {tenants.length > 0 && (
-          <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
-            {tenants.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        )}
         <nav>
-          {PAGES.map((p) => (
-            <button key={p.id} aria-current={page === p.id ? "page" : undefined} onClick={() => setPage(p.id)}>
-              {p.label}
-            </button>
-          ))}
+          <button aria-current={view.name === "clients" ? "page" : undefined} onClick={() => setView({ name: "clients" })}>
+            Clientes
+          </button>
         </nav>
         <span className="spacer" />
         {getToken() && (
@@ -98,12 +57,19 @@ export function App() {
         )}
       </header>
       <main>
-        {error && <p className="error">{error}</p>}
         {authState === "checking" && <p className="muted">Carregando…</p>}
-        {authState === "ok" && tenants.length === 0 && (
-          <p className="muted">Nenhum cliente cadastrado. Rode `npm run db:seed` para criar a demo.</p>
+        {authState === "ok" && view.name === "clients" && (
+          <ClientsPage onOpen={(tenantId, tab = "agenda") => setView({ name: "client", tenantId, tab })} />
         )}
-        {tenant && page === "test-chat" && <TestChatPage key={tenant.id} tenant={tenant} />}
+        {authState === "ok" && view.name === "client" && (
+          <ClientPage
+            key={view.tenantId}
+            tenantId={view.tenantId}
+            tab={view.tab}
+            onTab={(tab) => setView({ ...view, tab })}
+            onBack={() => setView({ name: "clients" })}
+          />
+        )}
       </main>
     </>
   );

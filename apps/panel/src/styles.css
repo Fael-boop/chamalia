@@ -72,3 +72,8 @@ input[type="number"] { width: 80px; }
 .notice { align-self: center; color: var(--muted); font-size: 13px; white-space: pre-wrap; border-left: 2px solid var(--border); padding-left: 8px; max-width: 90%; }
 .chat-input { display: flex; gap: 8px; margin-top: 8px; }
 .chat-input input { flex: 1; }
+
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+nav.tabs button { border: none; background: none; border-radius: 0; padding: 8px 10px; color: var(--muted); border-bottom: 2px solid transparent; }
+nav.tabs button[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+textarea { width: 100%; resize: vertical; }
