@@ -57,11 +57,11 @@ export function HandoffPage({ tenant }: { tenant: Tenant }) {
         )}
       </p>
 
-      <Section title="Serviços" description={`Serviços que a ${lia} nunca agenda sozinha. Ex.: química que precisa de avaliação.`}>
-        <ServicesList tenant={tenant} />
-      </Section>
       <Section title="Assuntos" description={`Temas que você quer responder pessoalmente. A ${lia} chama você assim que a cliente tocar no assunto.`}>
         <TopicsList tenant={tenant} />
+      </Section>
+      <Section title="Serviços" description={`Serviços que a ${lia} nunca agenda sozinha. Ex.: química que precisa de avaliação.`}>
+        <ServicesList tenant={tenant} />
       </Section>
       <Section title="Sempre, sem precisar cadastrar" description={`Para não perder cliente, nesses casos a ${lia} chama você mesmo que não esteja na lista.`}>
         <ul className="space-y-1.5 text-sm">
