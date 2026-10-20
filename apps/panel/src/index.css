@@ -203,12 +203,23 @@
   }
   /* Touch screens: every control at least 44px tall. */
   @media (pointer: coarse) {
-    button,
+    button:not([role="switch"]):not([role="checkbox"]),
     [role="button"],
     input:not([type="checkbox"]):not([type="radio"]),
     select,
     [role="combobox"] {
       min-height: 44px;
+    }
+    /* Small controls keep their look; only the tappable area grows to 44px. */
+    [role="switch"],
+    [role="checkbox"] {
+      position: relative;
+    }
+    [role="switch"]::after,
+    [role="checkbox"]::after {
+      content: "";
+      position: absolute;
+      inset: -14px -8px;
     }
   }
 }

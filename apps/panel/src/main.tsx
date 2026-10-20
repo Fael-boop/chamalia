@@ -18,7 +18,7 @@ createRoot(document.getElementById("root")!).render(
         <MotionConfig reducedMotion="user">
           <TooltipProvider delayDuration={300}>
             <App />
-            <Toaster position="top-center" closeButton />
+            <Toaster />
           </TooltipProvider>
         </MotionConfig>
       </QueryClientProvider>
