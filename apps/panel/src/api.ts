@@ -57,6 +57,8 @@ export type Tenant = {
   ownerPhone: string | null;
   active: boolean;
   address: string | null;
+  /** Google Maps (or similar) link, sent together with the address. */
+  locationUrl: string | null;
   tone: "friendly" | "formal";
   useEmoji: boolean;
   extraInfo: string | null;

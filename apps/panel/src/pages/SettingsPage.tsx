@@ -24,6 +24,7 @@ const schema = z.object({
     .trim()
     .refine((v) => v === "" || /^\d{10,15}$/.test(v.replace(/\D/g, "")), "DDI + DDD + número, ex.: 5511999999999"),
   address: z.string().trim(),
+  locationUrl: z.string().trim(),
   assistantName: z.string().trim().min(1, "Informe o nome").max(40),
   tone: z.enum(["friendly", "formal"]),
   useEmoji: z.boolean(),
@@ -40,6 +41,7 @@ const toValues = (t: Tenant): Values => ({
   ownerName: t.ownerName ?? "",
   ownerPhone: t.ownerPhone ?? "",
   address: t.address ?? "",
+  locationUrl: t.locationUrl ?? "",
   assistantName: t.assistantName,
   tone: t.tone,
   useEmoji: t.useEmoji,
@@ -80,6 +82,7 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
           ownerName: v.ownerName || null,
           ownerPhone: v.ownerPhone ? v.ownerPhone.replace(/\D/g, "") : null,
           address: v.address || null,
+          locationUrl: v.locationUrl || null,
           tone: v.tone,
           useEmoji: v.useEmoji,
           extraInfo: v.extraInfo || null,
@@ -95,7 +98,7 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
     onError: (e) => toast.error((e as Error).message),
   });
 
-  const text = (name: "name" | "ownerName" | "ownerPhone" | "address" | "assistantName", label: string, extra?: { placeholder?: string; help?: string; wide?: boolean }) => (
+  const text = (name: "name" | "ownerName" | "ownerPhone" | "address" | "locationUrl" | "assistantName", label: string, extra?: { placeholder?: string; help?: string; wide?: boolean }) => (
     <FormField
       control={form.control}
       name={name}
@@ -143,6 +146,11 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
               )}
             />
             {text("address", "Endereço")}
+            {text("locationUrl", "Localização (Google Maps)", {
+              placeholder: "https://maps.app.goo.gl/...",
+              help: "No Google Maps: abra o local, toque em Compartilhar e copie o link. A atendente manda junto com o endereço.",
+              wide: true,
+            })}
             {text("ownerName", "Nome da dona")}
             {text("ownerPhone", "WhatsApp da dona", { placeholder: "5511999999999", help: "Recebe avisos de agendamento e conversas passadas para ela." })}
           </Section>

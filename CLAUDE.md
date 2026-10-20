@@ -174,6 +174,8 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
+Localização (migration 012, `tenants.location_url`): campo em Configurações, link do Google Maps (ou
+parecido). A Lia manda junto com o endereço quando a cliente pede endereço/localização/como chegar.
 Anexo da tabela de preços (migration 011, `messages.attachment` jsonb): a mensagem do arquivo guarda
 {kind: "price_table", name, mime}; o painel (Testar a Lia) busca a tabela atual e mostra a imagem, em vez do
 nome do arquivo cru. A Lia não repete nem corrige os valores da tabela (ela é da dona, pode diferir da lista
