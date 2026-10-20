@@ -69,8 +69,9 @@ Fonte principal: doc da Meta "Onboard WhatsApp Business app users" (Embedded Sig
 - WhatsApp: Evolution API self-hosted (`evoapicloud/evolution-api:v2.3.7`) para demo e prospecção,
   atrás de uma abstração que permite trocar pela WhatsApp Cloud API oficial da Meta.
 - IA: `@anthropic-ai/sdk`, modelo `claude-haiku-5-5` na conversa, chave em `ANTHROPIC_API_KEY`.
-- Deploy: `docker compose` (Postgres + Redis + Evolution + bot) num VPS. Ainda não há VPS nem Docker;
-  desenvolvimento local no Windows.
+- Deploy: `docker compose` (Postgres + Redis + Evolution + bot) num VPS. Ainda não há VPS.
+  Dev local no Windows: bot e painel com npm; Evolution no Docker Desktop (`docker-compose.dev.yml`),
+  chamando o bot em `host.docker.internal:3000`.
 
 ## Comandos
 ```
@@ -79,6 +80,9 @@ npm run dev:panel    # painel em :5173, faz proxy de /api e /health para :3000
 npm run db:migrate   # aplica migrations pendentes (o servidor também aplica ao subir)
 npm run db:seed      # cria o tenant "demo" (Barbearia Demo), idempotente
 npm test / npm run typecheck / npm run build
+npm run evolution:up       # sobe a Evolution local (Docker Desktop aberto); manager em :8080/manager
+npm run evolution:down     # desliga
+npm run whatsapp:connect -- demo   # conecta o chip do tenant "demo" por QR code
 ```
 No Windows, se `npm` não for encontrado no terminal do VS Code, o PATH está desatualizado:
 fechar todas as janelas do VS Code e reabrir.
@@ -109,8 +113,13 @@ fechar todas as janelas do VS Code e reabrir.
 2. [x] Modelo de dados multi-tenant (`001_initial_schema.sql`): tenants, services, professionals,
    professional_services, business_hours, time_off, customers, appointments (com bloqueio de
    horário sobreposto no banco), conversations, messages. Aplicado no Supabase + seed demo.
-3. [ ] Webhook da Evolution → motor de conversa (identificar cliente, oferecer horários livres,
-   confirmar, gravar agendamento, notificar o dono no WhatsApp). Depende do VPS/Evolution.
+3. [~] Webhook da Evolution → motor de conversa. Feito: `docker-compose.dev.yml` (Evolution +
+   Postgres + Redis só para dev; Docker Desktop instalado no PC do dono), `EvolutionClient` /
+   `EvolutionChannel`, rota `POST /webhooks/evolution?secret=WEBHOOK_SECRET`, comando
+   `npm run whatsapp:connect -- <slug>` (cria instância `chamalia-<slug>`, liga webhook, abre QR).
+   Mensagem enviada pelo próprio celular do chip (fromMe) que não é eco nosso → conversa vai
+   para a dona. Áudio/foto → resposta fixa pedindo texto. LID: usa `remoteJidAlt`.
+   Falta: teste real com chip pré-pago.
 4. [ ] Lembretes 24h e 2h antes, com resposta "1 confirmar, 2 remarcar".
 5. [~] Painel web (React) por tenant: agenda do dia, serviços, horários + tela "Testar a Lia".
    Feito: API do painel com senha (`ADMIN_PASSWORD`), motor de conversa com Claude (tools:
