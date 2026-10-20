@@ -10,6 +10,7 @@ import {
   SchedulingError,
   type Tenant,
 } from "../scheduling/service.js";
+import { bookCombo, findComboSlots, MAX_COMBO_SERVICES } from "../scheduling/combo.js";
 
 export type ToolContext = {
   sql: Sql;
@@ -38,6 +39,16 @@ const inputs = {
     professional_id: z.string().uuid(),
     date,
     time: z.string().regex(/^\d{2}:\d{2}$/),
+  }),
+  find_combo_slots: z.object({
+    service_ids: z.array(z.string().uuid()).min(2).max(MAX_COMBO_SERVICES),
+    date,
+  }),
+  book_combo: z.object({
+    service_ids: z.array(z.string().uuid()).min(2).max(MAX_COMBO_SERVICES),
+    date,
+    time: z.string().regex(/^\d{2}:\d{2}$/),
+    professional_ids: z.array(z.string().uuid()).optional(),
   }),
   list_customer_appointments: z.object({}),
   cancel_appointment: z.object({ appointment_id: z.string().uuid() }),
@@ -77,6 +88,37 @@ export const tools: Anthropic.Tool[] = [
         time: { type: "string", description: "HH:MM, um dos horários retornados por find_available_slots" },
       },
       required: ["service_id", "professional_id", "date", "time"],
+    },
+  },
+  {
+    name: "find_combo_slots",
+    description: `Para mais de um serviço no mesmo atendimento (combo, até ${MAX_COMBO_SERVICES}): lista os horários de início em que todos cabem um depois do outro, na ordem dada. Cada horário mostra quando começa cada serviço e quem está livre. Traz também o preço e a duração total.`,
+    input_schema: {
+      type: "object",
+      properties: {
+        service_ids: { type: "array", items: { type: "string" }, description: "service_id de cada serviço, na ordem em que serão feitos" },
+        date: { type: "string", description: "AAAA-MM-DD" },
+      },
+      required: ["service_ids", "date"],
+    },
+  },
+  {
+    name: "book_combo",
+    description:
+      "Grava um combo (um agendamento por serviço, em sequência). Só use depois que a cliente confirmou os serviços, o dia e o horário de início.",
+    input_schema: {
+      type: "object",
+      properties: {
+        service_ids: { type: "array", items: { type: "string" }, description: "Mesma lista e ordem usadas em find_combo_slots" },
+        date: { type: "string", description: "AAAA-MM-DD" },
+        time: { type: "string", description: "HH:MM de início, um dos retornados por find_combo_slots" },
+        professional_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Opcional: professional_id de cada serviço, na mesma ordem. Sem isso o sistema escolhe.",
+        },
+      },
+      required: ["service_ids", "date", "time"],
     },
   },
   {
@@ -221,6 +263,47 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
     };
   },
 
+  async find_combo_slots(ctx, input) {
+    for (const id of input.service_ids) await ensureAssistantBooks(ctx, id);
+    const { services, slots } = await findComboSlots(ctx.sql, ctx.tenant, { serviceIds: input.service_ids, date: input.date });
+    const prices = services.map((service) => service.priceCents);
+    return {
+      services: services.map((service) => service.name),
+      total_minutes: services.reduce((sum, service) => sum + service.durationMinutes, 0),
+      total_price: prices.some((cents) => cents === null)
+        ? "parte sob consulta"
+        : `R$ ${(prices.reduce((sum, cents) => sum! + cents!, 0)! / 100).toFixed(2).replace(".", ",")}`,
+      date: input.date,
+      weekday: weekdayName(weekdayOf(input.date)),
+      slots: slots.map((slot) => ({
+        start: slot.time,
+        end: utcToZoned(slot.endsAt, ctx.tenant.timezone).time,
+        parts: slot.parts.map((part, index) => ({ service: services[index]!.name, time: part.time, professionals: part.professionals })),
+      })),
+      note: slots.length === 0 ? "Nenhum horário em que todos os serviços caibam em sequência neste dia. Consulte outro dia." : undefined,
+    };
+  },
+
+  async book_combo(ctx, input) {
+    for (const id of input.service_ids) await ensureAssistantBooks(ctx, id);
+    const { parts } = await bookCombo(ctx.sql, ctx.tenant, {
+      customerId: ctx.customer.id,
+      serviceIds: input.service_ids,
+      date: input.date,
+      time: input.time,
+      professionalIds: input.professional_ids,
+      source: "whatsapp",
+    });
+    const lines = parts.map(
+      (part) => `${utcToZoned(part.startsAt, ctx.tenant.timezone).time} ${part.serviceName} com ${part.professionalName}`,
+    );
+    const when = formatDateTimePtBr(parts[0]!.startsAt, ctx.tenant.timezone);
+    ctx.ownerNotices.push(
+      `Novo combo pela ${ctx.tenant.assistantName} (${when}):\n${lines.join("\n")}\nCliente: ${customerLabel(ctx)}`,
+    );
+    return { booked: true, when, ends_at: utcToZoned(parts.at(-1)!.endsAt, ctx.tenant.timezone).time, parts: lines };
+  },
+
   async list_customer_appointments(ctx) {
     const appointments = await listUpcomingAppointments(ctx.sql, ctx.tenant, ctx.customer.id);
     return appointments.map((appointment) => ({
@@ -229,6 +312,7 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
       service: appointment.serviceName,
       professional: appointment.professionalName,
       status: appointment.status,
+      combo_id: appointment.comboId ?? undefined,
     }));
   },
 
@@ -238,7 +322,16 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
     ctx.ownerNotices.push(
       `Agendamento cancelado pelo cliente:\n${appointment.serviceName} com ${appointment.professionalName}\n${when}\nCliente: ${customerLabel(ctx)}`,
     );
-    return { cancelled: true, when };
+    for (const part of appointment.comboParts) {
+      ctx.ownerNotices.push(
+        `Cancelado junto (mesmo combo):\n${part.serviceName} com ${part.professionalName}\n${formatDateTimePtBr(part.startsAt, ctx.tenant.timezone)}`,
+      );
+    }
+    return {
+      cancelled: true,
+      when,
+      also_cancelled_same_combo: appointment.comboParts.map((part) => part.serviceName),
+    };
   },
 
   async save_customer_name(ctx, input) {

@@ -49,7 +49,7 @@ export function registerAgendaRoutes(app: FastifyInstance, sql: Sql) {
     const start = zonedToUtc(from, "00:00", tenant.timezone);
     const end = zonedToUtc(addDays(to, 1), "00:00", tenant.timezone);
     return sql`
-      select a.id, a.starts_at, a.ends_at, a.status, a.source, a.notes, a.created_at,
+      select a.id, a.starts_at, a.ends_at, a.status, a.source, a.notes, a.created_at, a.combo_id,
              a.customer_id, c.name as customer_name, c.phone as customer_phone,
              a.service_id, s.name as service_name, s.price_cents,
              a.professional_id, p.name as professional_name

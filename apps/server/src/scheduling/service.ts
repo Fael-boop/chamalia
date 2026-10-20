@@ -1,6 +1,6 @@
 import type { Sql } from "../db/client.js";
 import { addDays, utcToZoned, weekdayOf, zonedToUtc } from "../lib/time.js";
-import { computeAvailableSlots, type AvailableSlot, type BusyInterval } from "./availability.js";
+import { computeAvailableSlots, type AvailabilityProfessional, type AvailableSlot, type BusyInterval } from "./availability.js";
 
 export type Tenant = {
   id: string;
@@ -71,7 +71,7 @@ const ACTIVE_STATUSES = ["scheduled", "confirmed"];
 
 export class SchedulingError extends Error {
   constructor(
-    readonly code: "service_not_found" | "invalid_date" | "slot_unavailable" | "appointment_not_found" | "handoff_service",
+    readonly code: "service_not_found" | "invalid_date" | "slot_unavailable" | "appointment_not_found" | "handoff_service" | "invalid_combo",
     message: string,
   ) {
     super(message);
@@ -102,16 +102,43 @@ export async function findAvailableSlots(
     throw new SchedulingError("invalid_date", `Só é possível agendar entre ${today} e ${lastDay}.`);
   }
 
-  const [service] = await sql<Service[]>`
-    select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason, handoff_professional_id
-    from services where tenant_id = ${tenant.id} and id = ${params.serviceId} and active
-  `;
-  if (!service) throw new SchedulingError("service_not_found", "Serviço não encontrado.");
+  const day = await loadDay(sql, tenant, params.date, [params.serviceId], params);
+  const { service, professionals } = day.services[0]!;
+  const slots = computeAvailableSlots({
+    date: params.date,
+    timeZone: tenant.timezone,
+    durationMinutes: service.durationMinutes,
+    now,
+    minLeadMinutes: tenant.minNoticeMinutes,
+    busy: day.busy,
+    professionals,
+  });
+  return { service, slots };
+}
 
-  const professionals = await sql<{ id: string; name: string }[]>`
-    select p.id, p.name
+/**
+ * Everything needed to compute free times on one date: each service with the
+ * professionals who do it (and their opening windows that day), plus what is
+ * already busy. Throws service_not_found for an unknown or inactive service.
+ */
+export async function loadDay(
+  sql: Sql,
+  tenant: Tenant,
+  date: string,
+  serviceIds: string[],
+  params: { professionalId?: string; excludeAppointmentId?: string } = {},
+): Promise<{ services: { service: Service; professionals: AvailabilityProfessional[] }[]; busy: BusyInterval[] }> {
+  const services = await sql<Service[]>`
+    select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason, handoff_professional_id
+    from services where tenant_id = ${tenant.id} and id in ${sql(serviceIds)} and active
+  `;
+  const ordered = serviceIds.map((id) => services.find((service) => service.id === id));
+  if (ordered.some((service) => !service)) throw new SchedulingError("service_not_found", "Serviço não encontrado.");
+
+  const performers = await sql<{ id: string; name: string; serviceId: string }[]>`
+    select p.id, p.name, ps.service_id
     from professionals p
-    join professional_services ps on ps.professional_id = p.id and ps.service_id = ${service.id}
+    join professional_services ps on ps.professional_id = p.id and ps.service_id in ${sql(serviceIds)}
     where p.tenant_id = ${tenant.id} and p.active and p.kind = 'professional'
       ${params.professionalId ? sql`and p.id = ${params.professionalId}` : sql``}
     order by p.name
@@ -120,7 +147,7 @@ export async function findAvailableSlots(
   const hours = await sql<{ professionalId: string | null; opensAt: string; closesAt: string }[]>`
     select professional_id, opens_at, closes_at
     from business_hours
-    where tenant_id = ${tenant.id} and weekday = ${weekdayOf(params.date)}
+    where tenant_id = ${tenant.id} and weekday = ${weekdayOf(date)}
     order by opens_at
   `;
   // A professional with hours of their own follows only those; everyone else
@@ -134,8 +161,8 @@ export async function findAvailableSlots(
     ).map((row) => row.professionalId),
   );
 
-  const dayStart = zonedToUtc(params.date, "00:00", tenant.timezone);
-  const dayEnd = zonedToUtc(addDays(params.date, 1), "00:00", tenant.timezone);
+  const dayStart = zonedToUtc(date, "00:00", tenant.timezone);
+  const dayEnd = zonedToUtc(addDays(date, 1), "00:00", tenant.timezone);
   const appointments = await sql<{ professionalId: string; startsAt: Date; endsAt: Date }[]>`
     select professional_id, starts_at, ends_at from appointments
     where tenant_id = ${tenant.id} and status in ${sql(ACTIVE_STATUSES)}
@@ -152,24 +179,20 @@ export async function findAvailableSlots(
     end: row.endsAt,
   }));
 
-  const slots = computeAvailableSlots({
-    date: params.date,
-    timeZone: tenant.timezone,
-    durationMinutes: service.durationMinutes,
-    now,
-    minLeadMinutes: tenant.minNoticeMinutes,
-    busy,
-    professionals: professionals.map((professional) => ({
-      ...professional,
-      windows: hours
-        .filter((row) =>
-          withOwnHours.has(professional.id) ? row.professionalId === professional.id : row.professionalId === null,
-        )
-        .map((row) => ({ opensAt: row.opensAt, closesAt: row.closesAt })),
-    })),
-  });
+  const windowsOf = (professionalId: string) =>
+    hours
+      .filter((row) => (withOwnHours.has(professionalId) ? row.professionalId === professionalId : row.professionalId === null))
+      .map((row) => ({ opensAt: row.opensAt, closesAt: row.closesAt }));
 
-  return { service, slots };
+  return {
+    services: ordered.map((service) => ({
+      service: service!,
+      professionals: performers
+        .filter((row) => row.serviceId === service!.id)
+        .map((row) => ({ id: row.id, name: row.name, windows: windowsOf(row.id) })),
+    })),
+    busy,
+  };
 }
 
 export async function bookAppointment(
@@ -220,9 +243,9 @@ export async function listUpcomingAppointments(
   sql: Sql,
   tenant: Tenant,
   customerId: string,
-): Promise<(BookedAppointment & { status: string })[]> {
-  return sql<(BookedAppointment & { status: string })[]>`
-    select a.id, a.starts_at, a.ends_at, a.status, s.name as service_name, p.name as professional_name
+): Promise<(BookedAppointment & { status: string; comboId: string | null })[]> {
+  return sql<(BookedAppointment & { status: string; comboId: string | null })[]>`
+    select a.id, a.starts_at, a.ends_at, a.status, a.combo_id, s.name as service_name, p.name as professional_name
     from appointments a
     join services s on s.id = a.service_id
     join professionals p on p.id = a.professional_id
@@ -237,18 +260,30 @@ export async function cancelCustomerAppointment(
   tenant: Tenant,
   customerId: string,
   appointmentId: string,
-): Promise<BookedAppointment> {
-  const [appointment] = await sql<BookedAppointment[]>`
+): Promise<BookedAppointment & { comboParts: BookedAppointment[] }> {
+  const [appointment] = await sql<(BookedAppointment & { comboId: string | null })[]>`
     update appointments a
     set status = 'cancelled', cancelled_at = now()
     from services s, professionals p
     where a.id = ${appointmentId} and a.tenant_id = ${tenant.id} and a.customer_id = ${customerId}
       and a.status in ${sql(ACTIVE_STATUSES)}
       and s.id = a.service_id and p.id = a.professional_id
-    returning a.id, a.starts_at, a.ends_at, s.name as service_name, p.name as professional_name
+    returning a.id, a.starts_at, a.ends_at, a.combo_id, s.name as service_name, p.name as professional_name
   `;
   if (!appointment) throw new SchedulingError("appointment_not_found", "Agendamento não encontrado.");
-  return appointment;
+  // A combo is one visit: the other services of it are cancelled too.
+  const comboParts = appointment.comboId
+    ? await sql<BookedAppointment[]>`
+        update appointments a
+        set status = 'cancelled', cancelled_at = now()
+        from services s, professionals p
+        where a.tenant_id = ${tenant.id} and a.combo_id = ${appointment.comboId} and a.id <> ${appointment.id}
+          and a.status in ${sql(ACTIVE_STATUSES)}
+          and s.id = a.service_id and p.id = a.professional_id
+        returning a.id, a.starts_at, a.ends_at, s.name as service_name, p.name as professional_name
+      `
+    : [];
+  return { ...appointment, comboParts: [...comboParts] };
 }
 
 /** Moves an appointment to another free slot (same service), keeping its id and status. */

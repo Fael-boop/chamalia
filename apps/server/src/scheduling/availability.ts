@@ -69,3 +69,72 @@ export function computeAvailableSlots(input: AvailabilityInput): AvailableSlot[]
   return [...byStart.values()].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
+
+export type ComboPart = {
+  durationMinutes: number;
+  /** Professionals who perform this service, with their windows on the date. */
+  professionals: AvailabilityProfessional[];
+};
+
+export type ComboSlot = {
+  startsAt: Date;
+  endsAt: Date;
+  time: string;
+  /** One entry per service, back to back, in the order given. */
+  parts: AvailableSlot[];
+};
+
+export type ComboInput = Omit<AvailabilityInput, "durationMinutes" | "professionals"> & { parts: ComboPart[] };
+
+const toTime = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+/**
+ * Start times where several services fit one right after the other (the
+ * customer goes from one to the next). Each part may be done by a different
+ * professional; the same professional can do consecutive parts. Only the first
+ * part starts on the step grid; the next ones start when the previous ends.
+ */
+export function computeComboSlots(input: ComboInput): ComboSlot[] {
+  const step = input.stepMinutes ?? 30;
+  const earliest = input.now.getTime() + (input.minLeadMinutes ?? 30) * 60000;
+  const total = input.parts.reduce((sum, part) => sum + part.durationMinutes, 0);
+  const result: ComboSlot[] = [];
+
+  for (let start = 0; start + total <= 24 * 60; start += step) {
+    const startsAt = zonedToUtc(input.date, toTime(start), input.timeZone);
+    if (startsAt.getTime() < earliest) continue;
+
+    const parts: AvailableSlot[] = [];
+    let offset = start;
+    for (const part of input.parts) {
+      const partStart = offset;
+      const partEnd = offset + part.durationMinutes;
+      const partStartsAt = zonedToUtc(input.date, toTime(partStart), input.timeZone);
+      const partEndsAt = new Date(partStartsAt.getTime() + part.durationMinutes * 60000);
+      const free = part.professionals.filter(
+        (professional) =>
+          professional.windows.some(
+            (window) => timeToMinutes(window.opensAt) <= partStart && partEnd <= timeToMinutes(window.closesAt),
+          ) &&
+          !input.busy.some(
+            (interval) =>
+              (interval.professionalId === null || interval.professionalId === professional.id) &&
+              interval.start < partEndsAt &&
+              interval.end > partStartsAt,
+          ),
+      );
+      if (free.length === 0) break;
+      parts.push({
+        startsAt: partStartsAt,
+        endsAt: partEndsAt,
+        time: toTime(partStart),
+        professionals: free.map(({ id, name }) => ({ id, name })),
+      });
+      offset = partEnd;
+    }
+    if (parts.length !== input.parts.length) continue;
+    result.push({ startsAt, endsAt: parts.at(-1)!.endsAt, time: toTime(start), parts });
+  }
+  return result;
+}
