@@ -114,6 +114,19 @@ function customerLabel(ctx: ToolContext): string {
   return `${ctx.customer.name ?? "Cliente sem nome"} (${ctx.customer.phone})`;
 }
 
+/** Tells the model whether nobody does the service at all (pass to the owner) or the day is just full. */
+async function noSlotsNote(ctx: ToolContext, serviceId: string): Promise<string> {
+  const [row] = await ctx.sql<{ count: number }[]>`
+    select count(*)::int as count
+    from professional_services ps
+    join professionals p on p.id = ps.professional_id and p.active
+    where ps.tenant_id = ${ctx.tenant.id} and ps.service_id = ${serviceId}
+  `;
+  return row?.count
+    ? "Nenhum horário livre neste dia. Consulte outro dia antes de responder."
+    : "Nenhuma profissional faz este serviço no momento. Não procure outros dias: passe para a dona com transfer_to_owner.";
+}
+
 const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inputs)[K]>) => Promise<unknown> } = {
   async find_available_slots(ctx, input) {
     const { service, slots } = await findAvailableSlots(ctx.sql, ctx.tenant, {
@@ -129,7 +142,7 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
         time: utcToZoned(slot.startsAt, ctx.tenant.timezone).time,
         professionals: slot.professionals,
       })),
-      note: slots.length === 0 ? "Nenhum horário livre neste dia. Sugira outro dia." : undefined,
+      note: slots.length === 0 ? await noSlotsNote(ctx, input.service_id) : undefined,
     };
   },
 
