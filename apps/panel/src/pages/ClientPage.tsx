@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { api, type Tenant } from "../api";
+import type { Tenant } from "../api";
 import { AgendaPage } from "./AgendaPage";
 import { HoursPage } from "./HoursPage";
 import { ProfessionalsPage } from "./ProfessionalsPage";
@@ -10,50 +9,39 @@ import { WhatsAppPage } from "./WhatsAppPage";
 
 export type ClientTab = "agenda" | "services" | "professionals" | "hours" | "settings" | "whatsapp" | "test-chat";
 
-const TABS: { id: ClientTab; label: string }[] = [
-  { id: "agenda", label: "Agenda" },
-  { id: "services", label: "Serviços" },
-  { id: "professionals", label: "Profissionais" },
-  { id: "hours", label: "Horários" },
-  { id: "settings", label: "Configurações" },
-  { id: "whatsapp", label: "WhatsApp" },
-  { id: "test-chat", label: "Testar" },
+export const CLIENT_TABS: { id: ClientTab; label: string; description: string }[] = [
+  { id: "agenda", label: "Agenda", description: "Agendamentos do dia. Mude o status direto na tabela." },
+  { id: "services", label: "Serviços", description: "O que a atendente pode agendar sozinha, com duração e preço." },
+  { id: "professionals", label: "Profissionais", description: "Quem atende e quais serviços cada uma faz." },
+  { id: "hours", label: "Horários", description: "Dias e horários de funcionamento." },
+  { id: "settings", label: "Configurações", description: "Dados do negócio e o jeito de a atendente conversar." },
+  { id: "whatsapp", label: "WhatsApp", description: "Conexão do número que a atendente usa." },
+  { id: "test-chat", label: "Testar", description: "Converse como se fosse uma cliente no WhatsApp." },
 ];
 
-export function ClientPage(props: { tenantId: string; tab: ClientTab; onTab: (tab: ClientTab) => void; onBack: () => void }) {
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api<Tenant>(`/tenants/${props.tenantId}`)
-      .then(setTenant)
-      .catch((e: Error) => setError(e.message));
-  }, [props.tenantId]);
-
-  if (error) return <p className="error">{error}</p>;
-  if (!tenant) return <p className="muted">Carregando…</p>;
+export function ClientPage(props: { tenant: Tenant; tab: ClientTab; onSaved: (tenant: Tenant) => void; onBack: () => void }) {
+  const { tenant, tab } = props;
+  const current = CLIENT_TABS.find((t) => t.id === tab)!;
 
   return (
     <>
-      <div className="row" style={{ marginBottom: 8 }}>
-        <button onClick={props.onBack}>‹ Clientes</button>
-        <strong style={{ fontSize: 16 }}>{tenant.name}</strong>
-        {!tenant.active && <span className="muted">(inativo)</span>}
+      <div className="page-header">
+        <div>
+          <div className="breadcrumb">
+            <button onClick={props.onBack}>Clientes</button> / {tenant.name}
+            {!tenant.active && " (inativo)"}
+          </div>
+          <h1>{tab === "test-chat" ? `Testar a ${tenant.assistantName}` : current.label}</h1>
+          <p>{current.description}</p>
+        </div>
       </div>
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button key={t.id} aria-current={props.tab === t.id ? "page" : undefined} onClick={() => props.onTab(t.id)}>
-            {t.id === "test-chat" ? `Testar a ${tenant.assistantName}` : t.label}
-          </button>
-        ))}
-      </nav>
-      {props.tab === "agenda" && <AgendaPage tenant={tenant} />}
-      {props.tab === "services" && <ServicesPage tenant={tenant} />}
-      {props.tab === "professionals" && <ProfessionalsPage tenant={tenant} />}
-      {props.tab === "hours" && <HoursPage tenant={tenant} />}
-      {props.tab === "settings" && <SettingsPage tenant={tenant} onSaved={setTenant} />}
-      {props.tab === "whatsapp" && <WhatsAppPage tenant={tenant} />}
-      {props.tab === "test-chat" && <TestChatPage tenant={tenant} />}
+      {tab === "agenda" && <AgendaPage tenant={tenant} />}
+      {tab === "services" && <ServicesPage tenant={tenant} />}
+      {tab === "professionals" && <ProfessionalsPage tenant={tenant} />}
+      {tab === "hours" && <HoursPage tenant={tenant} />}
+      {tab === "settings" && <SettingsPage tenant={tenant} onSaved={props.onSaved} />}
+      {tab === "whatsapp" && <WhatsAppPage tenant={tenant} />}
+      {tab === "test-chat" && <TestChatPage tenant={tenant} />}
     </>
   );
 }

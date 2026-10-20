@@ -65,10 +65,11 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
 
   return (
     <>
-      <p className="muted">
+      <p className="hint">
         Só serviços com duração fixa. Química, combos e encaixe a {tenant.assistantName} passa para a dona.
       </p>
       {error && <p className="error">{error}</p>}
+      <div className="panel">
       <div className="table-wrap">
         <table>
           <thead>
@@ -105,11 +106,15 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                     />
                   </td>
                   <td>{service.active ? "Ativo" : "Inativo"}</td>
-                  <td className="row">
-                    <button className="primary" onClick={() => saveEdit(service.id)}>
-                      Salvar
-                    </button>
-                    <button onClick={() => setEditingId(null)}>Cancelar</button>
+                  <td className="actions">
+                    <div className="row">
+                      <button className="primary small" onClick={() => saveEdit(service.id)}>
+                        Salvar
+                      </button>
+                      <button className="small" onClick={() => setEditingId(null)}>
+                        Cancelar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -118,9 +123,15 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                   <td>{service.durationMinutes}</td>
                   <td>{formatPrice(service.priceCents)}</td>
                   <td>{service.active ? "Ativo" : "Inativo"}</td>
-                  <td className="row">
-                    <button onClick={() => startEdit(service)}>Editar</button>
-                    <button onClick={() => toggleActive(service)}>{service.active ? "Desativar" : "Ativar"}</button>
+                  <td className="actions">
+                    <div className="row">
+                      <button className="small" onClick={() => startEdit(service)}>
+                        Editar
+                      </button>
+                      <button className="small" onClick={() => toggleActive(service)}>
+                        {service.active ? "Desativar" : "Ativar"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ),
@@ -129,11 +140,16 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
         </table>
       </div>
 
-      <h2>Novo serviço</h2>
-      <div className="row">
+      <form
+        className="panel-footer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void create();
+        }}
+      >
+        <strong style={{ marginRight: 4 }}>Novo serviço</strong>
         <input placeholder="Nome" value={newDraft.name} onChange={(e) => setNewDraft({ ...newDraft, name: e.target.value })} />
         <label className="row">
-          Duração
           <input
             type="number"
             min={5}
@@ -145,14 +161,16 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
         </label>
         <input
           placeholder="Preço (ex.: 45,00)"
+          size={14}
           value={newDraft.price}
           onChange={(e) => setNewDraft({ ...newDraft, price: e.target.value })}
         />
-        <button className="primary" onClick={create}>
+        <button className="primary" type="submit">
           Adicionar
         </button>
+      </form>
       </div>
-      <p className="muted">Serviço novo já fica disponível para todas as profissionais ativas.</p>
+      <p className="hint" style={{ marginTop: 12 }}>Serviço novo já fica disponível para todas as profissionais ativas.</p>
     </>
   );
 }

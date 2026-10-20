@@ -40,12 +40,13 @@ export function HoursPage({ tenant }: { tenant: Tenant }) {
 
   return (
     <>
-      <p className="muted">Para intervalo de almoço, use dois períodos no mesmo dia (ex.: 09:00–12:00 e 13:00–19:00).</p>
+      <p className="hint">Para intervalo de almoço, use dois períodos no mesmo dia (ex.: 09:00–12:00 e 13:00–19:00).</p>
+      <div className="panel">
       <table>
         <tbody>
           {days.map((periods, weekday) => (
             <tr key={weekday}>
-              <td style={{ width: 110 }}>{WEEKDAYS[weekday]}</td>
+              <td style={{ width: 120, fontWeight: 500 }}>{WEEKDAYS[weekday]}</td>
               <td>
                 <div className="row">
                   {periods.length === 0 && <span className="muted">Fechado</span>}
@@ -66,12 +67,17 @@ export function HoursPage({ tenant }: { tenant: Tenant }) {
                           update(weekday, periods.map((p, i) => (i === index ? { ...p, closesAt: e.target.value } : p)))
                         }
                       />
-                      <button title="Remover período" onClick={() => update(weekday, periods.filter((_, i) => i !== index))}>
+                      <button
+                        className="small"
+                        title="Remover período"
+                        onClick={() => update(weekday, periods.filter((_, i) => i !== index))}
+                      >
                         ×
                       </button>
                     </span>
                   ))}
                   <button
+                    className="small"
                     onClick={() =>
                       update(weekday, [
                         ...periods,
@@ -87,12 +93,13 @@ export function HoursPage({ tenant }: { tenant: Tenant }) {
           ))}
         </tbody>
       </table>
-      <div className="row" style={{ marginTop: 12 }}>
+      <div className="panel-footer">
         <button className="primary" onClick={save}>
           Salvar horários
         </button>
         {status && <span className="muted">{status}</span>}
         {error && <span className="error">{error}</span>}
+      </div>
       </div>
     </>
   );

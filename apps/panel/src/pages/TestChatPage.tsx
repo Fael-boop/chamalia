@@ -77,12 +77,9 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
 
   return (
     <>
-      <p className="muted">
-        Converse como se fosse uma cliente no WhatsApp. É o mesmo motor que vai responder no WhatsApp; os agendamentos
-        feitos aqui entram na agenda de verdade.
-      </p>
-
-      <div className="row">
+      <p className="hint">É o mesmo motor que vai responder no WhatsApp. Os agendamentos feitos aqui entram na agenda de verdade.</p>
+      <div className="panel">
+      <div className="toolbar">
         <label className="row">
           Telefone da cliente
           <input value={phone} size={16} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
@@ -95,24 +92,23 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
       </div>
 
       {state?.withOwner && (
-        <p className="row">
+        <div className="toolbar">
           <span>
-            <strong>Conversa com a dona:</strong> a {tenant.assistantName} não responde até ser devolvida.
+            <strong>Com a dona:</strong> a {tenant.assistantName} não responde até ser devolvida.
             {state.handoffReason && <span className="muted"> Pedido: {state.handoffReason}</span>}
           </span>
+          <span className="spacer" />
           <button onClick={releaseToAssistant}>Devolver para a {tenant.assistantName}</button>
-        </p>
+        </div>
       )}
 
-      <div className="chat" style={{ marginTop: 12 }}>
+      <div className="chat">
         {items.length === 0 && !pending && <p className="muted">Mande a primeira mensagem, por exemplo "oi, quero marcar um horário".</p>}
         {items.map((item) =>
           item.kind === "message" ? (
             <div key={item.message.id} className={`bubble ${item.message.direction}`}>
               {item.message.body}
-              <div className="muted" style={{ fontSize: 11, textAlign: "right" }}>
-                {formatTime(item.message.createdAt, tenant.timezone)}
-              </div>
+              <div className="bubble-time">{formatTime(item.message.createdAt, tenant.timezone)}</div>
             </div>
           ) : (
             <div key={item.notice.id} className="notice">
@@ -147,9 +143,10 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
           Enviar
         </button>
       </form>
+      </div>
 
       {ownerPhoneMissing && notices.length > 0 && (
-        <p className="muted">
+        <p className="hint" style={{ marginTop: 12 }}>
           O WhatsApp da dona ainda não está cadastrado: no WhatsApp real esses avisos não seriam enviados.
         </p>
       )}

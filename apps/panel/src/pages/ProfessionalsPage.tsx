@@ -48,8 +48,9 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
 
   return (
     <>
-      <p className="muted">Marque os serviços que cada profissional faz. A {tenant.assistantName} só oferece horário com quem faz o serviço.</p>
+      <p className="hint">Marque os serviços que cada profissional faz. A {tenant.assistantName} só oferece horário com quem faz o serviço.</p>
       {error && <p className="error">{error}</p>}
+      <div className="panel">
       <div className="table-wrap">
         <table>
           <thead>
@@ -78,15 +79,20 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
                     />
                   </td>
                 ))}
-                <td className="row">
-                  <button onClick={() => rename(p)}>Renomear</button>
-                  <button
-                    onClick={() =>
-                      run(() => api(`/tenants/${tenant.id}/professionals/${p.id}`, { method: "PATCH", body: { active: !p.active } }))
-                    }
-                  >
-                    {p.active ? "Desativar" : "Ativar"}
-                  </button>
+                <td className="actions">
+                  <div className="row">
+                    <button className="small" onClick={() => rename(p)}>
+                      Renomear
+                    </button>
+                    <button
+                      className="small"
+                      onClick={() =>
+                        run(() => api(`/tenants/${tenant.id}/professionals/${p.id}`, { method: "PATCH", body: { active: !p.active } }))
+                      }
+                    >
+                      {p.active ? "Desativar" : "Ativar"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -94,9 +100,8 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
         </table>
       </div>
 
-      <h2>Nova profissional</h2>
       <form
-        className="row"
+        className="panel-footer"
         onSubmit={(e) => {
           e.preventDefault();
           if (!newName.trim()) return;
@@ -106,12 +111,14 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
           });
         }}
       >
+        <strong style={{ marginRight: 4 }}>Nova profissional</strong>
         <input placeholder="Nome" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <button className="primary" type="submit">
           Adicionar
         </button>
       </form>
-      <p className="muted">A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz.</p>
+      </div>
+      <p className="hint" style={{ marginTop: 12 }}>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz.</p>
     </>
   );
 }

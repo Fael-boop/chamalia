@@ -52,9 +52,11 @@ export function ClientsPage({ onOpen }: { onOpen: (tenantId: string, tab?: Clien
 
   return (
     <>
-      <div className="row">
-        <h1 style={{ margin: 0 }}>Clientes</h1>
-        <span className="spacer" />
+      <div className="page-header">
+        <div>
+          <h1>Clientes</h1>
+          <p>Os negócios atendidos pela ChamaLia.</p>
+        </div>
         {!showForm && (
           <button className="primary" onClick={() => setShowForm(true)}>
             Novo cliente
@@ -64,42 +66,50 @@ export function ClientsPage({ onOpen }: { onOpen: (tenantId: string, tab?: Clien
       {error && <p className="error">{error}</p>}
 
       {showForm && (
-        <form className="form" onSubmit={create} style={{ margin: "16px 0 24px" }}>
-          <h2 style={{ margin: 0 }}>Novo cliente</h2>
-          <label>
-            Nome do negócio
-            <input required value={form.name} onChange={set("name")} placeholder="Ex.: Salão da Ana" />
-          </label>
-          <label>
-            Nicho
-            <select value={form.businessType} onChange={set("businessType")}>
-              {niches.map((n) => (
-                <option key={n.value} value={n.value}>
-                  {n.label}
-                </option>
-              ))}
-            </select>
-            <small>Define a lista inicial de serviços. Depois você ajusta tudo.</small>
-          </label>
-          <label>
-            Nome da dona
-            <input value={form.ownerName} onChange={set("ownerName")} />
-            <small>Vira a primeira profissional cadastrada.</small>
-          </label>
-          <label>
-            WhatsApp da dona
-            <input value={form.ownerPhone} onChange={set("ownerPhone")} placeholder="5511999999999" />
-            <small>Recebe os avisos de agendamento. DDI + DDD + número.</small>
-          </label>
-          <label>
-            Endereço
-            <input value={form.address} onChange={set("address")} />
-          </label>
-          <label>
-            Nome da atendente virtual
-            <input value={form.assistantName} onChange={set("assistantName")} />
-          </label>
-          <div className="row">
+        <form className="panel" onSubmit={create} style={{ marginBottom: 16 }}>
+          <div className="panel-header">
+            <h2>Novo cliente</h2>
+          </div>
+          <div className="panel-body">
+            <div className="form" style={{ maxWidth: "none" }}>
+              <div className="form-grid">
+                <label>
+                  Nome do negócio
+                  <input required autoFocus value={form.name} onChange={set("name")} placeholder="Ex.: Salão da Ana" />
+                </label>
+                <label>
+                  Nicho
+                  <select value={form.businessType} onChange={set("businessType")}>
+                    {niches.map((n) => (
+                      <option key={n.value} value={n.value}>
+                        {n.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Nome da dona
+                  <input value={form.ownerName} onChange={set("ownerName")} />
+                  <small>Vira a primeira profissional cadastrada.</small>
+                </label>
+                <label>
+                  WhatsApp da dona
+                  <input value={form.ownerPhone} onChange={set("ownerPhone")} placeholder="5511999999999" />
+                  <small>Recebe os avisos. DDI + DDD + número.</small>
+                </label>
+                <label>
+                  Endereço
+                  <input value={form.address} onChange={set("address")} />
+                </label>
+                <label>
+                  Nome da atendente virtual
+                  <input value={form.assistantName} onChange={set("assistantName")} />
+                </label>
+              </div>
+              <small>O nicho define a lista inicial de serviços e o horário padrão (ter–sáb, 9h–18h). Depois você ajusta tudo.</small>
+            </div>
+          </div>
+          <div className="panel-footer">
             <button className="primary" type="submit" disabled={saving}>
               {saving ? "Criando…" : "Criar cliente"}
             </button>
@@ -110,40 +120,47 @@ export function ClientsPage({ onOpen }: { onOpen: (tenantId: string, tab?: Clien
         </form>
       )}
 
-      {clients && clients.length === 0 && <p className="muted">Nenhum cliente ainda.</p>}
-      {clients && clients.length > 0 && (
-        <div className="table-wrap" style={{ marginTop: 12 }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Nicho</th>
-                <th>Dona</th>
-                <th>WhatsApp</th>
-                <th>Próximos agendamentos</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map((c) => (
-                <tr key={c.id} className={c.active ? undefined : "inactive"}>
-                  <td>
-                    {c.name}
-                    {!c.active && " (inativo)"}
-                  </td>
-                  <td>{nicheLabel(c.businessType)}</td>
-                  <td>{c.ownerName ?? "—"}</td>
-                  <td>{c.whatsappInstance ? "configurado" : "—"}</td>
-                  <td>{c.upcoming}</td>
-                  <td>
-                    <button onClick={() => onOpen(c.id)}>Abrir</button>
-                  </td>
+      <div className="panel">
+        {clients && clients.length === 0 && <div className="empty">Nenhum cliente ainda. Clique em “Novo cliente”.</div>}
+        {!clients && !error && <div className="empty">Carregando…</div>}
+        {clients && clients.length > 0 && (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Nicho</th>
+                  <th>Dona</th>
+                  <th>WhatsApp</th>
+                  <th>Próximos agendamentos</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {clients.map((c) => (
+                  <tr key={c.id} className={`clickable${c.active ? "" : " inactive"}`} onClick={() => onOpen(c.id)}>
+                    <td>
+                      <strong>{c.name}</strong>
+                      {!c.active && <span className="cell-sub">Inativo</span>}
+                    </td>
+                    <td>{nicheLabel(c.businessType)}</td>
+                    <td>{c.ownerName ?? "—"}</td>
+                    <td>
+                      <span className={`status${c.whatsappInstance ? " ok" : ""}`}>
+                        {c.whatsappInstance ? "Configurado" : "Não configurado"}
+                      </span>
+                    </td>
+                    <td>{c.upcoming}</td>
+                    <td className="actions">
+                      <span className="muted">Abrir ›</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </>
   );
 }

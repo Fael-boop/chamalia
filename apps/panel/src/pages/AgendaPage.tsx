@@ -31,29 +31,37 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
   }
 
   const active = appointments?.filter((a) => a.status !== "cancelled").length ?? 0;
+  const today = todayIn(tenant.timezone);
 
   return (
-    <>
-      <div className="row">
-        <button onClick={() => setDate(shiftDate(date, -1))}>‹ Anterior</button>
+    <div className="panel">
+      <div className="toolbar">
+        <button onClick={() => setDate(shiftDate(date, -1))} aria-label="Dia anterior">
+          ‹
+        </button>
         <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
-        <button onClick={() => setDate(shiftDate(date, 1))}>Próximo ›</button>
-        <button onClick={() => setDate(todayIn(tenant.timezone))}>Hoje</button>
+        <button onClick={() => setDate(shiftDate(date, 1))} aria-label="Próximo dia">
+          ›
+        </button>
+        <button onClick={() => setDate(today)} disabled={date === today}>
+          Hoje
+        </button>
+        <span className="spacer" />
         <span className="muted">
-          {formatLongDate(date)} · {active} {active === 1 ? "agendamento" : "agendamentos"}
+          <span style={{ textTransform: "capitalize" }}>{formatLongDate(date)}</span> · {active}{" "}
+          {active === 1 ? "agendamento" : "agendamentos"}
         </span>
       </div>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error panel-body">{error}</p>}
 
-      {appointments && appointments.length === 0 && <p className="muted">Nenhum agendamento neste dia.</p>}
+      {appointments && appointments.length === 0 && <div className="empty">Nenhum agendamento neste dia.</div>}
       {appointments && appointments.length > 0 && (
-        <div className="table-wrap" style={{ marginTop: 12 }}>
+        <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Horário</th>
                 <th>Cliente</th>
-                <th>Telefone</th>
                 <th>Serviço</th>
                 <th>Profissional</th>
                 <th>Status</th>
@@ -63,10 +71,13 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
               {appointments.map((a) => (
                 <tr key={a.id} className={a.status === "cancelled" ? "inactive" : undefined}>
                   <td>
-                    {formatTime(a.startsAt, tenant.timezone)}–{formatTime(a.endsAt, tenant.timezone)}
+                    <strong>{formatTime(a.startsAt, tenant.timezone)}</strong>
+                    <span className="cell-sub">até {formatTime(a.endsAt, tenant.timezone)}</span>
                   </td>
-                  <td>{a.customerName ?? "—"}</td>
-                  <td>{formatPhone(a.customerPhone)}</td>
+                  <td>
+                    {a.customerName ?? "Sem nome"}
+                    <span className="cell-sub">{formatPhone(a.customerPhone)}</span>
+                  </td>
                   <td>{a.serviceName}</td>
                   <td>{a.professionalName}</td>
                   <td>
@@ -84,6 +95,6 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
           </table>
         </div>
       )}
-    </>
+    </div>
   );
 }

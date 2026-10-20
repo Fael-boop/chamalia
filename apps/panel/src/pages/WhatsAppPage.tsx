@@ -53,37 +53,49 @@ export function WhatsAppPage({ tenant }: { tenant: Tenant }) {
   }
 
   return (
-    <>
-      <p>
-        Situação: <strong>{status ? STATE_LABELS[status.state] : "…"}</strong>
-        {status?.instance && <span className="muted"> · instância {status.instance}</span>}
-      </p>
-      {status && !status.available && (
-        <p className="muted">Confira se o Docker Desktop está aberto e a Evolution está rodando (npm run evolution:up).</p>
-      )}
+    <div className="panel">
+      <div className="panel-header">
+        <h2>
+          <span className={`status${status?.state === "open" ? " ok" : ""}`}>{status ? STATE_LABELS[status.state] : "Verificando…"}</span>
+        </h2>
+        {status?.instance && <span className="muted">Instância {status.instance}</span>}
+      </div>
+      <div className="panel-body">
+        {status && !status.available && (
+          <p className="muted" style={{ marginTop: 0 }}>
+            Confira se o Docker Desktop está aberto e a Evolution está rodando (npm run evolution:up).
+          </p>
+        )}
 
-      {status?.state !== "open" && (
-        <button className="primary" onClick={connect} disabled={busy}>
-          {busy ? "Gerando…" : qrCode ? "Gerar outro QR code" : "Conectar WhatsApp"}
-        </button>
-      )}
-      {status?.state === "open" && <button onClick={() => refresh()}>Atualizar</button>}
-
-      {qrCode && (
-        <div style={{ marginTop: 16 }}>
-          <img src={qrCode} width={280} height={280} alt="QR code para conectar o WhatsApp" />
-          <ol>
-            <li>No celular do número do cliente, abra o WhatsApp.</li>
-            <li>Vá em Configurações › Aparelhos conectados › Conectar aparelho.</li>
-            <li>Aponte a câmera para este QR code. A tela atualiza sozinha.</li>
-          </ol>
-        </div>
-      )}
-
-      <p className="muted" style={{ marginTop: 24 }}>
-        Conexão pela Evolution (não oficial): use um chip próprio para o bot, nunca o número principal do cliente.
-      </p>
-      {error && <p className="error">{error}</p>}
-    </>
+        {qrCode ? (
+          <div className="row" style={{ alignItems: "flex-start", gap: 24 }}>
+            <img src={qrCode} width={240} height={240} alt="QR code para conectar o WhatsApp" />
+            <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.9 }}>
+              <li>No celular do número do cliente, abra o WhatsApp.</li>
+              <li>Vá em Configurações › Aparelhos conectados.</li>
+              <li>Toque em Conectar aparelho.</li>
+              <li>Aponte a câmera para este QR code.</li>
+            </ol>
+          </div>
+        ) : (
+          <p className="muted" style={{ margin: 0 }}>
+            {status?.state === "open"
+              ? `A ${tenant.assistantName} já está respondendo por este número.`
+              : "Conecte o número que a atendente vai usar. O QR code aparece aqui."}
+          </p>
+        )}
+        {error && <p className="error">{error}</p>}
+      </div>
+      <div className="panel-footer">
+        {status?.state !== "open" ? (
+          <button className="primary" onClick={connect} disabled={busy}>
+            {busy ? "Gerando…" : qrCode ? "Gerar outro QR code" : "Conectar WhatsApp"}
+          </button>
+        ) : (
+          <button onClick={() => refresh()}>Atualizar situação</button>
+        )}
+        <span className="muted">Conexão não oficial (Evolution): use um chip próprio, nunca o número principal do cliente.</span>
+      </div>
+    </div>
   );
 }
