@@ -360,7 +360,14 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
       const [created] = await tx<{ id: string }[]>`
         insert into professionals ${tx({ tenantId, ...body })} returning ${tx(PROFESSIONAL_COLUMNS)}
       `;
-      if (body.kind === "reception") return created;
+      if (body.kind === "reception") {
+        // The first reception becomes the default for everything nobody configured.
+        await tx`
+          update tenants set default_handoff_professional_id = ${created!.id}
+          where id = ${tenantId} and default_handoff_professional_id is null
+        `;
+        return created;
+      }
       // Starts doing every active service; adjust with the checkboxes.
       await tx`
         insert into professional_services (tenant_id, professional_id, service_id)

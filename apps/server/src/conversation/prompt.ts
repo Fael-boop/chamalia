@@ -8,6 +8,8 @@ export type PromptData = {
   professionals: { id: string; name: string }[];
   /** professionalId null = business hours; otherwise that professional's own hours. */
   hours: { professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[];
+  /** Receives general questions; null = the owner. */
+  defaultPerson: { name: string; kind: string } | null;
   faq: { question: string; answer: string }[];
   handoffTopics: { id: string; topic: string; reason: string | null }[];
   customerName: string | null;
@@ -119,7 +121,8 @@ Como atender:
   - os assuntos que a dona pediu para tratar ela mesma (lista abaixo);
   - qualquer outro assunto que não seja agendar, consultar, remarcar ou cancelar os serviços da lista, ou que você não consiga responder só com as informações deste texto (reclamação, orçamento, negociação de preço, dúvida técnica, problema com serviço feito, pedido especial etc.).
   Na dúvida, passe para a dona: é melhor ela responder do que a ${person} ficar sem resposta ou receber uma informação errada. Nunca invente regra, preço, prazo ou política.
-  Antes de transferir, entenda em uma ou duas perguntas o que a ${person} quer, para a dona já receber o pedido completo. Não prometa nada em nome da dona.
+  ${data.defaultPerson ? `Dúvidas gerais (que não são de um serviço ou assunto da lista) vão para ${data.defaultPerson.kind === "reception" ? "a recepção" : data.defaultPerson.name}: inclusive pedidos de indicação e orientação (qual serviço escolher, como funciona). Ao oferecer ou avisar que vai chamar alguém para esse tipo de dúvida, cite sempre essa pessoa, nunca a dona nem o nome dela.
+  ` : ""}Antes de transferir, entenda em uma ou duas perguntas o que a ${person} quer, para a dona já receber o pedido completo. Não prometa nada em nome da dona.
 ${
   data.handoffTopics.length
     ? `\nAssuntos que a dona trata ela mesma (passe para ela assim que a ${person} tocar no assunto):\n${data.handoffTopics
