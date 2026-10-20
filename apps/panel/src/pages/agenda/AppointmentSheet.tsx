@@ -139,7 +139,10 @@ export function AppointmentSheet({
                 </span>
               </dd>
               <dt className="text-muted-foreground">Serviço</dt>
-              <dd>{appointment.serviceName}</dd>
+              <dd>
+                {appointment.serviceName}
+                {appointment.comboId && <span className="ml-1.5 text-xs text-muted-foreground">· parte de um combo (serviços em sequência)</span>}
+              </dd>
               <dt className="text-muted-foreground">Profissional</dt>
               <dd>{appointment.professionalName}</dd>
               <dt className="text-muted-foreground">Valor</dt>

@@ -135,6 +135,8 @@ export type Appointment = {
   source: "whatsapp" | "panel";
   notes: string | null;
   createdAt: string;
+  /** Same value on every service booked together in one visit. */
+  comboId: string | null;
   customerId: string;
   customerName: string | null;
   customerPhone: string;
