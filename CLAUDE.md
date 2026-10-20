@@ -149,10 +149,31 @@ fechar todas as janelas do VS Code e reabrir.
    (`CollectingChannel`). "Passar para a dona" (tool `transfer_to_owner`, Lia fica em silêncio).
    Tela "Testar a Lia" pronta (login, escolha do salão, chat, avisos à dona, nova conversa,
    devolver para a Lia). Testado com o Haiku 5.5: agendar, remarcar, química, encaixe.
-   Falta: telas Agenda, Serviços, Horários, Configurações (API já existe).
+   Painel refeito (ver seção "Painel: regras de UI"). Falta: validar no celular real.
 6. [ ] README com passo a passo de onboarding de um cliente novo.
 
 Decisões: modelo de dados continua o da 001, sem migration nova no MVP. "Com a dona" usa
 `conversations.state = 'human'` (+ motivo em `context`); não precisa de coluna nova.
 
 Atualizar esta seção ao fim de cada etapa.
+
+## Painel: regras de UI e paleta (refeito em 2026-10-20)
+Stack: Tailwind v4 + shadcn/ui (new-york), lucide-react, sonner, react-hook-form + zod,
+TanStack Query, date-fns pt-BR, motion + tw-animate-css, PWA (vite-plugin-pwa). Fonte Inter.
+- **Paleta por tokens** em `apps/panel/src/index.css`: `--brand-50..950` (azul) e
+  `--graphite-50..950` (preto/grafite). Para trocar a cor da marca, mude só esses valores.
+  Azul = ações e destaques; grafite/preto = estrutura (menu lateral, topo, texto principal).
+  Fundo do conteúdo claro; modo escuro (base preta, destaque azul) com botão de alternar
+  (`chamalia.theme` no localStorage, sem flash).
+- Cores de status discretas, só para confirmado/pendente/cancelado/concluído
+  (`--status-*`). Sem gradiente, sem card colorido, sem ícone decorativo.
+- Desktop: menu lateral preto, agenda da semana com colunas por profissional, listas em tabela.
+- Celular: menu inferior com 4 itens (Agenda, Clientes, Serviços, Mais), agenda do dia com
+  deslizar para trocar de dia, listas viram itens compactos, formulários abrem em folha
+  inferior (arrastar para fechar). Alvos de toque >= 44px (`pointer: coarse`).
+- Animações 150-250 ms, respeitam `prefers-reduced-motion`. Skeleton ao carregar.
+- Nomes: "Negócios" = clientes da agência (painel admin); "Clientes" = clientes finais do negócio.
+- Dados de demonstração: `npm run db:seed:salon` recria o "Studio Bella (exemplo)" (3 profissionais,
+  serviços de cabelo e unha, agenda cheia hoje e amanhã). Não mexe em outros negócios.
+- Celular na mesma rede: `npm run dev:panel` já expõe na rede (`host: true`); abrir
+  `http://<IP do PC>:5173`. Instalar como app exige HTTPS (só em produção).

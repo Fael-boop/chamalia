@@ -1,0 +1,226 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Paleta Chama Lia.
+ * 1) Escalas (azul = marca/ações, grafite = estrutura). Para trocar a cor da
+ *    marca, troque só a escala --brand-*.
+ * 2) Tokens do shadcn (papéis: primary, sidebar, border…) apontam para as escalas.
+ * 3) Status de agendamento: tons discretos, só para status.
+ */
+:root {
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+  --brand-950: #172554;
+
+  --graphite-50: #f7f7f8;
+  --graphite-100: #eeeef0;
+  --graphite-200: #e1e2e5;
+  --graphite-300: #c7c9ce;
+  --graphite-400: #9b9ea6;
+  --graphite-500: #6f727b;
+  --graphite-600: #53565e;
+  --graphite-700: #3e4148;
+  --graphite-800: #2a2c32;
+  --graphite-900: #1a1b20;
+  --graphite-950: #0e0f13;
+
+  --radius: 0.5rem;
+
+  --background: var(--graphite-50);
+  --foreground: var(--graphite-950);
+  --card: #ffffff;
+  --card-foreground: var(--graphite-950);
+  --popover: #ffffff;
+  --popover-foreground: var(--graphite-950);
+  --primary: var(--brand-600);
+  --primary-foreground: #ffffff;
+  --secondary: var(--graphite-100);
+  --secondary-foreground: var(--graphite-900);
+  --muted: var(--graphite-100);
+  --muted-foreground: var(--graphite-500);
+  --accent: var(--brand-50);
+  --accent-foreground: var(--brand-700);
+  --destructive: #d92d20;
+  --border: var(--graphite-200);
+  --input: var(--graphite-300);
+  --ring: var(--brand-500);
+
+  --sidebar: var(--graphite-950);
+  --sidebar-foreground: var(--graphite-300);
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--graphite-800);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: var(--graphite-800);
+  --sidebar-ring: var(--brand-400);
+
+  --status-confirmed: #067647;
+  --status-confirmed-bg: #ecfdf3;
+  --status-confirmed-border: #abefc6;
+  --status-pending: #b54708;
+  --status-pending-bg: #fffaeb;
+  --status-pending-border: #fedf89;
+  --status-cancelled: #b42318;
+  --status-cancelled-bg: #fef3f2;
+  --status-cancelled-border: #fecdca;
+  --status-done: var(--graphite-600);
+  --status-done-bg: var(--graphite-100);
+  --status-done-border: var(--graphite-200);
+}
+
+.dark {
+  --background: var(--graphite-950);
+  --foreground: var(--graphite-50);
+  --card: var(--graphite-900);
+  --card-foreground: var(--graphite-50);
+  --popover: var(--graphite-900);
+  --popover-foreground: var(--graphite-50);
+  --primary: var(--brand-500);
+  --primary-foreground: #ffffff;
+  --secondary: var(--graphite-800);
+  --secondary-foreground: var(--graphite-50);
+  --muted: var(--graphite-800);
+  --muted-foreground: var(--graphite-400);
+  --accent: color-mix(in srgb, var(--brand-500) 16%, transparent);
+  --accent-foreground: var(--brand-300);
+  --destructive: #f04438;
+  --border: var(--graphite-800);
+  --input: var(--graphite-700);
+  --ring: var(--brand-400);
+
+  --sidebar: #000000;
+  --sidebar-foreground: var(--graphite-400);
+  --sidebar-accent: var(--graphite-900);
+  --sidebar-border: var(--graphite-900);
+
+  --status-confirmed: #75e0a7;
+  --status-confirmed-bg: color-mix(in srgb, #17b26a 14%, transparent);
+  --status-confirmed-border: color-mix(in srgb, #17b26a 30%, transparent);
+  --status-pending: #fdb022;
+  --status-pending-bg: color-mix(in srgb, #f79009 14%, transparent);
+  --status-pending-border: color-mix(in srgb, #f79009 30%, transparent);
+  --status-cancelled: #fda29b;
+  --status-cancelled-bg: color-mix(in srgb, #f04438 14%, transparent);
+  --status-cancelled-border: color-mix(in srgb, #f04438 30%, transparent);
+  --status-done: var(--graphite-400);
+  --status-done-bg: var(--graphite-800);
+  --status-done-border: var(--graphite-700);
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+  --color-graphite-50: var(--graphite-50);
+  --color-graphite-100: var(--graphite-100);
+  --color-graphite-200: var(--graphite-200);
+  --color-graphite-300: var(--graphite-300);
+  --color-graphite-400: var(--graphite-400);
+  --color-graphite-500: var(--graphite-500);
+  --color-graphite-600: var(--graphite-600);
+  --color-graphite-700: var(--graphite-700);
+  --color-graphite-800: var(--graphite-800);
+  --color-graphite-900: var(--graphite-900);
+  --color-graphite-950: var(--graphite-950);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-status-confirmed: var(--status-confirmed);
+  --color-status-confirmed-bg: var(--status-confirmed-bg);
+  --color-status-confirmed-border: var(--status-confirmed-border);
+  --color-status-pending: var(--status-pending);
+  --color-status-pending-bg: var(--status-pending-bg);
+  --color-status-pending-border: var(--status-pending-border);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-bg: var(--status-cancelled-bg);
+  --color-status-cancelled-border: var(--status-cancelled-border);
+  --color-status-done: var(--status-done);
+  --color-status-done-bg: var(--status-done-bg);
+  --color-status-done-border: var(--status-done-border);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* Touch screens: every control at least 44px tall. */
+  @media (pointer: coarse) {
+    button,
+    [role="button"],
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    [role="combobox"] {
+      min-height: 44px;
+    }
+  }
+}
+
+/* Respect "reduce motion": no slides, fades or pulses. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,13 +1,42 @@
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Building2,
+  CalendarDays,
+  Clock,
+  Ellipsis,
+  KeyRound,
+  MessagesSquare,
+  Scissors,
+  Settings,
+  Smartphone,
+  Users,
+  UsersRound,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, setToken, setUnauthorizedHandler, type SessionInfo, type Tenant } from "./api";
-import { clientTabsFor, ClientPage, type ClientTab } from "./pages/ClientPage";
-import { ClientsPage } from "./pages/ClientsPage";
+import { api, ApiError, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
+import { AppShell, type NavItem } from "./components/app-shell";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
+import { Skeleton } from "./components/ui/skeleton";
+import { useIsMobile } from "./hooks/use-mobile";
+import { useTenant } from "./lib/queries";
+import { AccessPage } from "./pages/AccessPage";
+import { AgendaPage } from "./pages/agenda/AgendaPage";
+import { BusinessesPage } from "./pages/BusinessesPage";
+import { CustomersPage } from "./pages/CustomersPage";
+import { HoursPage } from "./pages/HoursPage";
+import { MorePage } from "./pages/MorePage";
+import { ProfessionalsPage } from "./pages/ProfessionalsPage";
+import { ServicesPage } from "./pages/ServicesPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { TestChatPage } from "./pages/TestChatPage";
+import { WhatsAppPage } from "./pages/WhatsAppPage";
 
 const BRAND = "Chama Lia";
 
-type View = { name: "clients" } | { name: "client"; tenantId: string; tab: ClientTab };
-
 export function App() {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [authState, setAuthState] = useState<"checking" | "login" | "ok">("checking");
 
@@ -29,12 +58,13 @@ export function App() {
   const logout = () => {
     setToken("");
     setSession(null);
+    queryClient.clear();
     setAuthState("login");
   };
 
   if (authState === "login") {
     return (
-      <LoginForm
+      <LoginPage
         onLoggedIn={(token) => {
           setToken(token);
           setAuthState("checking");
@@ -43,138 +73,134 @@ export function App() {
       />
     );
   }
-  if (authState === "checking" || !session) return <p className="muted" style={{ padding: 24 }}>Carregando…</p>;
+  if (authState === "checking" || !session) return <SplashSkeleton />;
 
   return session.role === "owner" ? (
-    <OwnerApp tenantId={session.tenantId} onLogout={logout} />
+    <BusinessWorkspace tenantId={session.tenantId} role="owner" onLogout={logout} />
   ) : (
     <AgencyApp onLogout={logout} />
   );
 }
 
-/** Agency panel: every client, client registration, WhatsApp and owner access. */
 function AgencyApp({ onLogout }: { onLogout: () => void }) {
-  const [view, setView] = useState<View>({ name: "clients" });
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [error, setError] = useState("");
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const mobile = useIsMobile();
+  const [page, setPage] = useState("businesses");
 
-  const tenantId = view.name === "client" ? view.tenantId : null;
   useEffect(() => {
-    setTenant(null);
-    setError("");
-    if (!tenantId) return;
-    api<Tenant>(`/tenants/${tenantId}`)
-      .then(setTenant)
-      .catch((e: Error) => setError(e.message));
+    document.title = BRAND;
   }, [tenantId]);
 
+  if (tenantId) {
+    return <BusinessWorkspace tenantId={tenantId} role="admin" onLogout={onLogout} onBackToBusinesses={() => setTenantId(null)} />;
+  }
+
+  const items: NavItem[] = [{ id: "businesses", label: "Negócios", icon: Building2 }];
+  return (
+    <AppShell
+      brand={BRAND}
+      context="Painel da agência"
+      items={items}
+      mobileItems={[...items, { id: "more", label: "Mais", icon: Ellipsis }]}
+      current={page}
+      onNavigate={setPage}
+      onLogout={onLogout}
+    >
+      {page === "more" && mobile ? (
+        <MorePage items={items} onNavigate={setPage} onLogout={onLogout} />
+      ) : (
+        <BusinessesPage onOpen={setTenantId} />
+      )}
+    </AppShell>
+  );
+}
+
+/** One business: what the owner sees, plus WhatsApp and access for the agency. */
+function BusinessWorkspace({
+  tenantId,
+  role,
+  onLogout,
+  onBackToBusinesses,
+}: {
+  tenantId: string;
+  role: "admin" | "owner";
+  onLogout: () => void;
+  onBackToBusinesses?: () => void;
+}) {
+  const mobile = useIsMobile();
+  const tenant = useTenant(tenantId);
+  const [page, setPage] = useState("agenda");
+
   useEffect(() => {
-    document.title = tenant ? `${tenant.name} · ${BRAND}` : BRAND;
-  }, [tenant]);
+    if (tenant.data) document.title = role === "owner" ? tenant.data.name : `${tenant.data.name} · ${BRAND}`;
+  }, [tenant.data, role]);
+
+  if (tenant.isLoading || !tenant.data) return <SplashSkeleton />;
+  const t = tenant.data;
+
+  const main: NavItem[] = [
+    { id: "agenda", label: "Agenda", icon: CalendarDays },
+    { id: "customers", label: "Clientes", icon: Users },
+    { id: "services", label: "Serviços", icon: Scissors },
+  ];
+  const secondary: NavItem[] = [
+    { id: "professionals", label: "Profissionais", icon: UsersRound },
+    { id: "hours", label: "Horários", icon: Clock },
+    { id: "settings", label: "Configurações", icon: Settings },
+    { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
+    ...(role === "admin"
+      ? [
+          { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
+          { id: "access", label: "Acesso da dona", icon: KeyRound },
+        ]
+      : []),
+  ];
+  const back: NavItem[] = onBackToBusinesses ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }] : [];
+  const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };
+
+  const navigate = (id: string) => {
+    if (id === "businesses") onBackToBusinesses?.();
+    else setPage(id);
+  };
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">
-          {BRAND} <span>· agência</span>
-        </div>
-        <nav>
-          <button className="nav-item" aria-current={view.name === "clients" ? "page" : undefined} onClick={() => setView({ name: "clients" })}>
-            Clientes
-          </button>
-          {view.name === "client" && tenant && (
-            <>
-              <div className="nav-label" title={tenant.name}>
-                {tenant.name}
-              </div>
-              {clientTabsFor("admin").map((t) => (
-                <button
-                  key={t.id}
-                  className="nav-item"
-                  aria-current={view.tab === t.id ? "page" : undefined}
-                  onClick={() => setView({ ...view, tab: t.id })}
-                >
-                  {t.id === "test-chat" ? `Testar a ${tenant.assistantName}` : t.label}
-                </button>
-              ))}
-            </>
-          )}
-        </nav>
-        <div className="sidebar-footer">
-          <button className="nav-item" onClick={onLogout}>
-            Sair
-          </button>
-        </div>
-      </aside>
+    <AppShell
+      brand={role === "owner" ? t.name : BRAND}
+      context={role === "admin" ? t.name : undefined}
+      items={[...back, ...main, ...secondary]}
+      mobileItems={[...main, more]}
+      current={page}
+      onNavigate={navigate}
+      onLogout={onLogout}
+    >
+      {page === "agenda" && <AgendaPage tenant={t} />}
+      {page === "customers" && <CustomersPage tenant={t} />}
+      {page === "services" && <ServicesPage tenant={t} />}
+      {page === "professionals" && <ProfessionalsPage tenant={t} />}
+      {page === "hours" && <HoursPage tenant={t} />}
+      {page === "settings" && <SettingsPage tenant={t} role={role} />}
+      {page === "test-chat" && <TestChatPage tenant={t} />}
+      {page === "whatsapp" && role === "admin" && <WhatsAppPage tenant={t} />}
+      {page === "access" && role === "admin" && <AccessPage tenant={t} />}
+      {page === "more" && <MorePage items={mobile ? [...secondary, ...back] : secondary} onNavigate={navigate} onLogout={onLogout} />}
+    </AppShell>
+  );
+}
 
-      <main className="content">
-        <div className="content-inner">
-          {error && <p className="error">{error}</p>}
-          {view.name === "clients" && <ClientsPage onOpen={(id, tab = "agenda") => setView({ name: "client", tenantId: id, tab })} />}
-          {view.name === "client" && tenant && (
-            <ClientPage
-              key={tenant.id}
-              role="admin"
-              tenant={tenant}
-              tab={view.tab}
-              onSaved={setTenant}
-              onBack={() => setView({ name: "clients" })}
-            />
-          )}
-        </div>
-      </main>
+function SplashSkeleton() {
+  return (
+    <div className="flex min-h-dvh">
+      <div className="hidden w-60 bg-sidebar md:block" />
+      <div className="flex-1 space-y-4 p-6 md:p-8">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
     </div>
   );
 }
 
-/** Business owner panel: only their own business, nothing about the agency. */
-function OwnerApp({ tenantId, onLogout }: { tenantId: string; onLogout: () => void }) {
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [tab, setTab] = useState<ClientTab>("agenda");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api<Tenant>(`/tenants/${tenantId}`)
-      .then(setTenant)
-      .catch((e: Error) => setError(e.message));
-  }, [tenantId]);
-
-  useEffect(() => {
-    if (tenant) document.title = tenant.name;
-  }, [tenant]);
-
-  if (error) return <p className="error" style={{ padding: 24 }}>{error}</p>;
-  if (!tenant) return <p className="muted" style={{ padding: 24 }}>Carregando…</p>;
-
-  return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand" title={tenant.name}>
-          {tenant.name}
-        </div>
-        <nav>
-          {clientTabsFor("owner").map((t) => (
-            <button key={t.id} className="nav-item" aria-current={tab === t.id ? "page" : undefined} onClick={() => setTab(t.id)}>
-              {t.id === "test-chat" ? `Testar a ${tenant.assistantName}` : t.label}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-footer">
-          <button className="nav-item" onClick={onLogout}>
-            Sair
-          </button>
-        </div>
-      </aside>
-      <main className="content">
-        <div className="content-inner">
-          <ClientPage role="owner" tenant={tenant} tab={tab} onSaved={setTenant} />
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function LoginForm({ onLoggedIn }: { onLoggedIn: (token: string) => void }) {
+function LoginPage({ onLoggedIn }: { onLoggedIn: (token: string) => void }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -195,32 +221,25 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: (token: string) => void }) {
   }
 
   return (
-    <div className="login-wrap">
-      <form className="panel login" onSubmit={submit}>
-        <div className="panel-body form">
-          <div>
-            <div className="brand" style={{ padding: 0 }}>
-              Entrar
-            </div>
-            <p className="muted" style={{ margin: "4px 0 0" }}>
-              Use o usuário e a senha que você recebeu.
-            </p>
-          </div>
-          <label>
-            Usuário
-            <input autoFocus autoCapitalize="none" autoComplete="username" value={login} onChange={(e) => setLogin(e.target.value)} />
-          </label>
-          <label>
-            Senha
-            <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </label>
-          {error && <p className="error" style={{ margin: 0 }}>{error}</p>}
-          <button className="primary" type="submit" disabled={busy || !login || !password}>
-            {busy ? "Entrando…" : "Entrar"}
-          </button>
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+      <form onSubmit={submit} className="w-full max-w-sm space-y-5 rounded-xl border bg-card p-6 shadow-sm animate-in fade-in-0 zoom-in-[0.98] duration-200">
+        <div>
+          <h1 className="text-lg font-semibold">Entrar</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Use o usuário e a senha que você recebeu.</p>
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="login">Usuário</Label>
+          <Input id="login" autoFocus autoCapitalize="none" autoComplete="username" value={login} onChange={(e) => setLogin(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Senha</Label>
+          <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" disabled={busy || !login || !password}>
+          {busy ? "Entrando…" : "Entrar"}
+        </Button>
       </form>
     </div>
   );
 }
-

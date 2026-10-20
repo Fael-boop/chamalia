@@ -115,10 +115,42 @@ export type Appointment = {
   status: AppointmentStatus;
   source: "whatsapp" | "panel";
   notes: string | null;
+  createdAt: string;
+  customerId: string;
   customerName: string | null;
   customerPhone: string;
+  serviceId: string;
   serviceName: string;
+  priceCents: number | null;
+  professionalId: string;
   professionalName: string;
+};
+
+export type Slot = { time: string; startsAt: string; professionals: { id: string; name: string }[] };
+
+export type Customer = {
+  id: string;
+  name: string | null;
+  phone: string;
+  createdAt: string;
+  visits: number;
+  lastVisit: string | null;
+  nextAppointment: string | null;
+};
+
+export type CustomerDetail = {
+  id: string;
+  name: string | null;
+  phone: string;
+  createdAt: string;
+  appointments: {
+    id: string;
+    startsAt: string;
+    endsAt: string;
+    status: AppointmentStatus;
+    serviceName: string;
+    professionalName: string;
+  }[];
 };
 
 export type AppointmentStatus = "scheduled" | "confirmed" | "cancelled" | "completed" | "no_show";

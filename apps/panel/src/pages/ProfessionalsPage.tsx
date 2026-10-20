@@ -1,124 +1,114 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, type Professional, type Service, type Tenant } from "../api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { api, type Professional, type Tenant } from "@/api";
+import { Hint, PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { keys, useProfessionals, useServices } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 
 export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const mobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const professionals = useProfessionals(tenant.id);
+  const services = useServices(tenant.id);
   const [newName, setNewName] = useState("");
-  const [error, setError] = useState("");
+  const activeServices = (services.data ?? []).filter((s) => s.active);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.professionals(tenant.id) });
+  const fail = (e: unknown) => toast.error((e as Error).message);
 
-  const load = useCallback(async () => {
-    const [pros, svcs] = await Promise.all([
-      api<Professional[]>(`/tenants/${tenant.id}/professionals`),
-      api<Service[]>(`/tenants/${tenant.id}/services`),
-    ]);
-    setProfessionals(pros);
-    setServices(svcs.filter((s) => s.active));
-  }, [tenant.id]);
+  const setServices = useMutation({
+    mutationFn: ({ p, serviceIds }: { p: Professional; serviceIds: string[] }) =>
+      api(`/tenants/${tenant.id}/professionals/${p.id}/services`, { method: "PUT", body: serviceIds }),
+    onMutate: ({ p, serviceIds }) =>
+      queryClient.setQueryData<Professional[]>(keys.professionals(tenant.id), (list) =>
+        list?.map((item) => (item.id === p.id ? { ...item, serviceIds } : item)),
+      ),
+    onError: fail,
+    onSettled: refresh,
+  });
+  const toggleActive = useMutation({
+    mutationFn: (p: Professional) => api(`/tenants/${tenant.id}/professionals/${p.id}`, { method: "PATCH", body: { active: !p.active } }),
+    onSuccess: (_d, p) => toast.success(p.active ? `${p.name} desativada` : `${p.name} ativada`),
+    onError: fail,
+    onSettled: refresh,
+  });
+  const create = useMutation({
+    mutationFn: (name: string) => api(`/tenants/${tenant.id}/professionals`, { method: "POST", body: { name } }),
+    onSuccess: (_d, name) => {
+      toast.success(`${name} adicionada`);
+      setNewName("");
+    },
+    onError: fail,
+    onSettled: refresh,
+  });
 
-  useEffect(() => {
-    load().catch((e: Error) => setError(e.message));
-  }, [load]);
-
-  async function run(action: () => Promise<unknown>) {
-    setError("");
-    try {
-      await action();
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
-  const toggleService = (professional: Professional, serviceId: string) => {
-    const serviceIds = professional.serviceIds.includes(serviceId)
-      ? professional.serviceIds.filter((id) => id !== serviceId)
-      : [...professional.serviceIds, serviceId];
-    return run(() =>
-      api(`/tenants/${tenant.id}/professionals/${professional.id}/services`, { method: "PUT", body: serviceIds }),
-    );
-  };
-
-  const rename = (professional: Professional) => {
-    const name = window.prompt("Nome da profissional", professional.name)?.trim();
-    if (name && name !== professional.name) {
-      void run(() => api(`/tenants/${tenant.id}/professionals/${professional.id}`, { method: "PATCH", body: { name } }));
-    }
-  };
+  const toggleService = (p: Professional, serviceId: string) =>
+    setServices.mutate({
+      p,
+      serviceIds: p.serviceIds.includes(serviceId) ? p.serviceIds.filter((id) => id !== serviceId) : [...p.serviceIds, serviceId],
+    });
 
   return (
     <>
-      <p className="hint">Marque os serviços que cada profissional faz. A {tenant.assistantName} só oferece horário com quem faz o serviço.</p>
-      {error && <p className="error">{error}</p>}
-      <div className="panel">
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Profissional</th>
-              {services.map((s) => (
-                <th key={s.id}>{s.name}</th>
-              ))}
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {professionals.map((p) => (
-              <tr key={p.id} className={p.active ? undefined : "inactive"}>
-                <td>
-                  {p.name}
-                  {!p.active && " (inativa)"}
-                </td>
-                {services.map((s) => (
-                  <td key={s.id}>
-                    <input
-                      type="checkbox"
-                      aria-label={`${p.name} faz ${s.name}`}
-                      checked={p.serviceIds.includes(s.id)}
-                      onChange={() => toggleService(p, s.id)}
-                    />
-                  </td>
-                ))}
-                <td className="actions">
-                  <div className="row">
-                    <button className="small" onClick={() => rename(p)}>
-                      Renomear
-                    </button>
-                    <button
-                      className="small"
-                      onClick={() =>
-                        run(() => api(`/tenants/${tenant.id}/professionals/${p.id}`, { method: "PATCH", body: { active: !p.active } }))
-                      }
-                    >
-                      {p.active ? "Desativar" : "Ativar"}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {!mobile && <PageHeader title="Profissionais" description={`Quem atende e o que cada uma faz. A ${tenant.assistantName} só oferece horário com quem faz o serviço.`} />}
 
       <form
-        className="panel-footer"
+        className="mb-4 flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!newName.trim()) return;
-          void run(async () => {
-            await api(`/tenants/${tenant.id}/professionals`, { method: "POST", body: { name: newName.trim() } });
-            setNewName("");
-          });
+          if (newName.trim()) create.mutate(newName.trim());
         }}
       >
-        <strong style={{ marginRight: 4 }}>Nova profissional</strong>
-        <input placeholder="Nome" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <button className="primary" type="submit">
-          Adicionar
-        </button>
+        <Input className="bg-card" placeholder="Nome da nova profissional" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <Button type="submit" disabled={!newName.trim() || create.isPending}>
+          <Plus /> Adicionar
+        </Button>
       </form>
+
+      {professionals.isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {(professionals.data ?? []).map((p) => (
+            <div key={p.id} className={cn("rounded-lg border bg-card", !p.active && "opacity-60")}>
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium">{p.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {p.serviceIds.filter((id) => activeServices.some((s) => s.id === id)).length} de {activeServices.length} serviços
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {p.active ? "Ativa" : "Inativa"}
+                  <Switch checked={p.active} onCheckedChange={() => toggleActive.mutate(p)} />
+                </label>
+              </div>
+              <div className="grid grid-cols-1 gap-1 p-2 sm:grid-cols-2">
+                {activeServices.map((s) => (
+                  <label key={s.id} className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm hover:bg-muted">
+                    <Checkbox checked={p.serviceIds.includes(s.id)} onCheckedChange={() => toggleService(p, s.id)} />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-3">
+        <Hint>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz.</Hint>
       </div>
-      <p className="hint" style={{ marginTop: 12 }}>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz.</p>
     </>
   );
 }

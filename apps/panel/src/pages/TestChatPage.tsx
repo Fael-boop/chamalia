@@ -1,20 +1,28 @@
+import { RotateCcw, SendHorizontal, UserRoundCheck } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type ChatMessage, type Tenant, type TestChatReply, type TestChatState } from "../api";
-import { formatPhone, formatTime } from "../format";
+import { toast } from "sonner";
+import { api, type Tenant, type TestChatReply, type TestChatState } from "@/api";
+import { Hint, PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { formatPhone, formatTime } from "@/format";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
-/** Owner notifications are not stored; they live only in this screen. */
+/** Owner notifications are not stored; they live only on this screen. */
 type Notice = { id: string; text: string; createdAt: string };
 
 const DEFAULT_PHONE = "5511999990000";
 
 export function TestChatPage({ tenant }: { tenant: Tenant }) {
+  const mobile = useIsMobile();
+  const reduceMotion = useReducedMotion();
   const [phone, setPhone] = useState(DEFAULT_PHONE);
   const [state, setState] = useState<TestChatState | null>(null);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [pending, setPending] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [ownerPhoneMissing, setOwnerPhoneMissing] = useState(false);
-  const [error, setError] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
 
   const base = `/tenants/${tenant.id}/test-chat`;
@@ -27,130 +35,194 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
 
   useEffect(() => {
     setNotices([]);
-    load().catch((e: Error) => setError(e.message));
+    load().catch((e: Error) => toast.error(e.message));
   }, [load]);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
-  }, [state, notices, pending]);
+    bottom.current?.scrollIntoView({ block: "end", behavior: reduceMotion ? "auto" : "smooth" });
+  }, [state, notices, pending, reduceMotion]);
 
   async function send() {
     const text = draft.trim();
     if (!text || pending) return;
     setDraft("");
     setPending(text);
-    setError("");
     try {
       const result = await api<TestChatReply>(base, { method: "POST", body: { phone, text } });
-      setOwnerPhoneMissing(result.ownerPhoneMissing);
       const now = new Date().toISOString();
       setNotices((current) => [
         ...current,
         ...result.ownerNotices.map((notice, index) => ({ id: `${now}-${index}`, text: notice, createdAt: now })),
       ]);
+      if (result.ownerNotices.length && result.ownerPhoneMissing) {
+        toast.info("WhatsApp da dona não cadastrado: no WhatsApp real esse aviso não seria enviado.");
+      }
       await load();
     } catch (e) {
-      setError((e as Error).message);
+      toast.error((e as Error).message);
       setDraft(text);
     } finally {
       setPending(null);
     }
   }
 
-  async function resetConversation() {
-    setError("");
+  async function reset() {
     await api(`${base}?phone=${phone}`, { method: "DELETE" });
     setNotices([]);
     await load();
+    toast.success("Nova conversa iniciada");
   }
 
-  async function releaseToAssistant() {
-    setError("");
+  async function release() {
     await api(`${base}/release`, { method: "POST", body: { phone } });
     await load();
+    toast.success(`Conversa devolvida para a ${tenant.assistantName}`);
   }
 
   const items = [
-    ...(state?.messages ?? []).map((m) => ({ kind: "message" as const, createdAt: m.createdAt, message: m })),
-    ...notices.map((n) => ({ kind: "notice" as const, createdAt: n.createdAt, notice: n })),
+    ...(state?.messages ?? []).map((m) => ({ kind: "message" as const, id: m.id, createdAt: m.createdAt, message: m })),
+    ...notices.map((n) => ({ kind: "notice" as const, id: n.id, createdAt: n.createdAt, notice: n })),
   ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   return (
     <>
-      <p className="hint">É o mesmo motor que vai responder no WhatsApp. Os agendamentos feitos aqui entram na agenda de verdade.</p>
-      <div className="panel">
-      <div className="toolbar">
-        <label className="row">
-          Telefone da cliente
-          <input value={phone} size={16} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
-        </label>
-        <span className="muted">{validPhone ? formatPhone(phone) : "use DDI + DDD + número, só números"}</span>
-        <span className="spacer" />
-        <button onClick={resetConversation} disabled={!validPhone || Boolean(pending)}>
-          Nova conversa
-        </button>
-      </div>
-
-      {state?.withOwner && (
-        <div className="toolbar">
-          <span>
-            <strong>Com a dona:</strong> a {tenant.assistantName} não responde até ser devolvida.
-            {state.handoffReason && <span className="muted"> Pedido: {state.handoffReason}</span>}
-          </span>
-          <span className="spacer" />
-          <button onClick={releaseToAssistant}>Devolver para a {tenant.assistantName}</button>
-        </div>
-      )}
-
-      <div className="chat">
-        {items.length === 0 && !pending && <p className="muted">Mande a primeira mensagem, por exemplo "oi, quero marcar um horário".</p>}
-        {items.map((item) =>
-          item.kind === "message" ? (
-            <div key={item.message.id} className={`bubble ${item.message.direction}`}>
-              {item.message.body}
-              <div className="bubble-time">{formatTime(item.message.createdAt, tenant.timezone)}</div>
-            </div>
-          ) : (
-            <div key={item.notice.id} className="notice">
-              Aviso para a dona no WhatsApp:{"\n"}
-              {item.notice.text}
-            </div>
-          ),
-        )}
-        {pending && (
-          <>
-            <div className="bubble inbound">{pending}</div>
-            <div className="muted">{state?.withOwner ? "Enviando…" : `${tenant.assistantName} está digitando…`}</div>
-          </>
-        )}
-        <div ref={bottom} />
-      </div>
-
-      <form
-        className="chat-input"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
-        }}
-      >
-        <input
-          placeholder="Escreva como a cliente…"
-          value={draft}
-          disabled={!validPhone}
-          onChange={(e) => setDraft(e.target.value)}
+      {!mobile && (
+        <PageHeader
+          title={`Testar a ${tenant.assistantName}`}
+          description="Converse como se fosse uma cliente no WhatsApp. Os agendamentos feitos aqui entram na agenda de verdade."
         />
-        <button className="primary" type="submit" disabled={!validPhone || !draft.trim() || Boolean(pending)}>
-          Enviar
-        </button>
-      </form>
-      </div>
-
-      {ownerPhoneMissing && notices.length > 0 && (
-        <p className="hint" style={{ marginTop: 12 }}>
-          O WhatsApp da dona ainda não está cadastrado: no WhatsApp real esses avisos não seriam enviados.
-        </p>
       )}
-      {error && <p className="error">{error}</p>}
+
+      <div className="flex h-[calc(100dvh-13rem)] min-h-[420px] flex-col overflow-hidden rounded-lg border bg-card md:h-[calc(100dvh-12rem)]">
+        <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            Cliente
+            <Input
+              className="h-8 w-40 tabular-nums"
+              value={phone}
+              inputMode="numeric"
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              aria-label="Telefone da cliente simulada"
+            />
+          </label>
+          <span className="text-xs text-muted-foreground">{validPhone ? formatPhone(phone) : "DDI + DDD + número"}</span>
+          <div className="flex-1" />
+          <Button variant="ghost" size="sm" onClick={reset} disabled={!validPhone || Boolean(pending)}>
+            <RotateCcw /> Nova conversa
+          </Button>
+        </div>
+
+        <AnimatePresence initial={false}>
+          {state?.withOwner && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden border-b bg-muted/50"
+            >
+              <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs">
+                <span className="font-medium">Com a dona</span>
+                <span className="text-muted-foreground">
+                  A {tenant.assistantName} não responde até ser devolvida.
+                  {state.handoffReason && ` Pedido: ${state.handoffReason}`}
+                </span>
+                <div className="flex-1" />
+                <Button size="sm" variant="outline" onClick={release}>
+                  <UserRoundCheck /> Devolver para a {tenant.assistantName}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex-1 space-y-2 overflow-y-auto bg-muted/30 p-4">
+          {items.length === 0 && !pending && (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Mande a primeira mensagem, por exemplo “oi, quero marcar uma escova amanhã”.
+            </p>
+          )}
+          {items.map((item) =>
+            item.kind === "message" ? (
+              <motion.div
+                key={item.id}
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+                className={cn(
+                  "max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap md:max-w-[70%]",
+                  item.message.direction === "inbound"
+                    ? "ml-auto rounded-br-md bg-primary text-primary-foreground"
+                    : "rounded-bl-md border bg-card",
+                )}
+              >
+                {item.message.body}
+                <div
+                  className={cn(
+                    "mt-0.5 text-right text-[10px]",
+                    item.message.direction === "inbound" ? "text-primary-foreground/70" : "text-muted-foreground",
+                  )}
+                >
+                  {formatTime(item.message.createdAt, tenant.timezone)}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={item.id}
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mx-auto max-w-[90%] border-l-2 border-primary/50 pl-3 text-xs whitespace-pre-wrap text-muted-foreground"
+              >
+                <span className="font-medium text-foreground">Aviso para a dona no WhatsApp</span>
+                {"\n"}
+                {item.notice.text}
+              </motion.div>
+            ),
+          )}
+          {pending && (
+            <>
+              <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground opacity-80 md:max-w-[70%]">
+                {pending}
+              </div>
+              {!state?.withOwner && (
+                <div className="flex w-16 items-center justify-center gap-1 rounded-2xl rounded-bl-md border bg-card px-3 py-3">
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      className="size-1.5 rounded-full bg-muted-foreground"
+                      animate={reduceMotion ? undefined : { opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          <div ref={bottom} />
+        </div>
+
+        <form
+          className="flex gap-2 border-t p-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
+          <Input
+            className="h-11 flex-1"
+            placeholder="Escreva como a cliente…"
+            value={draft}
+            disabled={!validPhone}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <Button type="submit" size="icon" className="size-11" disabled={!validPhone || !draft.trim() || Boolean(pending)} aria-label="Enviar">
+            <SendHorizontal />
+          </Button>
+        </form>
+      </div>
+      <div className="mt-2">
+        <Hint>É o mesmo motor que responde no WhatsApp. Avisos para a dona aparecem no meio da conversa.</Hint>
+      </div>
     </>
   );
 }

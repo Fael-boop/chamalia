@@ -1,162 +1,162 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, type Tenant, type TenantUser } from "../api";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Copy, KeyRound } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { api, type Tenant, type TenantUser } from "@/api";
+import { Hint, PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { formatDateTime } from "@/format";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /** Readable random password, no look-alike characters (0/O, 1/l). */
 function generatePassword(): string {
   const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(10));
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+  return Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => alphabet[b % alphabet.length]).join("");
 }
 
-function suggestLogin(tenant: Tenant): string {
-  const base = (tenant.ownerName || tenant.slug).split(" ")[0] ?? tenant.slug;
-  return base
+const suggestLogin = (tenant: Tenant) =>
+  ((tenant.ownerName || tenant.slug).split(" ")[0] ?? tenant.slug)
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
-}
+
+const schema = z.object({
+  name: z.string().trim().min(1, "Informe o nome"),
+  login: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,40}$/, "3 a 40 letras minúsculas, números, ponto ou hífen"),
+  password: z.string().min(8, "Pelo menos 8 caracteres"),
+});
 
 export function AccessPage({ tenant }: { tenant: Tenant }) {
-  const [users, setUsers] = useState<TenantUser[]>([]);
-  const [form, setForm] = useState(() => ({
-    name: tenant.ownerName ?? "",
-    login: suggestLogin(tenant),
-    password: generatePassword(),
-  }));
+  const mobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [created, setCreated] = useState<{ login: string; password: string } | null>(null);
-  const [error, setError] = useState("");
+  const users = useQuery({ queryKey: ["users", tenant.id], queryFn: () => api<TenantUser[]>(`/tenants/${tenant.id}/users`) });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["users", tenant.id] });
+  const form = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: tenant.ownerName ?? "", login: suggestLogin(tenant), password: generatePassword() },
+  });
 
-  const load = useCallback(async () => {
-    setUsers(await api<TenantUser[]>(`/tenants/${tenant.id}/users`));
-  }, [tenant.id]);
+  const create = useMutation({
+    mutationFn: (v: z.infer<typeof schema>) => api(`/tenants/${tenant.id}/users`, { method: "POST", body: v }),
+    onSuccess: (_d, v) => {
+      setCreated({ login: v.login, password: v.password });
+      form.setValue("password", generatePassword());
+      toast.success("Acesso criado");
+    },
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: refresh,
+  });
+  const patch = useMutation({
+    mutationFn: ({ user, body }: { user: TenantUser; body: { password?: string; active?: boolean } }) =>
+      api(`/tenants/${tenant.id}/users/${user.id}`, { method: "PATCH", body }),
+    onSuccess: (_d, { user, body }) => {
+      if (body.password) setCreated({ login: user.login, password: body.password });
+      toast.success(body.password ? "Senha nova gerada" : body.active ? "Acesso liberado" : "Acesso bloqueado");
+    },
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: refresh,
+  });
 
-  useEffect(() => {
-    load().catch((e: Error) => setError(e.message));
-  }, [load]);
-
-  async function run(action: () => Promise<unknown>) {
-    setError("");
-    try {
-      await action();
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
-  const create = (e: React.FormEvent) => {
-    e.preventDefault();
-    void run(async () => {
-      await api(`/tenants/${tenant.id}/users`, { method: "POST", body: form });
-      setCreated({ login: form.login, password: form.password });
-      setForm({ ...form, password: generatePassword() });
-    });
-  };
-
-  const resetPassword = (user: TenantUser) => {
-    const password = generatePassword();
-    if (!window.confirm(`Gerar uma senha nova para ${user.name}? A senha atual para de funcionar na hora.`)) return;
-    void run(async () => {
-      await api(`/tenants/${tenant.id}/users/${user.id}`, { method: "PATCH", body: { password } });
-      setCreated({ login: user.login, password });
-    });
-  };
-
-  const loginUrl = window.location.origin;
+  const message = created ? `Endereço: ${window.location.origin}\nUsuário: ${created.login}\nSenha: ${created.password}` : "";
 
   return (
     <>
+      {!mobile && <PageHeader title="Acesso da dona" description="Usuário e senha para a dona entrar no painel do negócio." />}
+
       {created && (
-        <div className="panel" style={{ marginBottom: 16 }}>
-          <div className="panel-body">
-            <p style={{ marginTop: 0 }}>
-              <strong>Acesso pronto.</strong> Envie para a dona (a senha não aparece de novo depois que você sair desta tela):
-            </p>
-            <pre style={{ background: "#fafafa", border: "1px solid var(--border)", borderRadius: 6, padding: 12, margin: 0, whiteSpace: "pre-wrap" }}>
-              {`Endereço: ${loginUrl}\nUsuário: ${created.login}\nSenha: ${created.password}`}
-            </pre>
-            <div className="row" style={{ marginTop: 12 }}>
-              <button
-                onClick={() =>
-                  navigator.clipboard.writeText(`Endereço: ${loginUrl}\nUsuário: ${created.login}\nSenha: ${created.password}`)
-                }
-              >
-                Copiar
-              </button>
-              <button onClick={() => setCreated(null)}>Fechar</button>
-            </div>
+        <div className="mb-4 rounded-lg border border-primary/30 bg-accent p-4">
+          <div className="mb-2 text-sm font-medium">Envie para a dona. A senha não aparece de novo.</div>
+          <pre className="rounded-md border bg-card p-3 text-sm whitespace-pre-wrap">{message}</pre>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" onClick={() => navigator.clipboard.writeText(message).then(() => toast.success("Copiado"))}>
+              <Copy /> Copiar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>
+              Fechar
+            </Button>
           </div>
         </div>
       )}
-      {error && <p className="error">{error}</p>}
 
-      <div className="panel">
-        {users.length === 0 ? (
-          <div className="empty">Nenhum acesso criado para este cliente.</div>
+      <div className="mb-4 overflow-hidden rounded-lg border bg-card">
+        {users.isLoading ? (
+          <Skeleton className="m-4 h-12" />
+        ) : (users.data ?? []).length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">Nenhum acesso criado ainda.</p>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Usuário</th>
-                  <th>Último acesso</th>
-                  <th>Situação</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className={user.active ? undefined : "inactive"}>
-                    <td>{user.name}</td>
-                    <td>{user.login}</td>
-                    <td>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("pt-BR") : "Nunca entrou"}</td>
-                    <td>{user.active ? "Ativo" : "Bloqueado"}</td>
-                    <td className="actions">
-                      <div className="row">
-                        <button className="small" onClick={() => resetPassword(user)}>
-                          Nova senha
-                        </button>
-                        <button
-                          className="small"
-                          onClick={() =>
-                            run(() =>
-                              api(`/tenants/${tenant.id}/users/${user.id}`, { method: "PATCH", body: { active: !user.active } }),
-                            )
-                          }
-                        >
-                          {user.active ? "Bloquear" : "Desbloquear"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="divide-y">
+            {users.data!.map((user) => (
+              <li key={user.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">
+                    {user.name} <span className="font-normal text-muted-foreground">· {user.login}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {user.lastLoginAt ? `Último acesso ${formatDateTime(user.lastLoginAt, tenant.timezone)}` : "Ainda não entrou"}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm(`Gerar senha nova para ${user.name}? A atual para de funcionar na hora.`)) {
+                      patch.mutate({ user, body: { password: generatePassword() } });
+                    }
+                  }}
+                >
+                  <KeyRound /> Nova senha
+                </Button>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {user.active ? "Liberado" : "Bloqueado"}
+                  <Switch checked={user.active} onCheckedChange={(active) => patch.mutate({ user, body: { active } })} />
+                </label>
+              </li>
+            ))}
+          </ul>
         )}
-
-        <form className="panel-footer" onSubmit={create}>
-          <strong style={{ marginRight: 4 }}>Novo acesso</strong>
-          <input placeholder="Nome" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input
-            placeholder="usuário"
-            required
-            autoCapitalize="none"
-            value={form.login}
-            onChange={(e) => setForm({ ...form, login: e.target.value.toLowerCase() })}
-          />
-          <input placeholder="senha" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <button className="primary" type="submit">
-            Criar acesso
-          </button>
-        </form>
       </div>
-      <p className="hint" style={{ marginTop: 12 }}>
-        A dona entra no mesmo endereço do painel e vê só o {tenant.name}: agenda, serviços, profissionais, horários,
-        configurações e teste. Ela não vê outros clientes, o WhatsApp nem esta tela.
-      </p>
+
+      <div className="rounded-lg border bg-card p-4">
+        <div className="mb-3 text-sm font-semibold">Novo acesso</div>
+        <Form {...form}>
+          <form className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end" onSubmit={form.handleSubmit((v) => create.mutate(v))}>
+            {(["name", "login", "password"] as const).map((name) => (
+              <FormField
+                key={name}
+                control={form.control}
+                name={name}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{{ name: "Nome", login: "Usuário", password: "Senha" }[name]}</FormLabel>
+                    <FormControl>
+                      <Input autoCapitalize="none" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ))}
+            <Button type="submit" disabled={create.isPending}>
+              Criar acesso
+            </Button>
+          </form>
+        </Form>
+      </div>
+      <div className="mt-3">
+        <Hint>
+          A dona entra no mesmo endereço e vê só o {tenant.name}: agenda, clientes, serviços e configurações. Ela não vê
+          outros negócios, o WhatsApp nem esta tela.
+        </Hint>
+      </div>
     </>
   );
 }

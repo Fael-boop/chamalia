@@ -1,195 +1,267 @@
-import { useEffect, useState } from "react";
-import { api, type Niche, type Tenant } from "../api";
-import type { Role } from "./ClientPage";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, type ReactNode } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { api, type Niche, type Tenant } from "@/api";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { keys } from "@/lib/queries";
 
-type Form = {
-  name: string;
-  businessType: string;
-  assistantName: string;
-  ownerName: string;
-  ownerPhone: string;
-  address: string;
-  tone: "friendly" | "formal";
-  useEmoji: boolean;
-  extraInfo: string;
-  handoffRules: string;
-  minNoticeHours: string;
-  bookingHorizonDays: string;
-  active: boolean;
-};
+const schema = z.object({
+  name: z.string().trim().min(1, "Informe o nome"),
+  businessType: z.string(),
+  ownerName: z.string().trim(),
+  ownerPhone: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{10,15}$/.test(v.replace(/\D/g, "")), "DDI + DDD + número, ex.: 5511999999999"),
+  address: z.string().trim(),
+  assistantName: z.string().trim().min(1, "Informe o nome").max(40),
+  tone: z.enum(["friendly", "formal"]),
+  useEmoji: z.boolean(),
+  extraInfo: z.string().trim().max(2000),
+  handoffRules: z.string().trim().max(1000),
+  minNoticeHours: z.number({ message: "Informe as horas" }).min(0).max(168),
+  bookingHorizonDays: z.number({ message: "Informe os dias" }).int().min(1).max(365),
+  active: z.boolean(),
+});
+type Values = z.infer<typeof schema>;
 
-function toForm(t: Tenant): Form {
-  return {
-    name: t.name,
-    businessType: t.businessType,
-    assistantName: t.assistantName,
-    ownerName: t.ownerName ?? "",
-    ownerPhone: t.ownerPhone ?? "",
-    address: t.address ?? "",
-    tone: t.tone,
-    useEmoji: t.useEmoji,
-    extraInfo: t.extraInfo ?? "",
-    handoffRules: t.handoffRules ?? "",
-    minNoticeHours: String(t.minNoticeMinutes / 60),
-    bookingHorizonDays: String(t.bookingHorizonDays),
-    active: t.active,
-  };
+const toValues = (t: Tenant): Values => ({
+  name: t.name,
+  businessType: t.businessType,
+  ownerName: t.ownerName ?? "",
+  ownerPhone: t.ownerPhone ?? "",
+  address: t.address ?? "",
+  assistantName: t.assistantName,
+  tone: t.tone,
+  useEmoji: t.useEmoji,
+  extraInfo: t.extraInfo ?? "",
+  handoffRules: t.handoffRules ?? "",
+  minNoticeHours: t.minNoticeMinutes / 60,
+  bookingHorizonDays: t.bookingHorizonDays,
+  active: t.active,
+});
+
+function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <section className="grid gap-4 border-b py-6 first:pt-0 md:grid-cols-[220px_1fr] md:gap-8">
+      <div>
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  );
 }
 
-export function SettingsPage({ tenant, role, onSaved }: { tenant: Tenant; role: Role; onSaved: (tenant: Tenant) => void }) {
-  const [form, setForm] = useState<Form>(() => toForm(tenant));
-  const [niches, setNiches] = useState<Niche[]>([]);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
+export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" | "owner" }) {
+  const mobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const niches = useQuery({ queryKey: ["niches"], queryFn: () => api<Niche[]>("/niches") });
+  const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: toValues(tenant) });
 
-  useEffect(() => {
-    api<Niche[]>("/niches").then(setNiches).catch(() => {});
-  }, []);
+  useEffect(() => form.reset(toValues(tenant)), [tenant, form]);
 
-  const set = <K extends keyof Form>(field: K, value: Form[K]) => {
-    setForm({ ...form, [field]: value });
-    setStatus("");
-  };
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setStatus("");
-    try {
-      const saved = await api<Tenant>(`/tenants/${tenant.id}`, {
+  const save = useMutation({
+    mutationFn: (v: Values) =>
+      api<Tenant>(`/tenants/${tenant.id}`, {
         method: "PATCH",
         body: {
-          name: form.name,
-          businessType: form.businessType,
-          assistantName: form.assistantName,
-          ownerName: form.ownerName || null,
-          ownerPhone: form.ownerPhone || null,
-          address: form.address || null,
-          tone: form.tone,
-          useEmoji: form.useEmoji,
-          extraInfo: form.extraInfo || null,
-          handoffRules: form.handoffRules || null,
-          minNoticeMinutes: Math.round(Number(form.minNoticeHours.replace(",", ".")) * 60),
-          bookingHorizonDays: Number(form.bookingHorizonDays),
-          ...(role === "admin" ? { active: form.active } : {}),
+          name: v.name,
+          businessType: v.businessType,
+          assistantName: v.assistantName,
+          ownerName: v.ownerName || null,
+          ownerPhone: v.ownerPhone ? v.ownerPhone.replace(/\D/g, "") : null,
+          address: v.address || null,
+          tone: v.tone,
+          useEmoji: v.useEmoji,
+          extraInfo: v.extraInfo || null,
+          handoffRules: v.handoffRules || null,
+          minNoticeMinutes: Math.round(v.minNoticeHours * 60),
+          bookingHorizonDays: v.bookingHorizonDays,
+          ...(role === "admin" ? { active: v.active } : {}),
         },
-      });
-      onSaved(saved);
-      setForm(toForm(saved));
-      setStatus("Configurações salvas.");
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
+      }),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(keys.tenant(tenant.id), saved);
+      toast.success("Configurações salvas");
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const text = (name: "name" | "ownerName" | "ownerPhone" | "address" | "assistantName", label: string, extra?: { placeholder?: string; help?: string; wide?: boolean }) => (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={extra?.wide ? "sm:col-span-2" : undefined}>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input placeholder={extra?.placeholder} {...field} />
+          </FormControl>
+          {extra?.help && <FormDescription className="text-xs">{extra.help}</FormDescription>}
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
 
   return (
-    <form onSubmit={save}>
-      <div className="panel">
-        <div className="panel-header">
-          <h2>Negócio</h2>
-        </div>
-        <div className="panel-body form-grid">
-          <label className="form-field">
-            Nome do negócio
-            <input required value={form.name} onChange={(e) => set("name", e.target.value)} />
-          </label>
-          <label className="form-field">
-            Nicho
-            <select value={form.businessType} onChange={(e) => set("businessType", e.target.value)}>
-              {niches.map((n) => (
-                <option key={n.value} value={n.value}>
-                  {n.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="form-field">
-            Nome da dona
-            <input value={form.ownerName} onChange={(e) => set("ownerName", e.target.value)} />
-          </label>
-          <label className="form-field">
-            WhatsApp da dona
-            <input value={form.ownerPhone} onChange={(e) => set("ownerPhone", e.target.value)} placeholder="5511999999999" />
-            <small>Recebe avisos de agendamento, cancelamento e conversas passadas para ela.</small>
-          </label>
-          <label className="form-field" style={{ gridColumn: "1 / -1" }}>
-            Endereço
-            <input value={form.address} onChange={(e) => set("address", e.target.value)} />
-          </label>
-          {role === "admin" && (
-          <label className="form-field check" style={{ gridColumn: "1 / -1" }}>
-            <input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} />
-            Cliente ativo (desmarcado, a atendente não responde ninguém)
-          </label>
-          )}
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-header">
-          <h2>Atendente virtual</h2>
-        </div>
-        <div className="panel-body form-grid">
-          <label className="form-field">
-            Nome
-            <input required value={form.assistantName} onChange={(e) => set("assistantName", e.target.value)} />
-          </label>
-          <label className="form-field">
-            Jeito de falar
-            <select value={form.tone} onChange={(e) => set("tone", e.target.value as Form["tone"])}>
-              <option value="friendly">Simpático e informal</option>
-              <option value="formal">Mais formal (senhor/senhora)</option>
-            </select>
-          </label>
-          <label className="form-field check" style={{ gridColumn: "1 / -1" }}>
-            <input type="checkbox" checked={form.useEmoji} onChange={(e) => set("useEmoji", e.target.checked)} />
-            Pode usar emoji de vez em quando
-          </label>
-          <label className="form-field" style={{ gridColumn: "1 / -1" }}>
-            Informações que ela pode responder
-            <textarea
-              rows={5}
-              value={form.extraInfo}
-              onChange={(e) => set("extraInfo", e.target.value)}
-              placeholder={"Ex.:\nAceitamos Pix, débito e crédito.\nTem estacionamento na rua.\nAtraso de mais de 15 min precisa remarcar."}
+    <>
+      {!mobile && <PageHeader title="Configurações" description="Dados do negócio e o jeito de a atendente conversar." />}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit((v) => save.mutate(v))} className="rounded-lg border bg-card p-4 md:p-6">
+          <Section title="Negócio" description="Aparece para as clientes e nos avisos.">
+            {text("name", "Nome do negócio", { wide: true })}
+            <FormField
+              control={form.control}
+              name="businessType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nicho</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {(niches.data ?? []).map((n) => (
+                        <SelectItem key={n.value} value={n.value}>
+                          {n.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
             />
-            <small>Ela só responde dúvidas com o que estiver aqui. O resto passa para a dona.</small>
-          </label>
-          <label className="form-field" style={{ gridColumn: "1 / -1" }}>
-            Sempre passar para a dona quando…
-            <textarea
-              rows={3}
-              value={form.handoffRules}
-              onChange={(e) => set("handoffRules", e.target.value)}
-              placeholder="Ex.: pedirem desconto; falarem de noiva ou festa; reclamarem de algum serviço."
-            />
-            <small>Química, combos, encaixe e serviços fora da lista ela já passa sozinha.</small>
-          </label>
-        </div>
-      </div>
+            {text("address", "Endereço")}
+            {text("ownerName", "Nome da dona")}
+            {text("ownerPhone", "WhatsApp da dona", { placeholder: "5511999999999", help: "Recebe avisos de agendamento e conversas passadas para ela." })}
+          </Section>
 
-      <div className="panel">
-        <div className="panel-header">
-          <h2>Agendamento</h2>
-        </div>
-        <div className="panel-body form-grid">
-          <label className="form-field">
-            Antecedência mínima (horas)
-            <input type="number" min={0} step={0.5} value={form.minNoticeHours} onChange={(e) => set("minNoticeHours", e.target.value)} />
-          </label>
-          <label className="form-field">
-            Agenda aberta até quantos dias à frente
-            <input type="number" min={1} max={365} value={form.bookingHorizonDays} onChange={(e) => set("bookingHorizonDays", e.target.value)} />
-          </label>
-        </div>
-        <div className="panel-footer">
-          <button className="primary" type="submit">
-            Salvar configurações
-          </button>
-          {status && <span className="muted">{status}</span>}
-          {error && <span className="error">{error}</span>}
-        </div>
-      </div>
-    </form>
+          <Section title="Atendente virtual" description="Como ela fala e o que pode responder.">
+            {text("assistantName", "Nome")}
+            <FormField
+              control={form.control}
+              name="tone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jeito de falar</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="friendly">Simpático e informal</SelectItem>
+                      <SelectItem value="formal">Mais formal (senhor/senhora)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="useEmoji"
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-3 sm:col-span-2">
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="!mt-0 font-normal">Pode usar emoji de vez em quando</FormLabel>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="extraInfo"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Informações que ela pode responder</FormLabel>
+                  <FormControl>
+                    <Textarea rows={5} placeholder={"Aceitamos Pix, débito e crédito.\nAtraso de mais de 15 min precisa remarcar."} {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">Ela só responde dúvidas com o que estiver aqui. O resto passa para a dona.</FormDescription>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="handoffRules"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Sempre passar para a dona quando…</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} placeholder="pedirem desconto; falarem de noiva ou festa; reclamarem de algum serviço." {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">Química, combos, encaixe e serviços fora da lista ela já passa sozinha.</FormDescription>
+                </FormItem>
+              )}
+            />
+          </Section>
+
+          <Section title="Agendamento" description="Regras que a atendente segue ao oferecer horários.">
+            <FormField
+              control={form.control}
+              name="minNoticeHours"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Antecedência mínima (horas)</FormLabel>
+                  <FormControl>
+                    <Input type="number" inputMode="decimal" min={0} step={0.5} value={Number.isNaN(field.value) ? "" : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber)} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bookingHorizonDays"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Agenda aberta até (dias à frente)</FormLabel>
+                  <FormControl>
+                    <Input type="number" inputMode="numeric" min={1} max={365} value={Number.isNaN(field.value) ? "" : field.value} onChange={(e) => field.onChange(e.target.valueAsNumber)} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {role === "admin" && (
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-3 sm:col-span-2">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="!mt-0 font-normal">Cliente ativo (desligado, a atendente não responde ninguém)</FormLabel>
+                  </FormItem>
+                )}
+              />
+            )}
+          </Section>
+
+          <div className="flex justify-end pt-5">
+            <Button type="submit" size={mobile ? "lg" : "default"} className={mobile ? "w-full" : undefined} disabled={save.isPending}>
+              {save.isPending ? "Salvando…" : "Salvar configurações"}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </>
   );
 }
