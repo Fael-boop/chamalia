@@ -114,6 +114,19 @@ function customerLabel(ctx: ToolContext): string {
   return `${ctx.customer.name ?? "Cliente sem nome"} (${ctx.customer.phone})`;
 }
 
+/** Services the owner marked "always hand over" are never offered or booked by the assistant. */
+async function ensureAssistantBooks(ctx: ToolContext, serviceId: string) {
+  const [service] = await ctx.sql<{ handoff: boolean; handoffReason: string | null }[]>`
+    select handoff, handoff_reason from services where tenant_id = ${ctx.tenant.id} and id = ${serviceId}
+  `;
+  if (service?.handoff) {
+    throw new SchedulingError(
+      "handoff_service",
+      `Este serviço é sempre com a dona${service.handoffReason ? ` (${service.handoffReason})` : ""}. Não ofereça horários: entenda o pedido e use transfer_to_owner.`,
+    );
+  }
+}
+
 /** Tells the model whether nobody does the service at all (pass to the owner) or the day is just full. */
 async function noSlotsNote(ctx: ToolContext, serviceId: string): Promise<string> {
   const [row] = await ctx.sql<{ count: number }[]>`
@@ -129,6 +142,7 @@ async function noSlotsNote(ctx: ToolContext, serviceId: string): Promise<string>
 
 const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inputs)[K]>) => Promise<unknown> } = {
   async find_available_slots(ctx, input) {
+    await ensureAssistantBooks(ctx, input.service_id);
     const { service, slots } = await findAvailableSlots(ctx.sql, ctx.tenant, {
       serviceId: input.service_id,
       date: input.date,
@@ -147,6 +161,7 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
   },
 
   async book_appointment(ctx, input) {
+    await ensureAssistantBooks(ctx, input.service_id);
     const appointment = await bookAppointment(ctx.sql, ctx.tenant, {
       customerId: ctx.customer.id,
       serviceId: input.service_id,

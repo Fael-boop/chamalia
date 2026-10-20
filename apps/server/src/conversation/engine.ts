@@ -260,10 +260,10 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
   const { sql } = deps;
   const { tenant } = ctx;
 
-  const [services, professionals, hours, history, recentlyCancelled] = await Promise.all([
+  const [services, professionals, hours, history, recentlyCancelled, handoffTopics] = await Promise.all([
     sql<Service[]>`
-      select id, name, description, duration_minutes, price_cents, active
-      from services where tenant_id = ${tenant.id} and active order by name
+      select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason
+      from services where tenant_id = ${tenant.id} and active and archived_at is null order by name
     `,
     sql<{ id: string; name: string }[]>`
       select id, name from professionals where tenant_id = ${tenant.id} and active order by name
@@ -290,6 +290,9 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
         and a.status = 'cancelled' and a.cancelled_at > now() - make_interval(hours => ${HISTORY_WINDOW_HOURS})
       order by a.cancelled_at
     `,
+    sql<{ topic: string; reason: string | null }[]>`
+      select topic, reason from handoff_topics where tenant_id = ${tenant.id} order by created_at
+    `,
   ]);
   const cancelledNote = recentlyCancelled.length
     ? "\n\nHorários desta cliente desmarcados nas últimas horas (já cancelados de verdade, não aparecem em list_customer_appointments):\n" +
@@ -304,6 +307,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
       services,
       professionals,
       hours,
+      handoffTopics,
       customerName: ctx.customer.name,
       now: new Date(),
     }) +

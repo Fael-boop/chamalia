@@ -8,6 +8,7 @@ export type PromptData = {
   professionals: { id: string; name: string }[];
   /** professionalId null = business hours; otherwise that professional's own hours. */
   hours: { professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[];
+  handoffTopics: { topic: string; reason: string | null }[];
   customerName: string | null;
   now: Date;
 };
@@ -67,7 +68,16 @@ Agora: ${weekdayName(now.weekday)}, ${day}/${month}/${year}, ${now.time}.
 ${person[0]!.toUpperCase()}${person.slice(1)}: ${data.customerName ?? "nome ainda não informado"}.
 ${tenant.address ? `Endereço: ${tenant.address}\n` : ""}
 Serviços:
-${data.services.map((s) => `- ${s.name}: ${s.durationMinutes} min, ${formatPrice(s.priceCents)} [service_id: ${s.id}]${s.description ? ` — ${s.description}` : ""}`).join("\n") || "- (nenhum serviço cadastrado: passe para a dona)"}
+${
+  data.services
+    .map((s) => {
+      const line = `- ${s.name}: ${s.durationMinutes} min, ${formatPrice(s.priceCents)} [service_id: ${s.id}]${s.description ? ` — ${s.description}` : ""}`;
+      return s.handoff
+        ? `${line} — SEMPRE COM A DONA: não ofereça horários nem agende; passe para ela${s.handoffReason ? ` (motivo: ${s.handoffReason})` : ""}`
+        : line;
+    })
+    .join("\n") || "- (nenhum serviço cadastrado: passe para a dona)"
+}
 
 Profissionais:
 ${data.professionals
@@ -100,8 +110,18 @@ Como atender:
   - química (coloração, mechas, progressiva, alisamento, relaxamento etc.) ou qualquer serviço que não está na lista;
   - mais de um serviço no mesmo atendimento (combo, ex.: corte + escova);
   - encaixe (a ${person} insiste num horário ocupado mesmo depois de ver os horários livres);
-  - qualquer coisa que você não consiga resolver com as informações acima (reclamação, orçamento, dúvidas que não estão aqui etc.).${tenant.handoffRules ? `\n  - e sempre nestes casos definidos pela dona: ${tenant.handoffRules}` : ""}
+  - serviços marcados acima como "sempre com a dona";
+  - os assuntos que a dona pediu para tratar ela mesma (lista abaixo);
+  - qualquer outro assunto que não seja agendar, consultar, remarcar ou cancelar os serviços da lista, ou que você não consiga responder só com as informações deste texto (reclamação, orçamento, negociação de preço, dúvida técnica, problema com serviço feito, pedido especial etc.).
+  Na dúvida, passe para a dona: é melhor ela responder do que a ${person} ficar sem resposta ou receber uma informação errada. Nunca invente regra, preço, prazo ou política.
   Antes de transferir, entenda em uma ou duas perguntas o que a ${person} quer, para a dona já receber o pedido completo. Não prometa nada em nome da dona.
+${
+  data.handoffTopics.length
+    ? `\nAssuntos que a dona trata ela mesma (passe para ela assim que a ${person} tocar no assunto):\n${data.handoffTopics
+        .map((t) => `- ${t.topic}${t.reason ? ` (motivo: ${t.reason})` : ""}`)
+        .join("\n")}\n`
+    : ""
+}
 - Nunca mostre ids, nomes de ferramentas ou detalhes técnicos.
 - O histórico da conversa mostra só o texto das mensagens: as consultas e ações das mensagens anteriores (buscar horários, agendar, cancelar, lembrete) aconteceram de verdade, mesmo sem aparecer. Nunca diga à ${person} que algo "não foi gravado" nem peça desculpas por isso; se tiver dúvida, confira com list_customer_appointments sem comentar.`;
 }
