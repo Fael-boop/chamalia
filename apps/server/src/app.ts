@@ -6,6 +6,7 @@ import Fastify, { type FastifyBaseLogger } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
 import { registerAgendaRoutes } from "./api/agenda.js";
+import { registerNicheRoutes } from "./api/niches.js";
 import { registerAuth } from "./api/auth.js";
 import { registerConversationRoutes } from "./api/conversations.js";
 import { registerPanelRoutes } from "./api/panel.js";
@@ -51,6 +52,7 @@ export async function buildApp(config: Config, sql?: Sql) {
   if (sql) {
     registerUserRoutes(app, sql);
     registerAgendaRoutes(app, sql);
+    registerNicheRoutes(app, sql);
     registerPriceTableRoutes(app, sql);
     registerConversationRoutes(app, sql);
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;

@@ -1,6 +1,5 @@
 import { utcToZoned, weekdayName } from "../lib/time.js";
 import type { Service, Tenant } from "../scheduling/service.js";
-import { nicheOf } from "../tenants/niches.js";
 
 export type PromptData = {
   tenant: Tenant;
@@ -11,6 +10,8 @@ export type PromptData = {
   /** Receives general questions; null = the owner. */
   defaultPerson: { name: string; kind: string } | null;
   faq: { question: string; answer: string }[];
+  /** How the assistant talks about this kind of place and its customers. */
+  niche: { place: string; customerWord: string };
   handoffTopics: { id: string; topic: string; reason: string | null }[];
   customerName: string | null;
   now: Date;
@@ -60,8 +61,7 @@ function describeNotice(minutes: number): string {
 // Written in Portuguese on purpose: it steers the model to answer customers in Portuguese.
 export function buildSystemPrompt(data: PromptData): string {
   const { tenant } = data;
-  const niche = nicheOf(tenant.businessType);
-  const person = niche.customerWord;
+  const person = data.niche.customerWord;
   const now = utcToZoned(data.now, tenant.timezone);
   const [year, month, day] = now.date.split("-");
 
@@ -71,7 +71,7 @@ export function buildSystemPrompt(data: PromptData): string {
       : "simpática, leve e próxima, como uma recepcionista querida";
   const emoji = tenant.useEmoji ? "no máximo um emoji de vez em quando" : "sem emojis";
 
-  return `Você é ${tenant.assistantName}, atendente virtual do(a) ${niche.place} ${tenant.name} no WhatsApp.
+  return `Você é ${tenant.assistantName}, atendente virtual do(a) ${data.niche.place} ${tenant.name} no WhatsApp.
 Seu trabalho é ajudar ${person}s a agendar, consultar, remarcar e cancelar horários. Quando não puder resolver, você passa a conversa para a equipe.
 
 Agora: ${weekdayName(now.weekday)}, ${day}/${month}/${year}, ${now.time}.

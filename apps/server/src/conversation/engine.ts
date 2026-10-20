@@ -4,6 +4,7 @@ import type { Channel } from "../channels/channel.js";
 import type { Sql } from "../db/client.js";
 import { KeyedLock } from "../lib/keyed-lock.js";
 import { formatDateTimePtBr } from "../lib/time.js";
+import { nicheForPrompt } from "../tenants/niches.js";
 import type { PendingReminder } from "../reminders/reminders.js";
 import { cancelCustomerAppointment, getTenant, SchedulingError, type Service } from "../scheduling/service.js";
 import type { PriceTable } from "./price-table.js";
@@ -343,7 +344,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
   const { sql } = deps;
   const { tenant } = ctx;
 
-  const [services, professionals, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson] = await Promise.all([
+  const [services, professionals, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson, niche] = await Promise.all([
     sql<Service[]>`
       select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason
       from services where tenant_id = ${tenant.id} and active and archived_at is null order by name
@@ -386,6 +387,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
           where tenant_id = ${tenant.id} and id = ${tenant.defaultHandoffProfessionalId} and active and notify_phone is not null
         `
       : Promise.resolve([] as { name: string; kind: string }[]),
+    nicheForPrompt(sql, tenant.businessType),
   ]);
   const cancelledNote = recentlyCancelled.length
     ? "\n\nHorários desta cliente desmarcados nas últimas horas (já cancelados de verdade, não aparecem em list_customer_appointments):\n" +
@@ -397,6 +399,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
   const system =
     buildSystemPrompt({
       tenant,
+      niche,
       services,
       professionals,
       hours,

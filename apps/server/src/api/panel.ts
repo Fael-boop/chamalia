@@ -5,7 +5,7 @@ import { connectTenantWhatsapp, syncConnectedNumber, type WhatsappSetup } from "
 import type { Sql } from "../db/client.js";
 import { isOwner } from "./auth.js";
 import { getTenant, TENANT_COLUMNS, type Tenant } from "../scheduling/service.js";
-import { BUSINESS_TYPES, NICHES, nicheOf, STARTER_HOURS } from "../tenants/niches.js";
+import { getNicheBySlug } from "../tenants/niches.js";
 
 const uuid = z.string().uuid();
 const phone = z
@@ -26,7 +26,7 @@ const itemParams = tenantParams.extend({ id: uuid });
 
 const tenantFields = z.object({
   name: z.string().trim().min(1).max(80),
-  businessType: z.enum(BUSINESS_TYPES),
+  businessType: z.string().trim().min(1).max(60),
   assistantName: z.string().trim().min(1).max(40),
   ownerName: optionalText(80),
   ownerPhone: phone.nullable(),
@@ -138,10 +138,6 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
     return tenant;
   }
 
-  app.get("/api/niches", async () =>
-    BUSINESS_TYPES.map((value) => ({ value, label: NICHES[value].label })),
-  );
-
   // --- Clients (tenants) ---
 
   app.get("/api/tenants", { config: { adminOnly: true } }, async () => {
@@ -156,7 +152,8 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
   // New client with the niche's starter services, one professional and starter hours.
   app.post("/api/tenants", { config: { adminOnly: true } }, async (request, reply) => {
     const body = tenantCreate.parse(request.body);
-    const niche = nicheOf(body.businessType);
+    const niche = await getNicheBySlug(sql, body.businessType);
+    if (!niche) return reply.code(400).send({ error: "invalid_niche", message: "Nicho inválido." });
     const tenant = await sql.begin(async (tx) => {
       const base = slugify(body.name);
       const taken = new Set(
@@ -183,10 +180,10 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
         insert into professionals (tenant_id, name) values (${tenantId}, ${body.ownerName || "Profissional 1"})
         returning id
       `;
-      if (niche.services.length > 0) {
+      if (niche.starterServices.length > 0) {
         const services = await tx<{ id: string }[]>`
           insert into services ${tx(
-            niche.services.map((service) => ({ tenantId, ...service })),
+            niche.starterServices.map((service) => ({ tenantId, ...service })),
             "tenantId",
             "name",
             "durationMinutes",
@@ -205,7 +202,7 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
       }
       await tx`
         insert into business_hours ${tx(
-          STARTER_HOURS.map((row) => ({ tenantId, ...row })),
+          niche.starterHours.map((row) => ({ tenantId, ...row })),
           "tenantId",
           "weekday",
           "opensAt",

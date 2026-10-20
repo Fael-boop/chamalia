@@ -174,6 +174,13 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
+Nichos no banco (migration 014, feito em 2026-10-20): a tabela `niches` substitui o antigo
+`apps/server/src/tenants/niches.ts` estático. Cada nicho tem slug (igual ao antigo valor de
+`tenants.business_type`, agora FK para `niches.slug` em vez de CHECK fixo), label, place, customer_word,
+`starter_services`/`starter_hours` (jsonb, usados só ao criar um negócio novo). Tela "Nichos" no painel da
+agência (listar, criar, editar, excluir — bloqueado com 409 se algum negócio usa o nicho). Rotas em
+`api/niches.ts`; `GET /api/niches` é público (painel da dona usa no campo Nicho), o resto é adminOnly.
+A Lia recebe place/customerWord via `nicheForPrompt` (engine.ts), não mais import estático.
 Linguagem neutra (feito em 2026-10-20): "dona" saiu de todo texto visível, da Lia e do painel, porque
 o produto agora atende qualquer negócio, não só salões com dona mulher. Duas palavras diferentes:
 "equipe" = quem resolve handoffs em geral (serviço/assunto "sempre com a equipe", regra "na dúvida passa
