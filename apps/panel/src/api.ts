@@ -106,7 +106,12 @@ export type Service = {
   durationMinutes: number;
   priceCents: number | null;
   active: boolean;
+  /** Always handed over to the owner; the assistant never books it. */
+  handoff: boolean;
+  handoffReason: string | null;
 };
+
+export type HandoffTopic = { id: string; topic: string; reason: string | null };
 
 export type Appointment = {
   id: string;

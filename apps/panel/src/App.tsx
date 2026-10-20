@@ -9,6 +9,7 @@ import {
   Scissors,
   Settings,
   Smartphone,
+  UserRoundCheck,
   Users,
   UsersRound,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import { AccessPage } from "./pages/AccessPage";
 import { AgendaPage } from "./pages/agenda/AgendaPage";
 import { BusinessesPage } from "./pages/BusinessesPage";
 import { CustomersPage } from "./pages/CustomersPage";
+import { HandoffPage } from "./pages/HandoffPage";
 import { HoursPage } from "./pages/HoursPage";
 import { MorePage } from "./pages/MorePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
@@ -146,6 +148,7 @@ function BusinessWorkspace({
   const secondary: NavItem[] = [
     { id: "professionals", label: "Profissionais", icon: UsersRound },
     { id: "hours", label: "Horários", icon: Clock },
+    { id: "handoff", label: "Passar para a dona", icon: UserRoundCheck },
     { id: "settings", label: "Configurações", icon: Settings },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
     ...(role === "admin"
@@ -178,6 +181,7 @@ function BusinessWorkspace({
       {page === "services" && <ServicesPage tenant={t} />}
       {page === "professionals" && <ProfessionalsPage tenant={t} />}
       {page === "hours" && <HoursPage tenant={t} />}
+      {page === "handoff" && <HandoffPage tenant={t} />}
       {page === "settings" && <SettingsPage tenant={t} role={role} />}
       {page === "test-chat" && <TestChatPage tenant={t} />}
       {page === "whatsapp" && role === "admin" && <WhatsAppPage tenant={t} />}

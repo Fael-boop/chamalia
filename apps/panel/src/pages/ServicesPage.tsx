@@ -13,6 +13,17 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDuration, formatPrice } from "@/format";
@@ -27,8 +38,11 @@ const schema = z.object({
     .trim()
     .refine((v) => v === "" || /^\d+([.,]\d{1,2})?$/.test(v), "Use por exemplo 45 ou 45,50"),
   description: z.string().trim().max(500),
+  handoff: z.boolean(),
+  handoffReason: z.string().trim().max(300),
 });
 type FormValues = z.infer<typeof schema>;
+const EMPTY: FormValues = { name: "", durationMinutes: 30, price: "", description: "", handoff: false, handoffReason: "" };
 
 const toCents = (price: string) => (price.trim() === "" ? null : Math.round(Number(price.trim().replace(",", ".")) * 100));
 const fromCents = (cents: number | null) => (cents === null ? "" : (cents / 100).toFixed(2).replace(".", ","));
@@ -65,12 +79,12 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
       {mobile ? (
         <div className="mb-4 space-y-2">
           {newButton}
-          <Hint>Só serviços com duração fixa. Química, combos e encaixe a {tenant.assistantName} passa para a dona.</Hint>
+          <Hint>Só serviços com duração fixa. Combos, encaixe e serviços marcados "sempre com a dona" a {tenant.assistantName} passa para você.</Hint>
         </div>
       ) : (
         <PageHeader
           title="Serviços"
-          description={`O que a ${tenant.assistantName} agenda sozinha. Química, combos e encaixe ela passa para a dona.`}
+          description={`O que a ${tenant.assistantName} agenda sozinha. Combos, encaixe e serviços marcados "sempre com a dona" ela passa para você.`}
           actions={newButton}
         />
       )}
@@ -91,6 +105,7 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {formatDuration(s.durationMinutes)} · {formatPrice(s.priceCents)}
+                  {s.handoff && " · com a dona"}
                 </div>
               </button>
               <Switch checked={s.active} onCheckedChange={() => toggle.mutate(s)} aria-label={`Ativar ${s.name}`} />
@@ -115,6 +130,11 @@ export function ServicesPage({ tenant }: { tenant: Tenant }) {
                   <TableCell className="pl-4 font-medium">
                     {s.name}
                     {s.description && <div className="text-xs font-normal text-muted-foreground">{s.description}</div>}
+                    {s.handoff && (
+                      <div className="text-xs font-normal text-muted-foreground">
+                        Sempre com a dona{s.handoffReason ? `: ${s.handoffReason}` : ""}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="tabular-nums">{formatDuration(s.durationMinutes)}</TableCell>
                   <TableCell className="tabular-nums">{formatPrice(s.priceCents)}</TableCell>
@@ -156,8 +176,9 @@ function ServiceForm({
   const isNew = service === "new";
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", durationMinutes: 30, price: "", description: "" },
+    defaultValues: EMPTY,
   });
+  const handoff = form.watch("handoff");
 
   useEffect(() => {
     if (!open) return;
@@ -168,8 +189,10 @@ function ServiceForm({
             durationMinutes: service.durationMinutes,
             price: fromCents(service.priceCents),
             description: service.description ?? "",
+            handoff: service.handoff,
+            handoffReason: service.handoffReason ?? "",
           }
-        : { name: "", durationMinutes: 30, price: "", description: "" },
+        : EMPTY,
     );
   }, [open, service, form]);
 
@@ -180,6 +203,8 @@ function ServiceForm({
         durationMinutes: values.durationMinutes,
         priceCents: toCents(values.price),
         description: values.description || null,
+        handoff: values.handoff,
+        handoffReason: values.handoff ? values.handoffReason || null : null,
       };
       return isNew
         ? api(`/tenants/${tenant.id}/services`, { method: "POST", body })
@@ -201,9 +226,13 @@ function ServiceForm({
       description="A atendente usa duração e preço para oferecer horários e responder dúvidas."
       footer={
         <div className="grid w-full grid-cols-2 gap-2">
-          <Button variant="outline" size="lg" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
+          {isNew ? (
+            <Button variant="outline" size="lg" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+          ) : (
+            <DeleteService tenant={tenant} service={service as Service} onDeleted={() => onOpenChange(false)} />
+          )}
           <Button size="lg" type="submit" form="service-form" disabled={save.isPending}>
             {save.isPending ? "Salvando…" : "Salvar"}
           </Button>
@@ -273,8 +302,77 @@ function ServiceForm({
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="handoff"
+            render={({ field }) => (
+              <FormItem className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
+                <div className="space-y-1">
+                  <FormLabel>Sempre passar para a dona</FormLabel>
+                  <FormDescription className="text-xs">A {tenant.assistantName} não agenda: entende o pedido e chama você.</FormDescription>
+                </div>
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          {handoff && (
+            <FormField
+              control={form.control}
+              name="handoffReason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Motivo (opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex.: precisa de avaliação antes" {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">A {tenant.assistantName} usa para explicar à cliente por que vai chamar você.</FormDescription>
+                </FormItem>
+              )}
+            />
+          )}
         </form>
       </Form>
     </ResponsiveSheet>
+  );
+}
+
+function DeleteService({ tenant, service, onDeleted }: { tenant: Tenant; service: Service; onDeleted: () => void }) {
+  const queryClient = useQueryClient();
+  const remove = useMutation({
+    mutationFn: () => api(`/tenants/${tenant.id}/services/${service.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success(`${service.name} excluído`);
+      void queryClient.invalidateQueries({ queryKey: keys.services(tenant.id) });
+      void queryClient.invalidateQueries({ queryKey: keys.professionals(tenant.id) });
+      onDeleted();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="lg" className="text-destructive hover:text-destructive" disabled={remove.isPending}>
+          Excluir
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir {service.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            A {tenant.assistantName} para de oferecer este serviço. Horários já marcados continuam na agenda. Para só pausar, desligue
+            "Ativo".
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Voltar</AlertDialogCancel>
+          <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={() => remove.mutate()}>
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

@@ -28,7 +28,6 @@ const schema = z.object({
   tone: z.enum(["friendly", "formal"]),
   useEmoji: z.boolean(),
   extraInfo: z.string().trim().max(2000),
-  handoffRules: z.string().trim().max(1000),
   minNoticeHours: z.number({ message: "Informe as horas" }).min(0).max(168),
   bookingHorizonDays: z.number({ message: "Informe os dias" }).int().min(1).max(365),
   active: z.boolean(),
@@ -45,7 +44,6 @@ const toValues = (t: Tenant): Values => ({
   tone: t.tone,
   useEmoji: t.useEmoji,
   extraInfo: t.extraInfo ?? "",
-  handoffRules: t.handoffRules ?? "",
   minNoticeHours: t.minNoticeMinutes / 60,
   bookingHorizonDays: t.bookingHorizonDays,
   active: t.active,
@@ -85,7 +83,6 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
           tone: v.tone,
           useEmoji: v.useEmoji,
           extraInfo: v.extraInfo || null,
-          handoffRules: v.handoffRules || null,
           minNoticeMinutes: Math.round(v.minNoticeHours * 60),
           bookingHorizonDays: v.bookingHorizonDays,
           ...(role === "admin" ? { active: v.active } : {}),
@@ -194,19 +191,6 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
                     <Textarea rows={5} placeholder={"Aceitamos Pix, débito e crédito.\nAtraso de mais de 15 min precisa remarcar."} {...field} />
                   </FormControl>
                   <FormDescription className="text-xs">Ela só responde dúvidas com o que estiver aqui. O resto passa para a dona.</FormDescription>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="handoffRules"
-              render={({ field }) => (
-                <FormItem className="sm:col-span-2">
-                  <FormLabel>Sempre passar para a dona quando…</FormLabel>
-                  <FormControl>
-                    <Textarea rows={3} placeholder="pedirem desconto; falarem de noiva ou festa; reclamarem de algum serviço." {...field} />
-                  </FormControl>
-                  <FormDescription className="text-xs">Química, combos, encaixe e serviços fora da lista ela já passa sozinha.</FormDescription>
                 </FormItem>
               )}
             />

@@ -160,6 +160,13 @@ fechar todas as janelas do VS Code e reabrir.
    Painel refeito (ver seção "Painel: regras de UI"). Falta: validar no celular real.
 6. [ ] README com passo a passo de onboarding de um cliente novo.
 
+Passar para a dona configurável (feito em 2026-10-20, migration 004): tela "Passar para a dona" com
+serviços marcados "sempre com a dona" + motivo (`services.handoff`, `handoff_reason`; as tools recusam
+buscar/agendar esses serviços), assuntos + motivo (tabela `handoff_topics`; o antigo
+`tenants.handoff_rules` virou o primeiro assunto e não é mais usado) e a regra fixa "na dúvida, passa".
+Excluir serviço: apaga se nunca teve agendamento; senão arquiva (`archived_at`, some do painel e da Lia).
+Corrigido: PATCH de serviço apagava preço/descrição (defaults do zod no partial).
+
 Histórico para a IA guarda só texto (sem as chamadas de ferramenta): o prompt avisa que ações
 anteriores aconteceram de verdade, e mostra horários cancelados nas últimas 24h.
 
