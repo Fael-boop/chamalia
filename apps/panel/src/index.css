@@ -210,6 +210,10 @@
     [role="combobox"] {
       min-height: 44px;
     }
+    /* Icon buttons (trash, close) are 44px wide too, not only tall. */
+    [data-slot="button"][data-size^="icon"] {
+      min-width: 44px;
+    }
     /* Small controls keep their look; only the tappable area grows to 44px. */
     [role="switch"],
     [role="checkbox"] {

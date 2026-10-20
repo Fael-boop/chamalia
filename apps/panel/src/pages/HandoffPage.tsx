@@ -97,19 +97,19 @@ export function HandoffPage({ tenant }: { tenant: Tenant }) {
           description={`Quando a ${lia} para de responder e chama uma pessoa da equipe (dona, profissional ou recepção). Ela avisa a cliente, manda o pedido no WhatsApp de quem vai resolver e fica em silêncio nessa conversa.`}
         />
       )}
-      <p className="mb-6 text-xs text-muted-foreground">
+      <div className="mb-4 space-y-1.5 text-xs text-muted-foreground">
         {tenant.ownerPhone ? (
-          <>Avisos da dona chegam no WhatsApp {formatPhone(tenant.ownerPhone)}. </>
+          <p>Avisos da dona chegam no WhatsApp {formatPhone(tenant.ownerPhone)}.</p>
         ) : (
-          <span className="text-destructive">
-            O WhatsApp da dona não está cadastrado em Configurações: a {lia} passa a conversa, mas o aviso não chega.{" "}
-          </span>
+          <p className="text-destructive">
+            O WhatsApp da dona não está cadastrado em Configurações: a {lia} passa a conversa, mas o aviso não chega.
+          </p>
         )}
-        Quem recebe o aviso responde a cliente pelo WhatsApp do salão. O WhatsApp de cada pessoa fica em Profissionais.
+        <p>Quem recebe o aviso responde a cliente pelo WhatsApp do salão. O WhatsApp de cada pessoa fica em Profissionais.</p>
         {!professionals.isLoading && !people.some((p) => p.kind === "reception") && (
-          <> Se uma recepcionista cuida das dúvidas (corte, progressiva…), cadastre-a em Profissionais com o botão Recepção: ela vira quem recebe o resto.</>
+          <p>Se uma recepcionista cuida das dúvidas (corte, progressiva…), cadastre-a em Profissionais com o botão Recepção: ela vira quem recebe o resto.</p>
         )}
-      </p>
+      </div>
 
       <Section title="Assuntos" description={`Temas que alguém da equipe responde pessoalmente. A ${lia} passa assim que a cliente tocar no assunto.`}>
         <TopicsList tenant={tenant} people={people} />

@@ -247,7 +247,7 @@ function ServiceForm({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 items-start gap-3">
             <FormField
               control={form.control}
               name="durationMinutes"
