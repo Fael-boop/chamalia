@@ -49,6 +49,9 @@ export type Service = {
   durationMinutes: number;
   priceCents: number | null;
   active: boolean;
+  /** Always handed over to the owner; the assistant never books it. */
+  handoff: boolean;
+  handoffReason: string | null;
 };
 
 export type BookedAppointment = {
@@ -63,7 +66,7 @@ const ACTIVE_STATUSES = ["scheduled", "confirmed"];
 
 export class SchedulingError extends Error {
   constructor(
-    readonly code: "service_not_found" | "invalid_date" | "slot_unavailable" | "appointment_not_found",
+    readonly code: "service_not_found" | "invalid_date" | "slot_unavailable" | "appointment_not_found" | "handoff_service",
     message: string,
   ) {
     super(message);
@@ -95,7 +98,7 @@ export async function findAvailableSlots(
   }
 
   const [service] = await sql<Service[]>`
-    select id, name, description, duration_minutes, price_cents, active
+    select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason
     from services where tenant_id = ${tenant.id} and id = ${params.serviceId} and active
   `;
   if (!service) throw new SchedulingError("service_not_found", "Serviço não encontrado.");

@@ -33,7 +33,6 @@ const tenantFields = z.object({
   tone: z.enum(["friendly", "formal"]),
   useEmoji: z.boolean(),
   extraInfo: optionalText(2000),
-  handoffRules: optionalText(1000),
   minNoticeMinutes: z.number().int().min(0).max(10080),
   bookingHorizonDays: z.number().int().min(1).max(365),
   active: z.boolean(),
@@ -43,15 +42,32 @@ const tenantCreate = tenantFields
   .pick({ name: true, businessType: true, assistantName: true, ownerName: true, ownerPhone: true, address: true })
   .partial({ assistantName: true, ownerName: true, ownerPhone: true, address: true });
 
-const serviceBody = z.object({
+// No defaults here: a PATCH must only touch the fields it sends.
+const serviceFields = z.object({
   name: z.string().trim().min(1).max(80),
-  description: z.string().trim().max(500).nullable().default(null),
+  description: z.string().trim().max(500).nullable(),
   durationMinutes: z.number().int().min(5).max(480),
-  priceCents: z.number().int().min(0).nullable().default(null),
-  active: z.boolean().default(true),
+  priceCents: z.number().int().min(0).nullable(),
+  active: z.boolean(),
+  handoff: z.boolean(),
+  handoffReason: optionalText(300),
 });
+const serviceCreate = serviceFields.partial({ description: true, priceCents: true, active: true, handoff: true, handoffReason: true });
+
+const topicBody = z.object({ topic: z.string().trim().min(1).max(200), reason: optionalText(300) });
 
 const professionalBody = z.object({ name: z.string().trim().min(1).max(80), active: z.boolean().default(true) });
+
+const SERVICE_COLUMNS = [
+  "id",
+  "name",
+  "description",
+  "duration_minutes",
+  "price_cents",
+  "active",
+  "handoff",
+  "handoff_reason",
+];
 
 const hoursQuery = z.object({ professionalId: uuid.optional() });
 const hoursBody = z.array(
@@ -185,18 +201,18 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
   app.get("/api/tenants/:tenantId/services", async (request) => {
     const { tenantId } = tenantParams.parse(request.params);
     return sql`
-      select id, name, description, duration_minutes, price_cents, active
-      from services where tenant_id = ${tenantId} order by active desc, name
+      select ${sql(SERVICE_COLUMNS)}
+      from services where tenant_id = ${tenantId} and archived_at is null order by active desc, name
     `;
   });
 
   app.post("/api/tenants/:tenantId/services", async (request, reply) => {
     const { tenantId } = tenantParams.parse(request.params);
-    const body = serviceBody.parse(request.body);
+    const body = serviceCreate.parse(request.body);
     const service = await sql.begin(async (tx) => {
       const [created] = await tx<{ id: string }[]>`
         insert into services ${tx({ tenantId, ...body })}
-        returning id, name, description, duration_minutes, price_cents, active
+        returning ${tx(SERVICE_COLUMNS)}
       `;
       // New services start offered by every active professional; adjust in "Profissionais".
       await tx`
@@ -210,13 +226,63 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
 
   app.patch("/api/tenants/:tenantId/services/:id", async (request, reply) => {
     const { tenantId, id } = itemParams.parse(request.params);
-    const changes = serviceBody.partial().parse(request.body);
+    const changes = serviceFields.partial().parse(request.body);
     if (Object.keys(changes).length === 0) return reply.code(400).send({ error: "empty_update" });
     const [service] = await sql`
-      update services set ${sql(changes)} where tenant_id = ${tenantId} and id = ${id}
-      returning id, name, description, duration_minutes, price_cents, active
+      update services set ${sql(changes)} where tenant_id = ${tenantId} and id = ${id} and archived_at is null
+      returning ${sql(SERVICE_COLUMNS)}
     `;
     return service ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  // Deletes for good when nothing points to it; otherwise hides it (old
+  // appointments keep showing its name).
+  app.delete("/api/tenants/:tenantId/services/:id", async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const result = await sql.begin(async (tx) => {
+      const [used] = await tx`select 1 from appointments where tenant_id = ${tenantId} and service_id = ${id} limit 1`;
+      if (used) {
+        const archived = await tx`
+          update services set archived_at = now(), active = false
+          where tenant_id = ${tenantId} and id = ${id} and archived_at is null returning id
+        `;
+        return archived.length ? { deleted: true } : null;
+      }
+      const deleted = await tx`delete from services where tenant_id = ${tenantId} and id = ${id} returning id`;
+      return deleted.length ? { deleted: true } : null;
+    });
+    return result ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  // --- Subjects always handed over to the owner ---
+
+  app.get("/api/tenants/:tenantId/handoff-topics", async (request) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    return sql`select id, topic, reason from handoff_topics where tenant_id = ${tenantId} order by created_at`;
+  });
+
+  app.post("/api/tenants/:tenantId/handoff-topics", async (request, reply) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    const body = topicBody.parse(request.body);
+    const [topic] = await sql`
+      insert into handoff_topics ${sql({ tenantId, ...body })} returning id, topic, reason
+    `;
+    return reply.code(201).send(topic);
+  });
+
+  app.patch("/api/tenants/:tenantId/handoff-topics/:id", async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const body = topicBody.parse(request.body);
+    const [topic] = await sql`
+      update handoff_topics set ${sql(body)} where tenant_id = ${tenantId} and id = ${id} returning id, topic, reason
+    `;
+    return topic ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  app.delete("/api/tenants/:tenantId/handoff-topics/:id", async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const deleted = await sql`delete from handoff_topics where tenant_id = ${tenantId} and id = ${id} returning id`;
+    return deleted.length ? { deleted: true } : reply.code(404).send({ error: "not_found" });
   });
 
   // --- Professionals ---
