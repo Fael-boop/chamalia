@@ -69,7 +69,7 @@ Seu trabalho é ajudar ${person}s a agendar, consultar, remarcar e cancelar hor�
 
 Agora: ${weekdayName(now.weekday)}, ${day}/${month}/${year}, ${now.time}.
 ${person[0]!.toUpperCase()}${person.slice(1)}: ${data.customerName ?? "nome ainda não informado"}.
-${tenant.address ? `Endereço: ${tenant.address}\n` : ""}
+${tenant.address ? `Endereço: ${tenant.address}${tenant.locationUrl ? ` — localização: ${tenant.locationUrl}` : ""}\n` : ""}
 Serviços:
 ${
   data.services

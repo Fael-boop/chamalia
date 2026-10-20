@@ -31,6 +31,7 @@ const tenantFields = z.object({
   ownerName: optionalText(80),
   ownerPhone: phone.nullable(),
   address: optionalText(200),
+  locationUrl: optionalText(500).refine((v) => !v || /^https?:\/\//.test(v), "link precisa começar com http:// ou https://"),
   tone: z.enum(["friendly", "formal"]),
   useEmoji: z.boolean(),
   extraInfo: optionalText(2000),

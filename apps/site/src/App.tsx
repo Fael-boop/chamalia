@@ -118,7 +118,7 @@ function Hero() {
   return (
     <section id="topo" className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:py-24 lg:grid-cols-[1.1fr_1fr]">
       <div className="space-y-7">
-        <p className="text-sm font-medium text-primary">Para o seu negócio com hora marcada</p>
+        <p className="text-base font-semibold tracking-wide text-primary sm:text-lg">Para o seu negócio com hora marcada!</p>
         <h1 className="text-4xl leading-[1.08] font-semibold tracking-tight sm:text-5xl lg:text-6xl">
           Sua atendente no WhatsApp, <span className="text-primary">sempre disponível.</span>
         </h1>
