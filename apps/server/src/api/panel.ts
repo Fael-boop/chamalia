@@ -317,7 +317,7 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
              coalesce(array_agg(ps.service_id) filter (where ps.service_id is not null), '{}') as service_ids
       from professionals p
       left join professional_services ps on ps.professional_id = p.id
-      where p.tenant_id = ${tenantId}
+      where p.tenant_id = ${tenantId} and p.archived_at is null
       group by p.id order by p.active desc, p.kind, p.name
     `;
   });
@@ -349,6 +349,33 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
       returning ${sql(PROFESSIONAL_COLUMNS)}
     `;
     return professional ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  // Deletes for good when nothing points to her; otherwise hides her (past
+  // appointments keep showing her name). Archived people are also inactive, so
+  // the assistant never offers them. Services/topics/default handoff that named
+  // her fall back to the owner (foreign keys set null).
+  app.delete("/api/tenants/:tenantId/professionals/:id", async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const result = await sql.begin(async (tx) => {
+      const [used] = await tx`select 1 from appointments where tenant_id = ${tenantId} and professional_id = ${id} limit 1`;
+      if (used) {
+        const archived = await tx`
+          update professionals set archived_at = now(), active = false
+          where tenant_id = ${tenantId} and id = ${id} and archived_at is null returning id
+        `;
+        if (archived.length) {
+          // Drop her from services/topics now: the FK only clears on a real delete.
+          await tx`update services set handoff_professional_id = null where tenant_id = ${tenantId} and handoff_professional_id = ${id}`;
+          await tx`update handoff_topics set professional_id = null where tenant_id = ${tenantId} and professional_id = ${id}`;
+          await tx`update tenants set default_handoff_professional_id = null where id = ${tenantId} and default_handoff_professional_id = ${id}`;
+        }
+        return archived.length ? { deleted: true } : null;
+      }
+      const deleted = await tx`delete from professionals where tenant_id = ${tenantId} and id = ${id} returning id`;
+      return deleted.length ? { deleted: true } : null;
+    });
+    return result ?? reply.code(404).send({ error: "not_found" });
   });
 
   // Replaces which services this professional performs.
