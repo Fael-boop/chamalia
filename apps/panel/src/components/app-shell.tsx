@@ -1,4 +1,4 @@
-import { LogOut, Moon, Sun } from "lucide-react";
+import { ChevronLeft, LogOut, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ComponentType, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ type Props = {
   current: string;
   onNavigate: (id: string) => void;
   onLogout: () => void;
+  /** Agency inside one business: goes back to the list of businesses. */
+  onBack?: () => void;
   children: ReactNode;
 };
 
@@ -37,7 +39,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
-export function AppShell({ brand, context, items, mobileItems, current, onNavigate, onLogout, children }: Props) {
+export function AppShell({ brand, context, items, mobileItems, current, onNavigate, onLogout, onBack, children }: Props) {
   const mobile = useIsMobile();
   const reduceMotion = useReducedMotion();
 
@@ -60,6 +62,16 @@ export function AppShell({ brand, context, items, mobileItems, current, onNaviga
     return (
       <div className="min-h-dvh pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-sidebar px-4 text-white">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-white active:scale-95"
+              aria-label="Voltar para todos os negócios"
+            >
+              <ChevronLeft className="size-6" />
+            </button>
+          )}
           {/* Tapping the logo or the title opens "Mais", like the bottom menu item. */}
           <button
             type="button"

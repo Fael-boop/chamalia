@@ -178,6 +178,7 @@ function BusinessWorkspace({
       current={page}
       onNavigate={navigate}
       onLogout={onLogout}
+      onBack={onBackToBusinesses}
     >
       {page === "agenda" && <AgendaPage tenant={t} />}
       {page === "customers" && <CustomersPage tenant={t} />}
