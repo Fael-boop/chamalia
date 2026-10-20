@@ -125,7 +125,7 @@ export function BusinessesPage({ onOpen }: { onOpen: (tenantId: string) => void 
               <TableRow>
                 <TableHead className="pl-4">Negócio</TableHead>
                 <TableHead>Nicho</TableHead>
-                <TableHead>Dona</TableHead>
+                <TableHead>Responsável</TableHead>
                 <TableHead>WhatsApp</TableHead>
                 <TableHead>Próximos agendamentos</TableHead>
                 <TableHead />
@@ -199,8 +199,8 @@ export function BusinessesPage({ onOpen }: { onOpen: (tenantId: string) => void 
                 </FormItem>
               )}
             />
-            {field("ownerName", "Nome da dona", "Vira a primeira profissional cadastrada.")}
-            {field("ownerPhone", "WhatsApp da dona", "Recebe os avisos.", "5511999999999")}
+            {field("ownerName", "Nome do responsável", "Vira a primeira profissional cadastrada.")}
+            {field("ownerPhone", "WhatsApp do responsável", "Recebe os avisos.", "5511999999999")}
             {field("address", "Endereço")}
             {field("addressNeighborhood", "Bairro")}
             {field("addressCity", "Cidade")}

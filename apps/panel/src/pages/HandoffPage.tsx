@@ -53,7 +53,7 @@ function PersonSelect({
   onChange: (personId: string | null) => void;
   className?: string;
 }) {
-  const ownerLabel = tenant.ownerName ? `${tenant.ownerName} (dona)` : "Dona";
+  const ownerLabel = tenant.ownerName ? `${tenant.ownerName} (responsável)` : "Responsável";
   return (
     <Select value={value ?? OWNER} onValueChange={(v) => onChange(v === OWNER ? null : v)}>
       <SelectTrigger size="sm" className={cn("h-8 w-full text-xs sm:w-56", className)} aria-label="Quem resolve">
@@ -65,7 +65,7 @@ function PersonSelect({
           <SelectItem key={p.id} value={p.id}>
             {p.name}
             {p.kind === "reception" ? " (recepção)" : ""}
-            {p.notifyPhone ? "" : " · sem WhatsApp, vai para a dona"}
+            {p.notifyPhone ? "" : " · sem WhatsApp, vai para o responsável"}
           </SelectItem>
         ))}
       </SelectContent>
@@ -95,15 +95,15 @@ export function HandoffPage({ tenant }: { tenant: Tenant }) {
       {!mobile && (
         <PageHeader
           title="Passar para a equipe"
-          description={`Quando a ${lia} para de responder e chama uma pessoa da equipe (dona, profissional ou recepção). Ela avisa a cliente, manda o pedido no WhatsApp de quem vai resolver e fica em silêncio nessa conversa.`}
+          description={`Quando a ${lia} para de responder e chama uma pessoa da equipe (responsável, profissional ou recepção). Ela avisa a cliente, manda o pedido no WhatsApp de quem vai resolver e fica em silêncio nessa conversa.`}
         />
       )}
       <div className="mb-4 space-y-1.5 text-xs text-muted-foreground">
         {tenant.ownerPhone ? (
-          <p>Avisos da dona chegam no WhatsApp {formatPhone(tenant.ownerPhone)}.</p>
+          <p>Avisos do responsável chegam no WhatsApp {formatPhone(tenant.ownerPhone)}.</p>
         ) : (
           <p className="text-destructive">
-            O WhatsApp da dona não está cadastrado em Configurações: a {lia} passa a conversa, mas o aviso não chega.
+            O WhatsApp do responsável não está cadastrado em Configurações: a {lia} passa a conversa, mas o aviso não chega.
           </p>
         )}
         <p>Quem recebe o aviso responde a cliente pelo WhatsApp do salão. O WhatsApp de cada pessoa fica em Profissionais.</p>

@@ -159,8 +159,8 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
               help: "No Google Maps: abra o local, toque em Compartilhar e copie o link. A atendente manda junto com o endereço.",
               wide: true,
             })}
-            {text("ownerName", "Nome da dona")}
-            {text("ownerPhone", "WhatsApp da dona", { placeholder: "5511999999999", help: "Recebe avisos de agendamento e conversas passadas para ela." })}
+            {text("ownerName", "Nome do responsável")}
+            {text("ownerPhone", "WhatsApp do responsável", { placeholder: "5511999999999", help: "Recebe avisos de agendamento e conversas passadas para ele." })}
           </Section>
 
           <Section title="Atendente virtual" description="Como ela fala e o que pode responder.">
@@ -206,7 +206,7 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
                   <FormControl>
                     <Textarea rows={5} placeholder={"Aceitamos Pix, débito e crédito.\nAtraso de mais de 15 min precisa remarcar."} {...field} />
                   </FormControl>
-                  <FormDescription className="text-xs">Ela só responde dúvidas com o que estiver aqui. O resto passa para a dona.</FormDescription>
+                  <FormDescription className="text-xs">Ela só responde dúvidas com o que estiver aqui. O resto passa para a equipe.</FormDescription>
                 </FormItem>
               )}
             />

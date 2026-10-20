@@ -158,7 +158,7 @@ function BusinessWorkspace({
     { id: "settings", label: "Configurações", icon: Settings },
     { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
-    ...(role === "admin" ? [{ id: "access", label: "Acesso da dona", icon: KeyRound }] : []),
+    ...(role === "admin" ? [{ id: "access", label: "Acesso do responsável", icon: KeyRound }] : []),
   ];
   const back: NavItem[] = onBackToBusinesses ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }] : [];
   const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };

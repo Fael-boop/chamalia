@@ -125,7 +125,7 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
                   </label>
                   <ConfirmDelete
                     title={`Excluir ${p.name}?`}
-                    description={`${p.name} some da lista e a ${tenant.assistantName} para de oferecer horários com ela. Horários já marcados continuam na agenda. Avisos que iriam para ela passam a ir para a dona. Para só pausar, desligue "Ativa".`}
+                    description={`${p.name} some da lista e a ${tenant.assistantName} para de oferecer horários com ela. Horários já marcados continuam na agenda. Avisos que iriam para ela passam a ir para o responsável. Para só pausar, desligue "Ativa".`}
                     onConfirm={() => remove.mutate(p)}
                   >
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" aria-label={`Excluir ${p.name}`}>
@@ -152,7 +152,7 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
       )}
       <div className="mt-3 space-y-1">
         <Hint>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz. Em "Horários", defina dias e horários diferentes dos do salão.</Hint>
-        <Hint>O WhatsApp para avisos é usado quando uma conversa é passada para essa pessoa (veja "Passar para a equipe"). Sem número, o aviso vai para a dona.</Hint>
+        <Hint>O WhatsApp para avisos é usado quando uma conversa é passada para essa pessoa (veja "Passar para a equipe"). Sem número, o aviso vai para o responsável.</Hint>
       </div>
     </>
   );

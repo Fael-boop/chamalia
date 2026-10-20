@@ -70,11 +70,11 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
 
   return (
     <>
-      {!mobile && <PageHeader title="Acesso da dona" description="Usuário e senha para a dona entrar no painel do negócio." />}
+      {!mobile && <PageHeader title="Acesso do responsável" description="Usuário e senha para o responsável entrar no painel do negócio." />}
 
       {created && (
         <div className="mb-4 rounded-lg border border-primary/30 bg-accent p-4">
-          <div className="mb-2 text-sm font-medium">Envie para a dona. A senha não aparece de novo.</div>
+          <div className="mb-2 text-sm font-medium">Envie para o responsável. A senha não aparece de novo.</div>
           <pre className="rounded-md border bg-card p-3 text-sm whitespace-pre-wrap">{message}</pre>
           <div className="mt-3 flex gap-2">
             <Button size="sm" onClick={() => navigator.clipboard.writeText(message).then(() => toast.success("Copiado"))}>
@@ -153,7 +153,7 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
       </div>
       <div className="mt-3">
         <Hint>
-          A dona entra no mesmo endereço e vê só o {tenant.name}: agenda, clientes, serviços e configurações. Ela não vê
+          O responsável entra no mesmo endereço e vê só o {tenant.name}: agenda, clientes, serviços e configurações. Não vê
           outros negócios, o WhatsApp nem esta tela.
         </Hint>
       </div>

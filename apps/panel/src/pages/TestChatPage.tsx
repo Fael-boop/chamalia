@@ -70,7 +70,7 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
         ...result.ownerNotices.map((notice, index) => ({ id: `${now}-${index}`, text: notice, createdAt: now })),
       ]);
       if (result.ownerNotices.length && result.ownerPhoneMissing) {
-        toast.info("WhatsApp da dona não cadastrado: no WhatsApp real esse aviso não seria enviado.");
+        toast.info("WhatsApp do responsável não cadastrado: no WhatsApp real esse aviso não seria enviado.");
       }
       await load();
     } catch (e) {
