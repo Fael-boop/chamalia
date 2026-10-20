@@ -174,6 +174,9 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
+Endereço com bairro e cidade (migration 013, `address_neighborhood`/`address_city`): campos
+separados em Configurações e no cadastro de novo negócio; o prompt junta tudo (`fullAddress` em prompt.ts)
+antes de mandar para a Lia.
 Localização (migration 012, `tenants.location_url`): campo em Configurações, link do Google Maps (ou
 parecido). A Lia manda junto com o endereço quando a cliente pede endereço/localização/como chegar.
 Anexo da tabela de preços (migration 011, `messages.attachment` jsonb): a mensagem do arquivo guarda

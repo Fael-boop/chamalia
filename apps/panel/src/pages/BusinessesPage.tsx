@@ -23,6 +23,8 @@ const schema = z.object({
   ownerName: z.string().trim(),
   ownerPhone: z.string().trim().refine((v) => v === "" || /^\d{10,15}$/.test(v.replace(/\D/g, "")), "DDI + DDD + número"),
   address: z.string().trim(),
+  addressNeighborhood: z.string().trim(),
+  addressCity: z.string().trim(),
   assistantName: z.string().trim().min(1).max(40),
 });
 type Values = z.infer<typeof schema>;
@@ -38,7 +40,7 @@ export function BusinessesPage({ onOpen }: { onOpen: (tenantId: string) => void 
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", businessType: "beauty_salon", ownerName: "", ownerPhone: "", address: "", assistantName: "Lia" },
+    defaultValues: { name: "", businessType: "beauty_salon", ownerName: "", ownerPhone: "", address: "", addressNeighborhood: "", addressCity: "", assistantName: "Lia" },
   });
   const create = useMutation({
     mutationFn: (v: Values) =>
@@ -51,6 +53,8 @@ export function BusinessesPage({ onOpen }: { onOpen: (tenantId: string) => void 
           ownerName: v.ownerName || null,
           ownerPhone: v.ownerPhone ? v.ownerPhone.replace(/\D/g, "") : null,
           address: v.address || null,
+          addressNeighborhood: v.addressNeighborhood || null,
+          addressCity: v.addressCity || null,
         },
       }),
     onSuccess: (tenant) => {
@@ -198,6 +202,8 @@ export function BusinessesPage({ onOpen }: { onOpen: (tenantId: string) => void 
             {field("ownerName", "Nome da dona", "Vira a primeira profissional cadastrada.")}
             {field("ownerPhone", "WhatsApp da dona", "Recebe os avisos.", "5511999999999")}
             {field("address", "Endereço")}
+            {field("addressNeighborhood", "Bairro")}
+            {field("addressCity", "Cidade")}
             {field("assistantName", "Nome da atendente virtual")}
           </form>
         </Form>

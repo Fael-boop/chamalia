@@ -7,6 +7,7 @@ import { api, type PriceTable, type Tenant, type TestChatReply, type TestChatSta
 import { Hint, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { formatPhone, formatTime } from "@/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -239,14 +240,21 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
             void send();
           }}
         >
-          <Input
-            className="h-11 flex-1"
-            placeholder="Escreva como a cliente…"
+          <Textarea
+            className="max-h-32 min-h-11 flex-1 resize-none py-2.5 leading-snug"
+            rows={1}
+            placeholder="Escreva como a cliente… (Shift+Enter quebra a linha)"
             value={draft}
             disabled={!validPhone}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (validPhone && draft.trim() && !pending) void send();
+              }
+            }}
           />
-          <Button type="submit" size="icon" className="size-11" disabled={!validPhone || !draft.trim() || Boolean(pending)} aria-label="Enviar">
+          <Button type="submit" size="icon" className="size-11 self-end" disabled={!validPhone || !draft.trim() || Boolean(pending)} aria-label="Enviar">
             <SendHorizontal />
           </Button>
         </form>
