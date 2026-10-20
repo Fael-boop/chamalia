@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, type Tenant, type WhatsappStatus } from "@/api";
 import { ConfirmDelete } from "@/components/confirm-delete";
+import { ProfilePhoto } from "@/components/profile-photo";
 import { Hint, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -178,6 +179,7 @@ export function WhatsAppPage({ tenant }: { tenant: Tenant }) {
             </ConfirmDelete>
           </div>
         )}
+        <ProfilePhoto tenant={tenant} />
       </div>
       <div className="mt-3 space-y-1">
         <Hint>Use um número só para a {tenant.assistantName}: ela responde as clientes por ele. Se o WhatsApp cair, volte aqui e conecte de novo.</Hint>

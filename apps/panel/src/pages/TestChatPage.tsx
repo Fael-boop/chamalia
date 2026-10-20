@@ -2,13 +2,27 @@ import { BellRing, RotateCcw, SendHorizontal, UserRoundCheck } from "lucide-reac
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api, type Tenant, type TestChatReply, type TestChatState } from "@/api";
+import { useQuery } from "@tanstack/react-query";
+import { api, type PriceTable, type Tenant, type TestChatReply, type TestChatState } from "@/api";
 import { Hint, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatPhone, formatTime } from "@/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+
+/** Shows the file sent (today only the price list; the panel fetches the current one). */
+function PriceTableAttachment({ tenant, name }: { tenant: Tenant; name: string }) {
+  const table = useQuery({
+    queryKey: ["price-table", tenant.id],
+    queryFn: () => api<PriceTable>(`/tenants/${tenant.id}/price-table`),
+  });
+  if (table.isLoading) return <div className="h-32 w-44 animate-pulse rounded-lg bg-muted" />;
+  if (table.data?.file?.dataUrl) {
+    return <img src={table.data.file.dataUrl} alt={name} className="max-w-56 rounded-lg border" />;
+  }
+  return <span className="text-sm text-muted-foreground italic">Arquivo: {name}</span>;
+}
 
 /** Owner notifications are not stored; they live only on this screen. */
 type Notice = { id: string; text: string; createdAt: string };
@@ -169,7 +183,11 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
                     : "rounded-bl-md border bg-card",
                 )}
               >
-                {item.message.body}
+                {item.message.attachment?.kind === "price_table" ? (
+                  <PriceTableAttachment tenant={tenant} name={item.message.attachment.name} />
+                ) : (
+                  item.message.body
+                )}
                 <div
                   className={cn(
                     "mt-0.5 text-right text-[10px]",

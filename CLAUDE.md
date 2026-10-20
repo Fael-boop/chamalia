@@ -174,6 +174,13 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
+Anexo da tabela de preços (migration 011, `messages.attachment` jsonb): a mensagem do arquivo guarda
+{kind: "price_table", name, mime}; o painel (Testar a Lia) busca a tabela atual e mostra a imagem, em vez do
+nome do arquivo cru. A Lia não repete nem corrige os valores da tabela (ela é da dona, pode diferir da lista
+de serviços).
+Foto de perfil da atendente (migration 011, `tenants.assistant_photo`): tela WhatsApp, corta em quadrado e
+reduz no navegador (até 1 MB), salva no banco e, se o número estiver conectado, atualiza a foto no WhatsApp
+de verdade (Evolution `/chat/updateProfilePicture`, NÃO testado com WhatsApp real).
 Tabela de preços (migration 009, tabela `price_tables`, tela "Tabela de preços"): texto e/ou um arquivo (JPG/PNG/WebP/PDF, até 5 MB, guardado em `bytea`; o painel reduz fotos grandes). A Lia usa a tool `send_price_table` quando pedem a tabela: manda a resposta, depois o texto e o arquivo (`Channel.sendFile` → Evolution `/message/sendMedia`, ainda NÃO testado com WhatsApp real). Sem tabela, responde pelos preços dos serviços.
 WhatsApp pela própria dona (feito em 2026-10-20): a tela "WhatsApp" agora é do painel da dona também (conectar/reconectar por QR code ou por código digitado no celular, ver o número conectado, trocar/desconectar com confirmação). Rotas `/whatsapp/connect` (aceita `phone` para código) e `/whatsapp/disconnect` não são mais `adminOnly`; o servidor ainda recusa tenant alheio. Número conectado fica em `tenants.whatsapp_number`. Código por telefone não foi testado com um celular real.
 Duração do serviço no formulário: horas + minutos (`duration-input.tsx`), continua guardada em minutos.

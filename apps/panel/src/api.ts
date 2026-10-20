@@ -203,7 +203,13 @@ export type AppointmentStatus = "scheduled" | "confirmed" | "cancelled" | "compl
 
 export type BusinessHour = { weekday: number; opensAt: string; closesAt: string };
 
-export type ChatMessage = { id: string; direction: "inbound" | "outbound"; body: string; createdAt: string };
+export type ChatMessage = {
+  id: string;
+  direction: "inbound" | "outbound";
+  body: string;
+  createdAt: string;
+  attachment: { kind: "price_table"; name: string; mime: string } | null;
+};
 
 export type TestChatState = { withOwner: boolean; handoffReason: string | null; messages: ChatMessage[] };
 
