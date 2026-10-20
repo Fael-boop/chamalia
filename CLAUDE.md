@@ -115,8 +115,10 @@ fechar todas as janelas do VS Code e reabrir.
 5. [~] Painel web (React) por tenant: agenda do dia, serviços, horários + tela "Testar a Lia".
    Feito: API do painel com senha (`ADMIN_PASSWORD`), motor de conversa com Claude (tools:
    buscar horários, agendar, listar, cancelar, salvar nome) e canal de teste
-   (`CollectingChannel`). Telas React começadas (api.ts, format.ts, styles.css, não commitadas).
-   Falta: "passar para a dona" no motor; telas (Testar a Lia primeiro).
+   (`CollectingChannel`). "Passar para a dona" (tool `transfer_to_owner`, Lia fica em silêncio).
+   Tela "Testar a Lia" pronta (login, escolha do salão, chat, avisos à dona, nova conversa,
+   devolver para a Lia). Testado com o Haiku 5.5: agendar, remarcar, química, encaixe.
+   Falta: telas Agenda, Serviços, Horários, Configurações (API já existe).
 6. [ ] README com passo a passo de onboarding de um cliente novo.
 
 Decisões: modelo de dados continua o da 001, sem migration nova no MVP. "Com a dona" usa
