@@ -19,6 +19,8 @@ export type Tenant = {
   handoffRules: string | null;
   /** Who gets handoffs nobody configured; null = the owner. */
   defaultHandoffProfessionalId: string | null;
+  /** Hours without the team writing before the conversation returns to the assistant. */
+  handoffReturnHours: number;
   minNoticeMinutes: number;
   bookingHorizonDays: number;
   whatsappInstance: string | null;
@@ -40,6 +42,7 @@ export const TENANT_COLUMNS = [
   "extra_info",
   "handoff_rules",
   "default_handoff_professional_id",
+  "handoff_return_hours",
   "min_notice_minutes",
   "booking_horizon_days",
   "whatsapp_instance",

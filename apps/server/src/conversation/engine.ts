@@ -37,6 +37,39 @@ const FALLBACK_REPLY = "Desculpe, tive um probleminha aqui. Pode me mandar de no
 const UNSUPPORTED_REPLY = "Por enquanto eu só consigo ler mensagens de texto. Pode me escrever? 🙂";
 const OWNER_TOOK_OVER = "A dona respondeu pelo WhatsApp";
 
+/** conversations.context: handoff info while with the team, and a pending reminder. */
+type ConversationContext = {
+  reminder?: PendingReminder;
+  handoffReason?: string;
+  handoffTo?: string;
+  handoffAt?: string;
+  /** Last time someone from the team wrote in this conversation. */
+  teamLastAt?: string;
+  /** The conversation came back from the team: by the panel button, or by itself after silence. */
+  returned?: { reason?: string; at: string; auto: boolean };
+};
+
+/** How long the assistant keeps in mind that a request was already handed over. */
+const RETURNED_NOTE_HOURS = 24;
+
+/** Keeps the assistant from handing the same old request over again after it got the conversation back. */
+function returnedNote(context: ConversationContext): string | undefined {
+  const returned = context.returned;
+  if (!returned || Date.now() - Date.parse(returned.at) > RETURNED_NOTE_HOURS * 3_600_000) return undefined;
+  const subject = returned.reason ? `o pedido anterior (${returned.reason})` : "o pedido anterior";
+  return returned.auto
+    ? `A conversa tinha ido para a equipe por causa de ${subject}, mas a equipe não respondeu a tempo e você voltou a atender. A equipe já foi avisada de novo. ` +
+        "Não passe a conversa outra vez por causa desse mesmo pedido e não fique repetindo que chamou alguém: atenda normalmente a mensagem atual. " +
+        "Só se a cliente perguntar sobre aquele assunto, diga em uma frase que a equipe já foi avisada e responde por aqui. Use transfer_to_owner só para um pedido novo."
+    : `A equipe já cuidou de ${subject} e devolveu a conversa para você. Não volte a esse assunto nem passe a conversa de novo por ele; ` +
+        "atenda normalmente a mensagem atual. Use transfer_to_owner só se a cliente trouxer um pedido novo que precise de uma pessoa.";
+}
+
+/** When the team was last active in a handed-over conversation (handoff or their last message). */
+export function lastTeamActivity(context: ConversationContext): number {
+  return Math.max(Date.parse(context.handoffAt ?? "") || 0, Date.parse(context.teamLastAt ?? "") || 0);
+}
+
 // One lock per tenant + customer phone: customer messages, our replies and the
 // owner's own messages for the same chat are processed one at a time.
 const lock = new KeyedLock();
@@ -47,7 +80,7 @@ async function upsertConversation(sql: Sql, tenantId: string, phone: string) {
     on conflict (tenant_id, phone) do update set updated_at = now()
     returning id, phone, name
   `;
-  const [conversation] = await sql<{ id: string; state: string; context: { reminder?: PendingReminder } }[]>`
+  const [conversation] = await sql<{ id: string; state: string; context: ConversationContext }[]>`
     insert into conversations (tenant_id, customer_id) values (${tenantId}, ${customer!.id})
     on conflict (tenant_id, customer_id) do update set last_message_at = now()
     returning id, state, context
@@ -93,12 +126,24 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     log.info({ tenantId: tenant.id }, "duplicated message ignored");
     return;
   }
-  // The owner took over this conversation: store the message, stay quiet.
+  // With the team: stay quiet, unless the team has been silent long enough;
+  // then the assistant takes the conversation back by itself and the owner is told.
+  let pendingNotice: string | undefined;
   if (conversation.state === HUMAN_STATE) {
-    return { reply: null, ownerNotices: [], ownerPhoneMissing: !tenant.ownerPhone, withOwner: true };
+    const silentFor = Date.now() - lastTeamActivity(conversation.context);
+    if (silentFor < tenant.handoffReturnHours * 3_600_000) {
+      return { reply: null, ownerNotices: [], ownerPhoneMissing: !tenant.ownerPhone, withOwner: true };
+    }
+    const reason = conversation.context.handoffReason;
+    conversation.context = { returned: { reason, at: new Date().toISOString(), auto: true } };
+    await sql`update conversations set state = 'idle', context = ${sql.json(conversation.context)} where id = ${conversation.id}`;
+    pendingNotice =
+      `${customer.name ?? "Cliente sem nome"} (${customer.phone}) voltou a escrever. Ninguém da equipe respondeu em ${tenant.handoffReturnHours} h, ` +
+      `então a ${tenant.assistantName} voltou a atender.${reason ? `\nPedido que continua pendente: ${reason}` : ""}`;
+    log.info({ tenantId: tenant.id }, "team silent; conversation returned to the assistant");
   }
 
-  const ctx: ToolContext = { sql, tenant, customer, ownerNotices: [], teamNotices: [] };
+  const ctx: ToolContext = { sql, tenant, customer, ownerNotices: pendingNotice ? [pendingNotice] : [], teamNotices: [] };
   const answer = message.unsupported ? null : await answerReminder(ctx, conversation, message.text);
   let reply: string;
   if (message.unsupported) {
@@ -107,7 +152,7 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     reply = answer.reply;
   } else {
     try {
-      reply = await askModel(deps, ctx, conversation.id, answer?.note);
+      reply = await askModel(deps, ctx, conversation.id, [returnedNote(conversation.context), answer?.note].filter(Boolean).join("\n") || undefined);
     } catch (error) {
       log.error({ err: error, tenantId: tenant.id }, "conversation engine failed");
       reply = FALLBACK_REPLY;
@@ -193,13 +238,17 @@ export async function handleOwnerMessage(
       values (${message.tenantId}, ${conversation.id}, 'outbound', ${message.text}, ${message.providerMessageId})
       on conflict (tenant_id, provider_message_id) do nothing
     `;
+    const now = new Date().toISOString();
     if (conversation.state !== HUMAN_STATE) {
-      const context = { handoffReason: OWNER_TOOK_OVER, handoffAt: new Date().toISOString() };
+      const context = { handoffReason: OWNER_TOOK_OVER, handoffAt: now, teamLastAt: now };
       await sql`
         update conversations set state = ${HUMAN_STATE}, context = ${sql.json(context)}
         where id = ${conversation.id}
       `;
       log.info({ tenantId: message.tenantId }, "owner replied manually; assistant paused for this conversation");
+    } else {
+      // Keeps the conversation with the team while they are still talking.
+      await sql`update conversations set context = context || ${sql.json({ teamLastAt: now })} where id = ${conversation.id}`;
     }
   });
 }
@@ -245,7 +294,7 @@ const REMINDER_ANSWER_HOURS = 36;
  */
 async function answerReminder(
   ctx: ToolContext,
-  conversation: { id: string; context: { reminder?: PendingReminder } },
+  conversation: { id: string; context: ConversationContext },
   text: string,
 ): Promise<{ reply?: string; note?: string } | null> {
   const pending = conversation.context.reminder;
@@ -279,8 +328,12 @@ async function answerReminder(
 
 /** Gives a conversation back to the assistant after the owner handled it. */
 export async function releaseToAssistant(sql: Sql, tenantId: string, conversationId: string) {
+  // Remembers what was handed over, so the assistant does not hand it over again.
   return sql`
-    update conversations set state = 'idle', context = '{}'
+    update conversations
+    set state = 'idle',
+        context = jsonb_build_object('returned', jsonb_strip_nulls(jsonb_build_object(
+          'reason', context->>'handoffReason', 'at', now()::text, 'auto', false)))
     where tenant_id = ${tenantId} and id = ${conversationId}
     returning id
   `;

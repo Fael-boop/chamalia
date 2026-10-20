@@ -35,6 +35,7 @@ const tenantFields = z.object({
   useEmoji: z.boolean(),
   extraInfo: optionalText(2000),
   defaultHandoffProfessionalId: uuid.nullable(),
+  handoffReturnHours: z.number().int().min(1).max(168),
   minNoticeMinutes: z.number().int().min(0).max(10080),
   bookingHorizonDays: z.number().int().min(1).max(365),
   active: z.boolean(),
