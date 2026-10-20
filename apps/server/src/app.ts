@@ -10,6 +10,7 @@ import { registerAuth } from "./api/auth.js";
 import { registerConversationRoutes } from "./api/conversations.js";
 import { registerPanelRoutes } from "./api/panel.js";
 import { registerPriceTableRoutes } from "./api/price-table.js";
+import { registerProfilePhotoRoutes } from "./api/profile-photo.js";
 import { registerTestChatRoutes } from "./api/test-chat.js";
 import { registerUserRoutes } from "./api/users.js";
 import { registerWebhookRoutes } from "./api/webhooks.js";
@@ -62,6 +63,7 @@ export async function buildApp(config: Config, sql?: Sql) {
           }
         : undefined;
     registerPanelRoutes(app, sql, whatsapp);
+    registerProfilePhotoRoutes(app, sql, whatsapp);
     registerTestChatRoutes(app, { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log });
 
     if (anthropic && whatsapp) {

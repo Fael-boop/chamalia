@@ -33,7 +33,7 @@ export function registerTestChatRoutes(app: FastifyInstance, deps: Omit<EngineDe
     const conversation = await findConversation(tenantId, query.phone);
     if (!conversation) return { withOwner: false, handoffReason: null, messages: [] };
     const messages = await sql`
-      select id, direction, body, created_at from messages
+      select id, direction, body, attachment, created_at from messages
       where conversation_id = ${conversation.id} order by created_at
     `;
     return {

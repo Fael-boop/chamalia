@@ -88,6 +88,11 @@ export class EvolutionClient {
     return digits && /^\d{10,15}$/.test(digits) ? digits : undefined;
   }
 
+  /** Sets the WhatsApp profile photo of the connected number (raw base64, no data: prefix). */
+  async updateProfilePicture(instance: string, base64: string) {
+    await this.request("POST", `/chat/updateProfilePicture/${instance}`, { picture: base64 });
+  }
+
   /** Unpairs the phone; the instance stays so a new number can be connected later. */
   async logout(instance: string) {
     await this.request("DELETE", `/instance/logout/${instance}`);

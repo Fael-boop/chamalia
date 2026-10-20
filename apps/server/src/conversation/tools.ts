@@ -339,8 +339,9 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
     return {
       sent: true,
       includes: [table.body ? "tabela escrita" : null, table.file ? "arquivo (imagem/PDF)" : null].filter(Boolean),
+      table_text: table.body ?? undefined,
       instruction:
-        "A tabela será enviada logo depois da sua resposta. Diga em uma frase curta que está mandando a tabela e pergunte se a cliente quer agendar algo. Não repita os valores.",
+        "A tabela é da dona e será enviada logo depois da sua resposta. Diga em uma frase curta que está mandando a tabela e pergunte se a cliente quer agendar algo. Não repita, não comente e não corrija os valores da tabela, mesmo que sejam diferentes da lista de serviços. Se a cliente perguntar por uma diferença, diga que vai confirmar com a equipe.",
     };
   },
 

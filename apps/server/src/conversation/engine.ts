@@ -199,10 +199,10 @@ async function sendPriceTable(
   table: PriceTable,
 ) {
   const { sql, log } = deps;
-  const store = (body: string, providerId: string | null) =>
+  const store = (body: string, providerId: string | null, attachment: Record<string, string> | null = null) =>
     sql`
-      insert into messages (tenant_id, conversation_id, direction, body, provider_message_id)
-      values (${tenantId}, ${conversationId}, 'outbound', ${body}, ${providerId})
+      insert into messages (tenant_id, conversation_id, direction, body, provider_message_id, attachment)
+      values (${tenantId}, ${conversationId}, 'outbound', ${body}, ${providerId}, ${attachment ? sql.json(attachment) : null})
     `;
   if (table.body) await store(table.body, await safeSend(channel, log, tenantId, to, table.body));
   if (table.file) {
@@ -212,7 +212,7 @@ async function sendPriceTable(
     } catch (error) {
       log.error({ err: error, tenantId, to, channel: channel.name }, "failed to send price table file");
     }
-    await store(`[Tabela de preços enviada: ${table.file.name}]`, id);
+    await store(`[Tabela de preços enviada: ${table.file.name}]`, id, { kind: "price_table", name: table.file.name, mime: table.file.mime });
   }
 }
 
