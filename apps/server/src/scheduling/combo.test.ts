@@ -50,4 +50,18 @@ describe("computeComboSlots", () => {
     });
     expect(slots[0]!.parts.map((p) => p.time)).toEqual(["09:00", "09:30"]);
   });
+
+  it("flags slots where one professional can do every part", () => {
+    const both = { ...hair, id: "lu", name: "Lu" };
+    const slots = computeComboSlots({
+      ...base,
+      parts: [
+        { durationMinutes: 30, professionals: [nails, both] },
+        { durationMinutes: 30, professionals: [hair, both] },
+      ],
+      busy: [{ professionalId: "lu", start: at("09:00"), end: at("09:30") }],
+    });
+    expect(slots.find((s) => s.time === "09:00")!.solo).toEqual([]);
+    expect(slots.find((s) => s.time === "09:30")!.solo.map((p) => p.name)).toEqual(["Lu"]);
+  });
 });

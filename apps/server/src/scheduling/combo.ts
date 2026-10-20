@@ -35,8 +35,8 @@ export async function findComboSlots(
 
 /**
  * Books every service of a combo, one appointment each, sharing a combo_id.
- * professionalIds[i] picks who does service i; when missing, keeps the same
- * professional as the previous part if she is free, else the first free one.
+ * professionalIds[i] picks who does service i; when missing, one professional
+ * does everything if she is free for all parts, else the first free one per part.
  */
 export async function bookCombo(
   sql: Sql,
@@ -57,10 +57,10 @@ export async function bookCombo(
   const chosen: { id: string; name: string }[] = [];
   slot.parts.forEach((part, index) => {
     const wanted = params.professionalIds?.[index];
-    const previous = chosen[index - 1];
+    const solo = slot.solo[0];
     const pick = wanted
       ? part.professionals.find((p) => p.id === wanted)
-      : (part.professionals.find((p) => p.id === previous?.id) ?? part.professionals[0]);
+      : (solo ? part.professionals.find((p) => p.id === solo.id) : undefined) ?? part.professionals[0];
     if (!pick) throw new SchedulingError("slot_unavailable", "A profissional escolhida não está livre nesse horário.");
     chosen.push(pick);
   });

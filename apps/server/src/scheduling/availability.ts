@@ -82,6 +82,8 @@ export type ComboSlot = {
   time: string;
   /** One entry per service, back to back, in the order given. */
   parts: AvailableSlot[];
+  /** Professionals free for every part: one person can do the whole combo. */
+  solo: { id: string; name: string }[];
 };
 
 export type ComboInput = Omit<AvailabilityInput, "durationMinutes" | "professionals"> & { parts: ComboPart[] };
@@ -134,7 +136,10 @@ export function computeComboSlots(input: ComboInput): ComboSlot[] {
       offset = partEnd;
     }
     if (parts.length !== input.parts.length) continue;
-    result.push({ startsAt, endsAt: parts.at(-1)!.endsAt, time: toTime(start), parts });
+    const solo = parts[0]!.professionals.filter((candidate) =>
+      parts.every((part) => part.professionals.some((p) => p.id === candidate.id)),
+    );
+    result.push({ startsAt, endsAt: parts.at(-1)!.endsAt, time: toTime(start), parts, solo });
   }
   return result;
 }

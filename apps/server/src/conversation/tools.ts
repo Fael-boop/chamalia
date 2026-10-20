@@ -92,7 +92,7 @@ export const tools: Anthropic.Tool[] = [
   },
   {
     name: "find_combo_slots",
-    description: `Para mais de um serviço no mesmo atendimento (combo, até ${MAX_COMBO_SERVICES}): lista os horários de início em que todos cabem um depois do outro, na ordem dada. Cada horário mostra quando começa cada serviço e quem está livre. Traz também o preço e a duração total.`,
+    description: `Para mais de um serviço no mesmo atendimento (combo, até ${MAX_COMBO_SERVICES}): lista os horários de início em que todos cabem um depois do outro, na ordem dada. Separa os horários em que uma única profissional faz tudo (preferidos) dos horários que precisam de profissionais diferentes. Traz também o preço e a duração total.`,
     input_schema: {
       type: "object",
       properties: {
@@ -275,12 +275,25 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
         : `R$ ${(prices.reduce((sum, cents) => sum! + cents!, 0)! / 100).toFixed(2).replace(".", ",")}`,
       date: input.date,
       weekday: weekdayName(weekdayOf(input.date)),
-      slots: slots.map((slot) => ({
-        start: slot.time,
-        end: utcToZoned(slot.endsAt, ctx.tenant.timezone).time,
-        parts: slot.parts.map((part, index) => ({ service: services[index]!.name, time: part.time, professionals: part.professionals })),
-      })),
-      note: slots.length === 0 ? "Nenhum horário em que todos os serviços caibam em sequência neste dia. Consulte outro dia." : undefined,
+      // One person doing everything is what customers prefer: offer these first.
+      slots_with_one_professional: slots
+        .filter((slot) => slot.solo.length > 0)
+        .map((slot) => ({
+          start: slot.time,
+          end: utcToZoned(slot.endsAt, ctx.tenant.timezone).time,
+          professionals: slot.solo.map((p) => p.name),
+        })),
+      slots_with_different_professionals: slots
+        .filter((slot) => slot.solo.length === 0)
+        .map((slot) => ({
+          start: slot.time,
+          end: utcToZoned(slot.endsAt, ctx.tenant.timezone).time,
+          parts: slot.parts.map((part, index) => ({ service: services[index]!.name, time: part.time, professionals: part.professionals })),
+        })),
+      note:
+        slots.length === 0
+          ? "Nenhum horário em que todos os serviços caibam em sequência neste dia. Consulte outro dia."
+          : "Prefira slots_with_one_professional. Use slots_with_different_professionals só se não houver nenhum horário com uma profissional neste dia ou se a cliente preferir ou pedir outro horário.",
     };
   },
 
