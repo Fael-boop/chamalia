@@ -392,7 +392,9 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
       ctx.handoffTo = ctx.tenant.ownerName ?? "equipe";
       ctx.ownerNotices.push(notice);
     }
-    const who = person ? (person.kind === "reception" ? "a recepção" : `a ${person.name}`) : "a equipe";
+    // No article before a name ("vou chamar Pedro"/"vou chamar Dayane" are both correct Portuguese);
+    // "a recepção"/"a equipe" are common nouns, so they keep theirs.
+    const who = person ? (person.kind === "reception" ? "a recepção" : person.name) : "a equipe";
     return {
       transferred: true,
       instruction: `Quem vai atender é ${who}. Responda à cliente de forma simpática, em uma ou duas frases: diga que vai chamar ${who} para cuidar desse pedido e que a resposta vem por aqui em breve. Não troque esse nome por outro.`,

@@ -174,6 +174,13 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
+Gênero por nome (feito em 2026-10-20): a Lia usa "ele"/"ela" e "o"/"a" de acordo com o nome de quem
+está conversando e dos profissionais, sem perguntar (regra explícita no prompt, logo após o estilo de
+escrever). Antes de saber o nome de quem conversa, trata por "você". Corrigido um bug de verdade: o texto que
+sugere chamar um profissional (tools.ts, transfer_to_owner) tinha "a" fixo antes do nome ("a Pedro"); agora o
+nome vai sem artigo ("vou chamar Pedro"/"vou chamar Dayane", as duas formas corretas em português) e o
+modelo mesmo escolhe o artigo certo nas frases que ele escreve. Testado com profissional homem (Pedro) e
+clientes de teste com nome masculino e feminino.
 Nichos no banco (migration 014, feito em 2026-10-20): a tabela `niches` substitui o antigo
 `apps/server/src/tenants/niches.ts` estático. Cada nicho tem slug (igual ao antigo valor de
 `tenants.business_type`, agora FK para `niches.slug` em vez de CHECK fixo), label, place, customer_word,
