@@ -35,7 +35,7 @@ const MAX_TOOL_ROUNDS = 8;
 export const HUMAN_STATE = "human";
 const FALLBACK_REPLY = "Desculpe, tive um probleminha aqui. Pode me mandar de novo em alguns instantes?";
 const UNSUPPORTED_REPLY = "Por enquanto eu só consigo ler mensagens de texto. Pode me escrever? 🙂";
-const OWNER_TOOK_OVER = "A dona respondeu pelo WhatsApp";
+const OWNER_TOOK_OVER = "A equipe respondeu pelo WhatsApp";
 
 /** conversations.context: handoff info while with the team, and a pending reminder. */
 type ConversationContext = {

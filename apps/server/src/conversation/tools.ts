@@ -128,7 +128,7 @@ export const tools: Anthropic.Tool[] = [
   {
     name: "send_price_table",
     description:
-      "Envia à cliente a tabela de preços cadastrada pela dona (texto e/ou imagem ou PDF). Use quando a cliente pedir a tabela, a lista de preços, o catálogo ou todos os valores. Não serve para perguntar o preço de um serviço só: esse você responde pela lista de serviços.",
+      "Envia à cliente a tabela de preços cadastrada no painel (texto e/ou imagem ou PDF). Use quando a cliente pedir a tabela, a lista de preços, o catálogo ou todos os valores. Não serve para perguntar o preço de um serviço só: esse você responde pela lista de serviços.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -157,7 +157,7 @@ export const tools: Anthropic.Tool[] = [
   {
     name: "transfer_to_owner",
     description:
-      "Passa a conversa para uma pessoa da equipe (a dona ou quem ela definiu para o caso). Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista, os serviços e assuntos marcados e qualquer pedido que você não consiga resolver. Informe service_id ou topic_id quando o motivo for um deles: assim o pedido vai para a pessoa certa.",
+      "Passa a conversa para a pessoa certa da equipe (quem foi definida para o caso, ou o responsável pelo negócio). Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista, os serviços e assuntos marcados e qualquer pedido que você não consiga resolver. Informe service_id ou topic_id quando o motivo for um deles: assim o pedido vai para a pessoa certa.",
     input_schema: {
       type: "object",
       properties: {
@@ -212,7 +212,7 @@ async function ensureAssistantBooks(ctx: ToolContext, serviceId: string) {
   if (service?.handoff) {
     throw new SchedulingError(
       "handoff_service",
-      `Este serviço é sempre com a dona${service.handoffReason ? ` (${service.handoffReason})` : ""}. Não ofereça horários: entenda o pedido e use transfer_to_owner.`,
+      `Este serviço é sempre com a equipe${service.handoffReason ? ` (${service.handoffReason})` : ""}. Não ofereça horários: entenda o pedido e use transfer_to_owner.`,
     );
   }
 }
@@ -227,7 +227,7 @@ async function noSlotsNote(ctx: ToolContext, serviceId: string): Promise<string>
   `;
   return row?.count
     ? "Nenhum horário livre neste dia. Consulte outro dia antes de responder."
-    : "Nenhuma profissional faz este serviço no momento. Não procure outros dias: passe para a dona com transfer_to_owner.";
+    : "Nenhuma profissional faz este serviço no momento. Não procure outros dias: passe para a equipe com transfer_to_owner.";
 }
 
 const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inputs)[K]>) => Promise<unknown> } = {
@@ -341,7 +341,7 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
       includes: [table.body ? "tabela escrita" : null, table.file ? "arquivo (imagem/PDF)" : null].filter(Boolean),
       table_text: table.body ?? undefined,
       instruction:
-        "A tabela é da dona e será enviada logo depois da sua resposta. Diga em uma frase curta que está mandando a tabela e pergunte se a cliente quer agendar algo. Não repita, não comente e não corrija os valores da tabela, mesmo que sejam diferentes da lista de serviços. Se a cliente perguntar por uma diferença, diga que vai confirmar com a equipe.",
+        "A tabela será enviada logo depois da sua resposta. Diga em uma frase curta que está mandando a tabela e pergunte se a cliente quer agendar algo. Não repita, não comente e não corrija os valores da tabela, mesmo que sejam diferentes da lista de serviços. Se a cliente perguntar por uma diferença, diga que vai confirmar com a equipe.",
     };
   },
 
@@ -389,13 +389,13 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
       ctx.handoffTo = person.name;
       ctx.teamNotices.push({ name: person.name, phone: person.notifyPhone, text: `${notice}\nResponda pelo WhatsApp do salão.` });
     } else {
-      ctx.handoffTo = ctx.tenant.ownerName ?? "dona";
+      ctx.handoffTo = ctx.tenant.ownerName ?? "equipe";
       ctx.ownerNotices.push(notice);
     }
-    const who = person ? (person.kind === "reception" ? "a recepção" : `a ${person.name}`) : "a dona";
+    const who = person ? (person.kind === "reception" ? "a recepção" : `a ${person.name}`) : "a equipe";
     return {
       transferred: true,
-      instruction: `Quem vai atender é ${who}. Responda à cliente de forma simpática, em uma ou duas frases: diga que vai chamar ${who} para cuidar desse pedido e que a resposta vem por aqui em breve. Use exatamente esse nome; não fale em dona se não for ela.`,
+      instruction: `Quem vai atender é ${who}. Responda à cliente de forma simpática, em uma ou duas frases: diga que vai chamar ${who} para cuidar desse pedido e que a resposta vem por aqui em breve. Não troque esse nome por outro.`,
     };
   },
 };

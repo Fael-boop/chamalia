@@ -14,7 +14,7 @@ const password = z.string().min(8, "senha com pelo menos 8 caracteres").max(200)
 
 const adminOnly = { config: { adminOnly: true } };
 
-/** "Acesso da dona": the agency creates and manages owner logins. */
+/** "Acesso do responsável": the agency creates and manages owner logins. */
 export function registerUserRoutes(app: FastifyInstance, sql: Sql) {
   app.get("/api/tenants/:tenantId/users", adminOnly, async (request) => {
     const { tenantId } = params.parse(request.params);
