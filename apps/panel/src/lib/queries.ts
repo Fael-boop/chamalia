@@ -15,6 +15,8 @@ export const keys = {
   professionals: (tenantId: string) => ["professionals", tenantId] as const,
   customers: (tenantId: string, search: string) => ["customers", tenantId, search] as const,
   customer: (tenantId: string, id: string) => ["customer", tenantId, id] as const,
+  /** professionalId undefined = business hours. */
+  hours: (tenantId: string, professionalId?: string) => ["hours", tenantId, professionalId ?? "business"] as const,
 };
 
 export const useTenant = (tenantId: string) =>

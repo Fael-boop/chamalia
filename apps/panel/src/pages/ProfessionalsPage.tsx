@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { api, type Professional, type Tenant } from "@/api";
 import { Hint, PageHeader } from "@/components/page-header";
+import { ProfessionalHours } from "@/components/professional-hours";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -102,12 +103,13 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
                   </label>
                 ))}
               </div>
+              <ProfessionalHours tenant={tenant} professional={p} />
             </div>
           ))}
         </div>
       )}
       <div className="mt-3">
-        <Hint>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz.</Hint>
+        <Hint>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz. Em "Horários", defina dias e horários diferentes dos do salão.</Hint>
       </div>
     </>
   );

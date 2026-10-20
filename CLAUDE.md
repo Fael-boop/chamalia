@@ -172,6 +172,7 @@ TanStack Query, date-fns pt-BR, motion + tw-animate-css, PWA (vite-plugin-pwa). 
   deslizar para trocar de dia, listas viram itens compactos, formulários abrem em folha
   inferior (arrastar para fechar). Alvos de toque >= 44px (`pointer: coarse`).
 - Animações 150-250 ms, respeitam `prefers-reduced-motion`. Skeleton ao carregar.
+- Horário por profissional: em Profissionais > "Horários" (linhas de `business_hours` com `professional_id`). Sem horário próprio = segue o do salão. A Lia recebe esses horários no prompt e a busca de vagas já respeita.
 - Nomes: "Negócios" = clientes da agência (painel admin); "Clientes" = clientes finais do negócio.
 - Dados de demonstração: `npm run db:seed:salon` recria o "Studio Bella (exemplo)" (3 profissionais,
   serviços de cabelo e unha, agenda cheia hoje e amanhã). Não mexe em outros negócios.
