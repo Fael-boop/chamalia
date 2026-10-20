@@ -18,10 +18,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
 import { AppShell, type NavItem } from "./components/app-shell";
-import { Logo, LogoMark, Wordmark } from "./components/logo";
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Label } from "./components/ui/label";
+import { LogoMark } from "./components/logo";
 import { Skeleton } from "./components/ui/skeleton";
 import { useIsMobile } from "./hooks/use-mobile";
 import { useTenant } from "./lib/queries";
@@ -32,6 +29,7 @@ import { CustomersPage } from "./pages/CustomersPage";
 import { FaqPage } from "./pages/FaqPage";
 import { HandoffPage } from "./pages/HandoffPage";
 import { HoursPage } from "./pages/HoursPage";
+import { LoginPage } from "./pages/LoginPage";
 import { MorePage } from "./pages/MorePage";
 import { PriceTablePage } from "./pages/PriceTablePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
@@ -208,78 +206,6 @@ function SplashSkeleton() {
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
-    </div>
-  );
-}
-
-function LoginPage({ onLoggedIn }: { onLoggedIn: (token: string) => void }) {
-  const [login, setLogin] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      const result = await api<{ token: string }>("/auth/login", { method: "POST", body: { login, password } });
-      onLoggedIn(result.token);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,4fr)]">
-      <aside className="hidden flex-col justify-between border-r border-white/10 bg-sidebar p-12 text-sidebar-foreground lg:flex xl:p-16">
-        <Logo size={56} onDark textClassName="text-3xl" className="gap-4" />
-        <div className="max-w-xl space-y-8">
-          <h2 className="text-4xl leading-[1.1] font-semibold tracking-tight text-white xl:text-5xl">
-            Sua atendente no WhatsApp, <span className="text-brand-400">sempre disponível.</span>
-          </h2>
-          <ul className="space-y-4 text-base">
-            {[
-              "Agenda, confirma e remarca sozinha, a qualquer hora.",
-              "Lembra seus clientes na véspera de cada horário.",
-              "Chama você só quando a conversa precisa de uma pessoa.",
-            ].map((text) => (
-              <li key={text} className="flex items-start gap-3.5">
-                <span className="mt-2 size-2 shrink-0 rounded-full bg-brand-500" aria-hidden />
-                <span className="text-white/80">{text}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="text-sm">chamalia.com.br</p>
-      </aside>
-
-      <main className="flex items-center justify-center bg-background p-4">
-        <form onSubmit={submit} className="w-full max-w-sm space-y-5 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-          <div className="flex flex-col items-center gap-3 pb-2 lg:hidden">
-            <LogoMark size={56} />
-            <Wordmark className="text-xl" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">Entrar</h1>
-            <p className="mt-1 text-xs text-muted-foreground">Use o usuário e a senha que você recebeu.</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="login">Usuário</Label>
-            <Input id="login" autoFocus autoCapitalize="none" autoComplete="username" value={login} onChange={(e) => setLogin(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" size="lg" className="w-full" disabled={busy || !login || !password}>
-            {busy ? "Entrando…" : "Entrar"}
-          </Button>
-        </form>
-      </main>
     </div>
   );
 }
