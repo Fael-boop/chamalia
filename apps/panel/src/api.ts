@@ -61,6 +61,8 @@ export type Tenant = {
   useEmoji: boolean;
   extraInfo: string | null;
   handoffRules: string | null;
+  /** Who gets handoffs nobody configured; null = the owner. */
+  defaultHandoffProfessionalId: string | null;
   minNoticeMinutes: number;
   bookingHorizonDays: number;
   whatsappInstance: string | null;
@@ -90,7 +92,15 @@ export type TenantUser = {
   createdAt: string;
 };
 
-export type Professional = { id: string; name: string; active: boolean; serviceIds: string[] };
+export type Professional = {
+  id: string;
+  name: string;
+  active: boolean;
+  /** reception = answers conversations, performs no service. */
+  kind: "professional" | "reception";
+  notifyPhone: string | null;
+  serviceIds: string[];
+};
 
 export type WhatsappStatus = {
   available: boolean;
@@ -109,9 +119,11 @@ export type Service = {
   /** Always handed over to the owner; the assistant never books it. */
   handoff: boolean;
   handoffReason: string | null;
+  /** Who resolves it; null = the owner. */
+  handoffProfessionalId: string | null;
 };
 
-export type HandoffTopic = { id: string; topic: string; reason: string | null };
+export type HandoffTopic = { id: string; topic: string; reason: string | null; professionalId: string | null };
 
 export type Appointment = {
   id: string;

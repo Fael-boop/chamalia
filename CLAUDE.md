@@ -164,6 +164,13 @@ Passar para a dona configurável (feito em 2026-10-20, migration 004): tela "Pas
 serviços marcados "sempre com a dona" + motivo (`services.handoff`, `handoff_reason`; as tools recusam
 buscar/agendar esses serviços), assuntos + motivo (tabela `handoff_topics`; o antigo
 `tenants.handoff_rules` virou o primeiro assunto e não é mais usado) e a regra fixa "na dúvida, passa".
+Passar para outra pessoa (feito em 2026-10-20, migration 005): `professionals.kind` (`professional` ou
+`reception`, recepção não faz serviço nem aparece na agenda) e `notify_phone` (WhatsApp para avisos).
+Cada serviço "com a dona" e cada assunto escolhe quem resolve (`handoff_professional_id` /
+`professional_id`), e `tenants.default_handoff_professional_id` recebe "todo o resto". null = dona.
+Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde pelo WhatsApp do salão.
+A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
+Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Excluir serviço: apaga se nunca teve agendamento; senão arquiva (`archived_at`, some do painel e da Lia).
 Corrigido: PATCH de serviço apagava preço/descrição (defaults do zod no partial).
 

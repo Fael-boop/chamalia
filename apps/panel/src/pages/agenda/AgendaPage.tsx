@@ -109,7 +109,7 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
           loading={appointments.isLoading}
           list={professionalFilter ? dayList.filter((a) => a.professionalId === professionalFilter) : dayList}
           fresh={fresh}
-          professionals={(professionals.data ?? []).filter((p) => p.active)}
+          professionals={(professionals.data ?? []).filter((p) => p.active && p.kind === "professional")}
           professionalFilter={professionalFilter}
           onFilter={setProfessionalFilter}
           onPrev={() => go(shiftDate(date, -1))}
@@ -125,7 +125,7 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
           loading={appointments.isLoading || professionals.isLoading}
           list={dayList}
           fresh={fresh}
-          professionals={(professionals.data ?? []).filter((p) => p.active)}
+          professionals={(professionals.data ?? []).filter((p) => p.active && p.kind === "professional")}
           onOpen={open}
         />
       )}

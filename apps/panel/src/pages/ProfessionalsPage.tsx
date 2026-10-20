@@ -34,15 +34,20 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
     onError: fail,
     onSettled: refresh,
   });
-  const toggleActive = useMutation({
-    mutationFn: (p: Professional) => api(`/tenants/${tenant.id}/professionals/${p.id}`, { method: "PATCH", body: { active: !p.active } }),
-    onSuccess: (_d, p) => toast.success(p.active ? `${p.name} desativada` : `${p.name} ativada`),
+  const update = useMutation({
+    mutationFn: ({ p, changes }: { p: Professional; changes: Partial<Pick<Professional, "active" | "notifyPhone">> }) =>
+      api(`/tenants/${tenant.id}/professionals/${p.id}`, { method: "PATCH", body: changes }),
+    onSuccess: (_d, { p, changes }) => {
+      if ("active" in changes) toast.success(p.active ? `${p.name} desativada` : `${p.name} ativada`);
+      else toast.success(`WhatsApp de ${p.name} salvo`);
+    },
     onError: fail,
     onSettled: refresh,
   });
   const create = useMutation({
-    mutationFn: (name: string) => api(`/tenants/${tenant.id}/professionals`, { method: "POST", body: { name } }),
-    onSuccess: (_d, name) => {
+    mutationFn: ({ name, kind }: { name: string; kind: Professional["kind"] }) =>
+      api(`/tenants/${tenant.id}/professionals`, { method: "POST", body: { name, kind } }),
+    onSuccess: (_d, { name }) => {
       toast.success(`${name} adicionada`);
       setNewName("");
     },
@@ -55,21 +60,30 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
       p,
       serviceIds: p.serviceIds.includes(serviceId) ? p.serviceIds.filter((id) => id !== serviceId) : [...p.serviceIds, serviceId],
     });
+  const add = (kind: Professional["kind"]) => newName.trim() && create.mutate({ name: newName.trim(), kind });
 
   return (
     <>
-      {!mobile && <PageHeader title="Profissionais" description={`Quem atende e o que cada uma faz. A ${tenant.assistantName} só oferece horário com quem faz o serviço.`} />}
+      {!mobile && (
+        <PageHeader
+          title="Profissionais"
+          description={`Quem atende e o que cada uma faz. A ${tenant.assistantName} só oferece horário com quem faz o serviço.`}
+        />
+      )}
 
       <form
-        className="mb-4 flex gap-2"
+        className="mb-4 flex flex-wrap gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (newName.trim()) create.mutate(newName.trim());
+          add("professional");
         }}
       >
-        <Input className="bg-card" placeholder="Nome da nova profissional" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <Input className="min-w-48 flex-1 bg-card" placeholder="Nome" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <Button type="submit" disabled={!newName.trim() || create.isPending}>
-          <Plus /> Adicionar
+          <Plus /> Profissional
+        </Button>
+        <Button type="button" variant="outline" disabled={!newName.trim() || create.isPending} onClick={() => add("reception")}>
+          <Plus /> Recepção
         </Button>
       </form>
 
@@ -87,30 +101,62 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
                 <div>
                   <div className="text-sm font-medium">{p.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {p.serviceIds.filter((id) => activeServices.some((s) => s.id === id)).length} de {activeServices.length} serviços
+                    {p.kind === "reception"
+                      ? "Recepção: não faz serviços, só recebe conversas"
+                      : `${p.serviceIds.filter((id) => activeServices.some((s) => s.id === id)).length} de ${activeServices.length} serviços`}
                   </div>
                 </div>
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   {p.active ? "Ativa" : "Inativa"}
-                  <Switch checked={p.active} onCheckedChange={() => toggleActive.mutate(p)} />
+                  <Switch checked={p.active} onCheckedChange={() => update.mutate({ p, changes: { active: !p.active } })} />
                 </label>
               </div>
-              <div className="grid grid-cols-1 gap-1 p-2 sm:grid-cols-2">
-                {activeServices.map((s) => (
-                  <label key={s.id} className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm hover:bg-muted">
-                    <Checkbox checked={p.serviceIds.includes(s.id)} onCheckedChange={() => toggleService(p, s.id)} />
-                    {s.name}
-                  </label>
-                ))}
-              </div>
-              <ProfessionalHours tenant={tenant} professional={p} />
+              {p.kind === "professional" && (
+                <div className="grid grid-cols-1 gap-1 p-2 sm:grid-cols-2">
+                  {activeServices.map((s) => (
+                    <label key={s.id} className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm hover:bg-muted">
+                      <Checkbox checked={p.serviceIds.includes(s.id)} onCheckedChange={() => toggleService(p, s.id)} />
+                      {s.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <NotifyPhone key={p.notifyPhone ?? ""} professional={p} onSave={(notifyPhone) => update.mutate({ p, changes: { notifyPhone } })} />
+              {p.kind === "professional" && <ProfessionalHours tenant={tenant} professional={p} />}
             </div>
           ))}
         </div>
       )}
-      <div className="mt-3">
+      <div className="mt-3 space-y-1">
         <Hint>A nova profissional começa fazendo todos os serviços; desmarque o que ela não faz. Em "Horários", defina dias e horários diferentes dos do salão.</Hint>
+        <Hint>O WhatsApp para avisos é usado quando uma conversa é passada para essa pessoa (veja "Passar para a dona"). Sem número, o aviso vai para a dona.</Hint>
       </div>
     </>
+  );
+}
+
+/** Saved when the field loses focus; empty removes the number. */
+function NotifyPhone({ professional, onSave }: { professional: Professional; onSave: (phone: string | null) => void }) {
+  const initial = professional.notifyPhone ?? "";
+  const [value, setValue] = useState(initial);
+  const digits = value.replace(/\D/g, "");
+  const valid = digits === "" || /^\d{10,15}$/.test(digits);
+
+  return (
+    <div className="flex items-center gap-3 border-t px-4 py-2.5">
+      <span className="shrink-0 text-xs text-muted-foreground">WhatsApp para avisos</span>
+      <Input
+        className={cn("h-8 text-xs tabular-nums", !valid && "border-destructive")}
+        inputMode="tel"
+        placeholder="5511999990000"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => {
+          if (valid && digits !== initial) onSave(digits || null);
+        }}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        aria-label={`WhatsApp para avisos de ${professional.name}`}
+      />
+    </div>
   );
 }

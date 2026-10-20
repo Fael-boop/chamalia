@@ -212,7 +212,7 @@ function Reschedule({ tenant, appointment, onDone }: { tenant: Tenant; appointme
   const [professionalId, setProfessionalId] = useState(appointment.professionalId);
   const [time, setTime] = useState<string | null>(null);
   const professionals = useProfessionals(tenant.id);
-  const eligible = (professionals.data ?? []).filter((p) => p.active && p.serviceIds.includes(appointment.serviceId));
+  const eligible = (professionals.data ?? []).filter((p) => p.active && p.kind === "professional" && p.serviceIds.includes(appointment.serviceId));
 
   const slots = useQuery({
     queryKey: ["availability", tenant.id, appointment.id, date, professionalId],
