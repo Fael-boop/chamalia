@@ -198,6 +198,7 @@ TanStack Query, date-fns pt-BR, motion + tw-animate-css, PWA (vite-plugin-pwa). 
   Azul = ações e destaques; grafite/preto = estrutura (menu lateral, topo, texto principal).
   Fundo do conteúdo claro; modo escuro (base preta, destaque azul) com botão de alternar
   (`chamalia.theme` no localStorage, sem flash).
+- Identidade: marca = quadrado escuro com "L" branco e ponto azul (`public/logo.svg`, componente `components/logo.tsx`, que usa os tokens `--graphite-950`/`--brand-500`). Aparece no login (painel preto com frase à esquerda no desktop; marca no topo no celular), menu lateral, barra do topo no celular, tela de carregamento e rodapé de "Mais". Nome com "Lia" na cor da marca. Não usar a marca como enfeite em outros lugares.
 - Cores de status discretas, só para confirmado/pendente/cancelado/concluído
   (`--status-*`). Sem gradiente, sem card colorido, sem ícone decorativo.
 - Desktop: menu lateral preto, agenda da semana com colunas por profissional, listas em tabela.

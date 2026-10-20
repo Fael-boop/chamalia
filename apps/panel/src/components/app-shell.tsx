@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { Logo, LogoMark } from "@/components/logo";
 
 export type NavItem = { id: string; label: string; icon: ComponentType<{ className?: string }> };
 
@@ -59,9 +60,10 @@ export function AppShell({ brand, context, items, mobileItems, current, onNaviga
     return (
       <div className="min-h-dvh pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-sidebar px-4 text-white">
+          <LogoMark size={30} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[15px] font-semibold">{currentLabel}</div>
-            <div className="truncate text-[11px] text-sidebar-foreground">{brand}</div>
+            <div className="truncate text-[11px] text-sidebar-foreground">{context ?? brand}</div>
           </div>
           <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white" />
         </header>
@@ -96,8 +98,8 @@ export function AppShell({ brand, context, items, mobileItems, current, onNaviga
     <div className="flex min-h-dvh">
       <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
         <div className="px-5 pt-5 pb-4">
-          <div className="text-[15px] font-semibold tracking-tight text-white">{brand}</div>
-          {context && <div className="mt-0.5 truncate text-xs">{context}</div>}
+          <Logo size={30} onDark textClassName="text-[15px]" />
+          <div className="mt-3 truncate text-xs">{context ?? brand}</div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Menu principal">
           {items.map((item) => {
