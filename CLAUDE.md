@@ -31,13 +31,14 @@ Fora (depois do primeiro cliente pagante):
 Domínio: **chamalia.com.br** (já registrado). Plano quando houver VPS: painel e webhook em
 `app.chamalia.com.br`, site/landing em `chamalia.com.br`.
 
-Área "Clientes" (proposta em 2026-10-19, aguardando ok): só o dono da agência acessa.
-Lista + "Novo cliente" (nome, nicho, nome da atendente, dona e WhatsApp dela, endereço) e, por
-cliente: Configurações da Lia (tom, emoji, informações extras, antecedência mínima, dias à frente,
-o que sempre passar para a dona), Serviços, Profissionais, Horários, WhatsApp (QR no painel),
-Testar a Lia, Agenda. Nicho define modelo de serviços inicial e palavras (cliente/paciente).
-Precisa de migration 002 (campos novos em `tenants`, nichos novos). Depois: login da dona, que vê
-só o próprio salão.
+Área "Clientes" (feita em 2026-10-20): só o dono da agência acessa (senha `ADMIN_PASSWORD`).
+Lista + "Novo cliente" (nome, nicho, atendente, dona e WhatsApp dela, endereço) e, por cliente,
+abas: Agenda, Serviços, Profissionais (quem faz qual serviço), Horários, Configurações (tom,
+emoji, informações extras, "sempre passar para a dona quando…", antecedência mínima, dias à
+frente, ativo), WhatsApp (QR code no painel) e Testar a Lia. Migration 002 com os campos novos.
+Nichos em `apps/server/src/tenants/niches.ts`: rótulo, "cliente"/"paciente" e serviços iniciais
+(criados com o cliente, junto com 1 profissional = dona e horário ter–sáb 09–18).
+Falta: login da dona, que vê só o próprio salão (antes de a piloto usar no dia a dia).
 
 Ordem de trabalho:
 1. Tela "Testar a Lia" funcionando (prioridade).
