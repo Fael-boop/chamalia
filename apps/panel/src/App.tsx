@@ -9,6 +9,7 @@ import {
   Scissors,
   Settings,
   MessageSquareText,
+  Receipt,
   Smartphone,
   UserRoundCheck,
   Users,
@@ -31,6 +32,7 @@ import { FaqPage } from "./pages/FaqPage";
 import { HandoffPage } from "./pages/HandoffPage";
 import { HoursPage } from "./pages/HoursPage";
 import { MorePage } from "./pages/MorePage";
+import { PriceTablePage } from "./pages/PriceTablePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
 import { ServicesPage } from "./pages/ServicesPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -151,6 +153,7 @@ function BusinessWorkspace({
     { id: "professionals", label: "Profissionais", icon: UsersRound },
     { id: "hours", label: "Horários", icon: Clock },
     { id: "faq", label: "Respostas prontas", icon: MessageSquareText },
+    { id: "prices", label: "Tabela de preços", icon: Receipt },
     { id: "handoff", label: "Passar para a equipe", icon: UserRoundCheck },
     { id: "settings", label: "Configurações", icon: Settings },
     { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
@@ -181,6 +184,7 @@ function BusinessWorkspace({
       {page === "professionals" && <ProfessionalsPage tenant={t} />}
       {page === "hours" && <HoursPage tenant={t} />}
       {page === "faq" && <FaqPage tenant={t} />}
+      {page === "prices" && <PriceTablePage tenant={t} />}
       {page === "handoff" && <HandoffPage tenant={t} />}
       {page === "settings" && <SettingsPage tenant={t} role={role} />}
       {page === "test-chat" && <TestChatPage tenant={t} />}

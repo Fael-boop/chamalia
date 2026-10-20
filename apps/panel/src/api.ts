@@ -127,6 +127,11 @@ export type Service = {
   handoffProfessionalId: string | null;
 };
 
+export type PriceTable = {
+  body: string | null;
+  file: { name: string | null; mime: string | null; size: number; dataUrl: string | null } | null;
+};
+
 export type FaqEntry = { id: string; question: string; answer: string };
 
 export type HandoffTopic = { id: string; topic: string; reason: string | null; professionalId: string | null };
@@ -157,6 +162,7 @@ export type Customer = {
   id: string;
   name: string | null;
   phone: string;
+  notes: string | null;
   createdAt: string;
   visits: number;
   lastVisit: string | null;
@@ -167,6 +173,7 @@ export type CustomerDetail = {
   id: string;
   name: string | null;
   phone: string;
+  notes: string | null;
   createdAt: string;
   appointments: {
     id: string;

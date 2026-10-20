@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Search } from "lucide-react";
+import { MessageCircle, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { api, type Customer, type CustomerDetail, type Tenant } from "@/api";
+import { CustomerForm } from "@/components/customer-form";
 import { PageHeader } from "@/components/page-header";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
 import { StatusBadge } from "@/components/status-badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +18,8 @@ export function CustomersPage({ tenant }: { tenant: Tenant }) {
   const mobile = useIsMobile();
   const [search, setSearch] = useState("");
   const deferred = useDeferredValue(search.trim());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // A customer id, "new" for the add form, or null.
+  const [selectedId, setSelectedId] = useState<string | "new" | null>(null);
   const [open, setOpen] = useState(false);
 
   const customers = useQuery({
@@ -27,10 +30,17 @@ export function CustomersPage({ tenant }: { tenant: Tenant }) {
   const detail = useQuery({
     queryKey: keys.customer(tenant.id, selectedId ?? ""),
     queryFn: () => api<CustomerDetail>(`/tenants/${tenant.id}/customers/${selectedId}`),
-    enabled: Boolean(selectedId),
+    enabled: Boolean(selectedId) && selectedId !== "new",
   });
 
-  const openCustomer = (id: string) => {
+  const isNew = selectedId === "new";
+  const newButton = (
+    <Button onClick={() => openCustomer("new")} size={mobile ? "lg" : "default"} className={mobile ? "w-full" : undefined}>
+      <Plus /> Nova cliente
+    </Button>
+  );
+
+  const openCustomer = (id: string | "new") => {
     setSelectedId(id);
     setOpen(true);
   };
@@ -38,7 +48,10 @@ export function CustomersPage({ tenant }: { tenant: Tenant }) {
 
   return (
     <>
-      {!mobile && <PageHeader title="Clientes" description="Quem já agendou ou conversou com a atendente." />}
+      {!mobile && (
+        <PageHeader title="Clientes" description="Quem já agendou ou conversou com a atendente. Você também pode adicionar e editar." actions={newButton} />
+      )}
+      {mobile && <div className="mb-3">{newButton}</div>}
 
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -120,10 +133,15 @@ export function CustomersPage({ tenant }: { tenant: Tenant }) {
       <ResponsiveSheet
         open={open}
         onOpenChange={setOpen}
-        title={detail.data?.name ?? "Cliente"}
-        description={detail.data ? formatPhone(detail.data.phone) : undefined}
+        title={isNew ? "Nova cliente" : (detail.data?.name ?? "Cliente")}
+        description={isNew ? "Cadastre quem você já atende, para a atendente reconhecer pelo WhatsApp." : detail.data ? formatPhone(detail.data.phone) : undefined}
       >
-        {detail.isLoading || !detail.data ? (
+        {isNew ? (
+          <CustomerForm
+            tenant={tenant}
+            onSaved={() => setOpen(false)}
+          />
+        ) : detail.isLoading || !detail.data ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }, (_, i) => (
               <Skeleton key={i} className="h-12" />
@@ -131,6 +149,7 @@ export function CustomersPage({ tenant }: { tenant: Tenant }) {
           </div>
         ) : (
           <div className="space-y-4">
+            <CustomerForm tenant={tenant} customer={detail.data} onSaved={() => undefined} />
             <a
               href={`https://wa.me/${detail.data.phone}`}
               target="_blank"
