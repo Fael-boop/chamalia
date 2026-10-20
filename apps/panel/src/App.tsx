@@ -233,15 +233,26 @@ function LoginPage({ onLoggedIn }: { onLoggedIn: (token: string) => void }) {
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,4fr)]">
-      <aside className="hidden flex-col justify-between bg-sidebar p-12 text-sidebar-foreground lg:flex">
-        <Logo size={36} onDark textClassName="text-lg" />
-        <div className="max-w-md space-y-4">
-          <h2 className="text-3xl leading-tight font-semibold tracking-tight text-white">Sua atendente no WhatsApp, sempre disponível.</h2>
-          <p className="text-sm leading-relaxed">
-            Agenda, confirma e lembra seus clientes. Você acompanha tudo por aqui e só entra na conversa quando precisa.
-          </p>
+      <aside className="hidden flex-col justify-between border-r border-white/10 bg-sidebar p-12 text-sidebar-foreground lg:flex xl:p-16">
+        <Logo size={56} onDark textClassName="text-3xl" className="gap-4" />
+        <div className="max-w-xl space-y-8">
+          <h2 className="text-4xl leading-[1.1] font-semibold tracking-tight text-white xl:text-5xl">
+            Sua atendente no WhatsApp, <span className="text-brand-400">sempre disponível.</span>
+          </h2>
+          <ul className="space-y-4 text-base">
+            {[
+              "Agenda, confirma e remarca sozinha, a qualquer hora.",
+              "Lembra seus clientes na véspera de cada horário.",
+              "Chama você só quando a conversa precisa de uma pessoa.",
+            ].map((text) => (
+              <li key={text} className="flex items-start gap-3.5">
+                <span className="mt-2 size-2 shrink-0 rounded-full bg-brand-500" aria-hidden />
+                <span className="text-white/80">{text}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-        <p className="text-xs">chamalia.com.br</p>
+        <p className="text-sm">chamalia.com.br</p>
       </aside>
 
       <main className="flex items-center justify-center bg-background p-4">
