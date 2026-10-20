@@ -16,11 +16,13 @@ export function ConfirmDelete({
   title,
   description,
   onConfirm,
+  confirmLabel = "Excluir",
   children,
 }: {
   title: string;
   description: ReactNode;
   onConfirm: () => void;
+  confirmLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -34,7 +36,7 @@ export function ConfirmDelete({
         <AlertDialogFooter>
           <AlertDialogCancel>Voltar</AlertDialogCancel>
           <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={onConfirm}>
-            Excluir
+            {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

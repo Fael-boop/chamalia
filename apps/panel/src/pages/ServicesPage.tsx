@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { api, type Service, type Tenant } from "@/api";
+import { DurationInput } from "@/components/duration-input";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { Hint, PageHeader } from "@/components/page-header";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
@@ -252,16 +253,9 @@ function ServiceForm({
               name="durationMinutes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Duração (min)</FormLabel>
+                  <FormLabel>Duração</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={5}
-                      step={5}
-                      value={Number.isNaN(field.value) ? "" : field.value}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    />
+                    <DurationInput value={field.value} onChange={field.onChange} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

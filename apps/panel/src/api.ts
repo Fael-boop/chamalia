@@ -107,6 +107,10 @@ export type WhatsappStatus = {
   instance: string | null;
   state: "open" | "connecting" | "close" | "unknown";
   qrCode?: string;
+  /** Code typed in the phone instead of scanning the QR. */
+  pairingCode?: string;
+  /** Connected WhatsApp number (digits). */
+  number?: string;
 };
 
 export type Service = {

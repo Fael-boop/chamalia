@@ -153,13 +153,9 @@ function BusinessWorkspace({
     { id: "faq", label: "Respostas prontas", icon: MessageSquareText },
     { id: "handoff", label: "Passar para a equipe", icon: UserRoundCheck },
     { id: "settings", label: "Configurações", icon: Settings },
+    { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
-    ...(role === "admin"
-      ? [
-          { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
-          { id: "access", label: "Acesso da dona", icon: KeyRound },
-        ]
-      : []),
+    ...(role === "admin" ? [{ id: "access", label: "Acesso da dona", icon: KeyRound }] : []),
   ];
   const back: NavItem[] = onBackToBusinesses ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }] : [];
   const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };
@@ -188,7 +184,7 @@ function BusinessWorkspace({
       {page === "handoff" && <HandoffPage tenant={t} />}
       {page === "settings" && <SettingsPage tenant={t} role={role} />}
       {page === "test-chat" && <TestChatPage tenant={t} />}
-      {page === "whatsapp" && role === "admin" && <WhatsAppPage tenant={t} />}
+      {page === "whatsapp" && <WhatsAppPage tenant={t} />}
       {page === "access" && role === "admin" && <AccessPage tenant={t} />}
       {page === "more" && <MorePage items={mobile ? [...secondary, ...back] : secondary} onNavigate={navigate} onLogout={onLogout} />}
     </AppShell>
