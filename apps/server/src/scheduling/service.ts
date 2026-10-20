@@ -17,6 +17,8 @@ export type Tenant = {
   useEmoji: boolean;
   extraInfo: string | null;
   handoffRules: string | null;
+  /** Who gets handoffs nobody configured; null = the owner. */
+  defaultHandoffProfessionalId: string | null;
   minNoticeMinutes: number;
   bookingHorizonDays: number;
   whatsappInstance: string | null;
@@ -37,6 +39,7 @@ export const TENANT_COLUMNS = [
   "use_emoji",
   "extra_info",
   "handoff_rules",
+  "default_handoff_professional_id",
   "min_notice_minutes",
   "booking_horizon_days",
   "whatsapp_instance",
@@ -52,6 +55,8 @@ export type Service = {
   /** Always handed over to the owner; the assistant never books it. */
   handoff: boolean;
   handoffReason: string | null;
+  /** Who resolves it; null = the owner. */
+  handoffProfessionalId: string | null;
 };
 
 export type BookedAppointment = {
@@ -98,7 +103,7 @@ export async function findAvailableSlots(
   }
 
   const [service] = await sql<Service[]>`
-    select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason
+    select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason, handoff_professional_id
     from services where tenant_id = ${tenant.id} and id = ${params.serviceId} and active
   `;
   if (!service) throw new SchedulingError("service_not_found", "Serviço não encontrado.");
@@ -107,7 +112,7 @@ export async function findAvailableSlots(
     select p.id, p.name
     from professionals p
     join professional_services ps on ps.professional_id = p.id and ps.service_id = ${service.id}
-    where p.tenant_id = ${tenant.id} and p.active
+    where p.tenant_id = ${tenant.id} and p.active and p.kind = 'professional'
       ${params.professionalId ? sql`and p.id = ${params.professionalId}` : sql``}
     order by p.name
   `;

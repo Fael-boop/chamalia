@@ -33,6 +33,7 @@ const tenantFields = z.object({
   tone: z.enum(["friendly", "formal"]),
   useEmoji: z.boolean(),
   extraInfo: optionalText(2000),
+  defaultHandoffProfessionalId: uuid.nullable(),
   minNoticeMinutes: z.number().int().min(0).max(10080),
   bookingHorizonDays: z.number().int().min(1).max(365),
   active: z.boolean(),
@@ -51,12 +52,31 @@ const serviceFields = z.object({
   active: z.boolean(),
   handoff: z.boolean(),
   handoffReason: optionalText(300),
+  handoffProfessionalId: uuid.nullable(),
 });
-const serviceCreate = serviceFields.partial({ description: true, priceCents: true, active: true, handoff: true, handoffReason: true });
+const serviceCreate = serviceFields.partial({
+  description: true,
+  priceCents: true,
+  active: true,
+  handoff: true,
+  handoffReason: true,
+  handoffProfessionalId: true,
+});
 
-const topicBody = z.object({ topic: z.string().trim().min(1).max(200), reason: optionalText(300) });
+const topicBody = z.object({
+  topic: z.string().trim().min(1).max(200),
+  reason: optionalText(300),
+  professionalId: uuid.nullable().default(null),
+});
 
-const professionalBody = z.object({ name: z.string().trim().min(1).max(80), active: z.boolean().default(true) });
+// No defaults: a PATCH must only touch the fields it sends.
+const professionalFields = z.object({
+  name: z.string().trim().min(1).max(80),
+  active: z.boolean(),
+  kind: z.enum(["professional", "reception"]),
+  notifyPhone: phone.nullable(),
+});
+const professionalCreate = professionalFields.partial({ active: true, kind: true, notifyPhone: true });
 
 const SERVICE_COLUMNS = [
   "id",
@@ -67,7 +87,9 @@ const SERVICE_COLUMNS = [
   "active",
   "handoff",
   "handoff_reason",
+  "handoff_professional_id",
 ];
+const PROFESSIONAL_COLUMNS = ["id", "name", "active", "kind", "notify_phone"];
 
 const hoursQuery = z.object({ professionalId: uuid.optional() });
 const hoursBody = z.array(
@@ -217,7 +239,8 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
       // New services start offered by every active professional; adjust in "Profissionais".
       await tx`
         insert into professional_services (tenant_id, professional_id, service_id)
-        select ${tenantId}, id, ${created!.id} from professionals where tenant_id = ${tenantId} and active
+        select ${tenantId}, id, ${created!.id} from professionals
+        where tenant_id = ${tenantId} and active and kind = 'professional'
       `;
       return created;
     });
@@ -258,14 +281,14 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
 
   app.get("/api/tenants/:tenantId/handoff-topics", async (request) => {
     const { tenantId } = tenantParams.parse(request.params);
-    return sql`select id, topic, reason from handoff_topics where tenant_id = ${tenantId} order by created_at`;
+    return sql`select id, topic, reason, professional_id from handoff_topics where tenant_id = ${tenantId} order by created_at`;
   });
 
   app.post("/api/tenants/:tenantId/handoff-topics", async (request, reply) => {
     const { tenantId } = tenantParams.parse(request.params);
     const body = topicBody.parse(request.body);
     const [topic] = await sql`
-      insert into handoff_topics ${sql({ tenantId, ...body })} returning id, topic, reason
+      insert into handoff_topics ${sql({ tenantId, ...body })} returning id, topic, reason, professional_id
     `;
     return reply.code(201).send(topic);
   });
@@ -274,7 +297,7 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
     const { tenantId, id } = itemParams.parse(request.params);
     const body = topicBody.parse(request.body);
     const [topic] = await sql`
-      update handoff_topics set ${sql(body)} where tenant_id = ${tenantId} and id = ${id} returning id, topic, reason
+      update handoff_topics set ${sql(body)} where tenant_id = ${tenantId} and id = ${id} returning id, topic, reason, professional_id
     `;
     return topic ?? reply.code(404).send({ error: "not_found" });
   });
@@ -290,22 +313,23 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
   app.get("/api/tenants/:tenantId/professionals", async (request) => {
     const { tenantId } = tenantParams.parse(request.params);
     return sql`
-      select p.id, p.name, p.active,
+      select p.id, p.name, p.active, p.kind, p.notify_phone,
              coalesce(array_agg(ps.service_id) filter (where ps.service_id is not null), '{}') as service_ids
       from professionals p
       left join professional_services ps on ps.professional_id = p.id
       where p.tenant_id = ${tenantId}
-      group by p.id order by p.active desc, p.name
+      group by p.id order by p.active desc, p.kind, p.name
     `;
   });
 
   app.post("/api/tenants/:tenantId/professionals", async (request, reply) => {
     const { tenantId } = tenantParams.parse(request.params);
-    const body = professionalBody.parse(request.body);
+    const body = professionalCreate.parse(request.body);
     const professional = await sql.begin(async (tx) => {
       const [created] = await tx<{ id: string }[]>`
-        insert into professionals ${tx({ tenantId, ...body })} returning id, name, active
+        insert into professionals ${tx({ tenantId, ...body })} returning ${tx(PROFESSIONAL_COLUMNS)}
       `;
+      if (body.kind === "reception") return created;
       // Starts doing every active service; adjust with the checkboxes.
       await tx`
         insert into professional_services (tenant_id, professional_id, service_id)
@@ -318,11 +342,11 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
 
   app.patch("/api/tenants/:tenantId/professionals/:id", async (request, reply) => {
     const { tenantId, id } = itemParams.parse(request.params);
-    const changes = professionalBody.partial().parse(request.body);
+    const changes = professionalFields.omit({ kind: true }).partial().parse(request.body);
     if (Object.keys(changes).length === 0) return reply.code(400).send({ error: "empty_update" });
     const [professional] = await sql`
       update professionals set ${sql(changes)} where tenant_id = ${tenantId} and id = ${id}
-      returning id, name, active
+      returning ${sql(PROFESSIONAL_COLUMNS)}
     `;
     return professional ?? reply.code(404).send({ error: "not_found" });
   });
@@ -336,7 +360,10 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
       if (serviceIds.length > 0) {
         await tx`
           insert into professional_services (tenant_id, professional_id, service_id)
-          select ${tenantId}, ${id}, s.id from services s where s.tenant_id = ${tenantId} and s.id in ${tx(serviceIds)}
+          select ${tenantId}, ${id}, s.id from services s
+          where s.tenant_id = ${tenantId} and s.id in ${tx(serviceIds)}
+            -- Reception performs no service.
+            and exists (select 1 from professionals p where p.id = ${id} and p.tenant_id = ${tenantId} and p.kind = 'professional')
         `;
       }
     });
