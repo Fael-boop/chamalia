@@ -44,14 +44,22 @@ export async function buildApp(config: Config, sql?: Sql) {
 
   if (sql) {
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
-    registerPanelRoutes(app, sql);
+    const whatsapp =
+      config.EVOLUTION_API_URL && config.EVOLUTION_API_KEY && config.WEBHOOK_SECRET
+        ? {
+            evolution: new EvolutionClient(config.EVOLUTION_API_URL, config.EVOLUTION_API_KEY),
+            webhookBaseUrl: config.EVOLUTION_WEBHOOK_BASE_URL,
+            webhookSecret: config.WEBHOOK_SECRET,
+          }
+        : undefined;
+    registerPanelRoutes(app, sql, whatsapp);
     registerTestChatRoutes(app, { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log });
 
-    if (anthropic && config.EVOLUTION_API_URL && config.EVOLUTION_API_KEY && config.WEBHOOK_SECRET) {
+    if (anthropic && whatsapp) {
       registerWebhookRoutes(app, {
         engine: { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log },
-        evolution: new EvolutionClient(config.EVOLUTION_API_URL, config.EVOLUTION_API_KEY),
-        secret: config.WEBHOOK_SECRET,
+        evolution: whatsapp.evolution,
+        secret: whatsapp.webhookSecret,
       });
     } else {
       app.log.warn("WhatsApp (Evolution) desligado: faltam ANTHROPIC_API_KEY, EVOLUTION_API_URL, EVOLUTION_API_KEY ou WEBHOOK_SECRET");
