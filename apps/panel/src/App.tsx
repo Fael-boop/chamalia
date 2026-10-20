@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   Scissors,
   Settings,
+  MessageSquareText,
   Smartphone,
   UserRoundCheck,
   Users,
@@ -26,6 +27,7 @@ import { AccessPage } from "./pages/AccessPage";
 import { AgendaPage } from "./pages/agenda/AgendaPage";
 import { BusinessesPage } from "./pages/BusinessesPage";
 import { CustomersPage } from "./pages/CustomersPage";
+import { FaqPage } from "./pages/FaqPage";
 import { HandoffPage } from "./pages/HandoffPage";
 import { HoursPage } from "./pages/HoursPage";
 import { MorePage } from "./pages/MorePage";
@@ -148,6 +150,7 @@ function BusinessWorkspace({
   const secondary: NavItem[] = [
     { id: "professionals", label: "Profissionais", icon: UsersRound },
     { id: "hours", label: "Horários", icon: Clock },
+    { id: "faq", label: "Respostas prontas", icon: MessageSquareText },
     { id: "handoff", label: "Passar para a dona", icon: UserRoundCheck },
     { id: "settings", label: "Configurações", icon: Settings },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
@@ -181,6 +184,7 @@ function BusinessWorkspace({
       {page === "services" && <ServicesPage tenant={t} />}
       {page === "professionals" && <ProfessionalsPage tenant={t} />}
       {page === "hours" && <HoursPage tenant={t} />}
+      {page === "faq" && <FaqPage tenant={t} />}
       {page === "handoff" && <HandoffPage tenant={t} />}
       {page === "settings" && <SettingsPage tenant={t} role={role} />}
       {page === "test-chat" && <TestChatPage tenant={t} />}

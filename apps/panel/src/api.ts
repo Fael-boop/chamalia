@@ -123,6 +123,8 @@ export type Service = {
   handoffProfessionalId: string | null;
 };
 
+export type FaqEntry = { id: string; question: string; answer: string };
+
 export type HandoffTopic = { id: string; topic: string; reason: string | null; professionalId: string | null };
 
 export type Appointment = {
