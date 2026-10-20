@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
@@ -7,6 +8,7 @@ import { ZodError } from "zod";
 import { registerAuth } from "./api/auth.js";
 import { registerPanelRoutes } from "./api/panel.js";
 import { registerTestChatRoutes } from "./api/test-chat.js";
+import { registerUserRoutes } from "./api/users.js";
 import { registerWebhookRoutes } from "./api/webhooks.js";
 import { EvolutionClient } from "./channels/evolution.js";
 import type { Config } from "./config.js";
@@ -39,10 +41,10 @@ export async function buildApp(config: Config, sql?: Sql) {
     ai: config.ANTHROPIC_API_KEY ? "configured" : "not_configured",
   }));
 
-  registerAuth(app, config.ADMIN_PASSWORD);
-  app.get("/api/session", async () => ({ authenticated: true }));
+  registerAuth(app, { sql, adminPassword: config.ADMIN_PASSWORD, sessionSecret: sessionSecret(config, app) });
 
   if (sql) {
+    registerUserRoutes(app, sql);
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
     const whatsapp =
       config.EVOLUTION_API_URL && config.EVOLUTION_API_KEY && config.WEBHOOK_SECRET
@@ -78,6 +80,13 @@ export async function buildApp(config: Config, sql?: Sql) {
   }
 
   return app;
+}
+
+function sessionSecret(config: Config, app: { log: FastifyBaseLogger }): string {
+  if (config.SESSION_SECRET) return config.SESSION_SECRET;
+  // Development only (production requires SESSION_SECRET): logins reset on restart.
+  app.log.warn("SESSION_SECRET não definida: usando uma temporária, os logins caem quando o servidor reinicia");
+  return randomBytes(32).toString("hex");
 }
 
 async function checkDatabase(sql: Sql, log: FastifyBaseLogger): Promise<"ok" | "error"> {

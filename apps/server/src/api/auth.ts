@@ -1,25 +1,126 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { z } from "zod";
+import { verifyPassword } from "../auth/passwords.js";
+import { signSession, verifySession, type Session } from "../auth/tokens.js";
+import type { Sql } from "../db/client.js";
 
-const digest = (value: string) => createHash("sha256").update(value).digest();
+declare module "fastify" {
+  interface FastifyRequest {
+    session?: Session;
+  }
+  interface FastifyContextConfig {
+    /** Only the agency admin may call this route. */
+    adminOnly?: boolean;
+  }
+}
+
+export const ADMIN_LOGIN = "admin";
+const MAX_ATTEMPTS = 10;
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+
+const sameText = (a: string, b: string) =>
+  timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
+
+export function isOwner(request: FastifyRequest): boolean {
+  return request.session?.role === "owner";
+}
 
 /**
- * Every /api route requires `Authorization: Bearer <ADMIN_PASSWORD>`.
- * Without ADMIN_PASSWORD (development only) the panel stays open.
+ * Panel authentication.
+ * - Agency admin: login "admin" + ADMIN_PASSWORD; sees every tenant.
+ * - Business owner: login/password from tenant_users; sees only their tenant.
+ * Without ADMIN_PASSWORD (development only) requests without a token act as admin.
  */
-export function registerAuth(app: FastifyInstance, adminPassword: string | undefined) {
-  if (!adminPassword) {
-    app.log.warn("ADMIN_PASSWORD não definida: painel sem senha (aceitável só em desenvolvimento)");
-    return;
-  }
-  const expected = digest(adminPassword);
+export function registerAuth(
+  app: FastifyInstance,
+  options: { sql?: Sql; adminPassword?: string; sessionSecret: string },
+) {
+  const { sql, adminPassword, sessionSecret } = options;
+  if (!adminPassword) app.log.warn("ADMIN_PASSWORD não definida: painel da agência aberto (só em desenvolvimento)");
 
-  app.addHook("onRequest", async (request, reply) => {
-    if (!request.url.startsWith("/api/")) return;
+  const attempts = new Map<string, { count: number; since: number }>();
+  function tooManyAttempts(ip: string): boolean {
+    const now = Date.now();
+    const entry = attempts.get(ip);
+    if (!entry || now - entry.since > ATTEMPT_WINDOW_MS) {
+      attempts.set(ip, { count: 1, since: now });
+      return false;
+    }
+    entry.count += 1;
+    return entry.count > MAX_ATTEMPTS;
+  }
+
+  app.post("/api/auth/login", async (request, reply) => {
+    if (tooManyAttempts(request.ip)) {
+      return reply.code(429).send({ error: "too_many_attempts", message: "Muitas tentativas. Espere 15 minutos." });
+    }
+    const body = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(request.body);
+    const invalid = () => reply.code(401).send({ error: "invalid_login", message: "Usuário ou senha incorretos." });
+
+    if (body.login === ADMIN_LOGIN) {
+      if (adminPassword && !sameText(body.password, adminPassword)) return invalid();
+      return { token: signSession({ role: "admin" }, sessionSecret), role: "admin" };
+    }
+
+    if (!sql) return invalid();
+    const [user] = await sql<{ id: string; tenantId: string; name: string; passwordHash: string }[]>`
+      select u.id, u.tenant_id, u.name, u.password_hash
+      from tenant_users u join tenants t on t.id = u.tenant_id
+      where u.login = ${body.login} and u.active and t.active
+    `;
+    if (!user || !(await verifyPassword(body.password, user.passwordHash))) return invalid();
+
+    await sql`update tenant_users set last_login_at = now() where id = ${user.id}`;
+    return {
+      token: signSession({ role: "owner", tenantId: user.tenantId, userId: user.id }, sessionSecret),
+      role: "owner",
+      tenantId: user.tenantId,
+      name: user.name,
+    };
+  });
+
+  // Who is calling: resolves the session for every /api route.
+  app.addHook("preHandler", async (request, reply) => {
+    if (!request.url.startsWith("/api/") || request.url.startsWith("/api/auth/login")) return;
+
     const header = request.headers.authorization ?? "";
     const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-    if (!timingSafeEqual(digest(token), expected)) {
-      return reply.code(401).send({ error: "unauthorized", message: "Senha inválida." });
+    const session = token ? verifySession(token, sessionSecret) : undefined;
+
+    if (session?.role === "owner") {
+      // Deactivated users and sessions older than a password change are refused.
+      // password_changed_at is written with this server's clock, so both sides compare the same clock.
+      const [user] = sql
+        ? await sql<{ passwordChangedAt: Date }[]>`
+            select u.password_changed_at from tenant_users u join tenants t on t.id = u.tenant_id
+            where u.id = ${session.userId} and u.active and t.active
+          `
+        : [];
+      if (!user || user.passwordChangedAt.getTime() > session.issuedAt) {
+        return reply.code(401).send({ error: "unauthorized", message: "Sessão expirada. Entre de novo." });
+      }
+      request.session = session;
+    } else if (session?.role === "admin" || (!token && !adminPassword)) {
+      request.session = session ?? { role: "admin", issuedAt: 0, expiresAt: 0 };
+    } else {
+      return reply.code(401).send({ error: "unauthorized", message: "Entre com seu usuário e senha." });
     }
+
+    if (session?.role !== "owner") return;
+    if (request.routeOptions.config?.adminOnly) {
+      return reply.code(403).send({ error: "forbidden", message: "Acesso só da Chama Lia." });
+    }
+    const tenantId = (request.params as { tenantId?: string } | undefined)?.tenantId;
+    if (tenantId && tenantId !== session.tenantId) {
+      return reply.code(403).send({ error: "forbidden", message: "Sem acesso a este cliente." });
+    }
+  });
+
+  app.get("/api/session", async (request) => {
+    const session = request.session!;
+    if (session.role === "admin") return { role: "admin" };
+    const [user] = await sql!`select name from tenant_users where id = ${session.userId}`;
+    return { role: "owner", tenantId: session.tenantId, name: user?.name ?? "" };
   });
 }

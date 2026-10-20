@@ -32,12 +32,18 @@ const envSchema = z
 
     DEFAULT_TIMEZONE: z.string().default("America/Sao_Paulo"),
 
-    // Senha do painel. Opcional em desenvolvimento (painel aberto), obrigatória em produção.
+    // Senha do painel da agência (usuário "admin"). Opcional em desenvolvimento, obrigatória em produção.
     ADMIN_PASSWORD: optionalString,
+    // Assina os logins do painel. Trocar desconecta todo mundo.
+    SESSION_SECRET: optionalString,
   })
   .refine((env) => env.NODE_ENV !== "production" || (env.ADMIN_PASSWORD?.length ?? 0) >= 12, {
     path: ["ADMIN_PASSWORD"],
     message: "obrigatória em produção, com pelo menos 12 caracteres",
+  })
+  .refine((env) => env.NODE_ENV !== "production" || (env.SESSION_SECRET?.length ?? 0) >= 32, {
+    path: ["SESSION_SECRET"],
+    message: "obrigatória em produção, com pelo menos 32 caracteres",
   });
 
 export type Config = z.infer<typeof envSchema>;

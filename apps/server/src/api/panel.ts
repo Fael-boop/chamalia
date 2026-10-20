@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { connectTenantWhatsapp, type WhatsappSetup } from "../channels/evolution-setup.js";
 import type { Sql } from "../db/client.js";
+import { isOwner } from "./auth.js";
 import { addDays, isValidDate, zonedToUtc } from "../lib/time.js";
 import { getTenant, TENANT_COLUMNS, type Tenant } from "../scheduling/service.js";
 import { BUSINESS_TYPES, NICHES, nicheOf, STARTER_HOURS } from "../tenants/niches.js";
@@ -89,7 +90,7 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
 
   // --- Clients (tenants) ---
 
-  app.get("/api/tenants", async () => {
+  app.get("/api/tenants", { config: { adminOnly: true } }, async () => {
     return sql`
       select t.id, t.slug, t.name, t.business_type, t.owner_name, t.active, t.whatsapp_instance,
              (select count(*)::int from appointments a
@@ -99,7 +100,7 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
   });
 
   // New client with the niche's starter services, one professional and starter hours.
-  app.post("/api/tenants", async (request, reply) => {
+  app.post("/api/tenants", { config: { adminOnly: true } }, async (request, reply) => {
     const body = tenantCreate.parse(request.body);
     const niche = nicheOf(body.businessType);
     const tenant = await sql.begin(async (tx) => {
@@ -170,6 +171,8 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
   app.patch("/api/tenants/:tenantId", async (request, reply) => {
     const { tenantId } = tenantParams.parse(request.params);
     const changes = tenantFields.partial().parse(request.body);
+    // Only the agency turns a client on or off.
+    if (isOwner(request)) delete changes.active;
     if (Object.keys(changes).length === 0) return loadTenant(tenantId, reply);
     const [tenant] = await sql`
       update tenants set ${sql(changes)} where id = ${tenantId} returning ${sql(TENANT_COLUMNS)}
@@ -368,7 +371,7 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
   });
 
   // Creates/updates the instance and returns the QR code while not connected.
-  app.post("/api/tenants/:tenantId/whatsapp/connect", async (request, reply) => {
+  app.post("/api/tenants/:tenantId/whatsapp/connect", { config: { adminOnly: true } }, async (request, reply) => {
     const { tenantId } = tenantParams.parse(request.params);
     const tenant = await loadTenant(tenantId, reply);
     if (!tenant) return;
