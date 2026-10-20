@@ -31,6 +31,8 @@ const tenantFields = z.object({
   ownerName: optionalText(80),
   ownerPhone: phone.nullable(),
   address: optionalText(200),
+  addressNeighborhood: optionalText(80),
+  addressCity: optionalText(80),
   locationUrl: optionalText(500).refine((v) => !v || /^https?:\/\//.test(v), "link precisa começar com http:// ou https://"),
   tone: z.enum(["friendly", "formal"]),
   useEmoji: z.boolean(),
@@ -43,8 +45,17 @@ const tenantFields = z.object({
 });
 
 const tenantCreate = tenantFields
-  .pick({ name: true, businessType: true, assistantName: true, ownerName: true, ownerPhone: true, address: true })
-  .partial({ assistantName: true, ownerName: true, ownerPhone: true, address: true });
+  .pick({
+    name: true,
+    businessType: true,
+    assistantName: true,
+    ownerName: true,
+    ownerPhone: true,
+    address: true,
+    addressNeighborhood: true,
+    addressCity: true,
+  })
+  .partial({ assistantName: true, ownerName: true, ownerPhone: true, address: true, addressNeighborhood: true, addressCity: true });
 
 // No defaults here: a PATCH must only touch the fields it sends.
 const serviceFields = z.object({

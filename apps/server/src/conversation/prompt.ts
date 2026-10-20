@@ -16,6 +16,13 @@ export type PromptData = {
   now: Date;
 };
 
+/** "Rua das Flores, 120, Centro – São Paulo" from the separate fields. */
+function fullAddress(tenant: Tenant): string | null {
+  const parts = [tenant.address, tenant.addressNeighborhood].filter(Boolean);
+  const line = parts.join(", ");
+  return tenant.addressCity ? [line, tenant.addressCity].filter(Boolean).join(line ? " – " : "") : line || null;
+}
+
 const formatPrice = (cents: number | null) =>
   cents === null ? "preço sob consulta" : `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
 
@@ -69,7 +76,7 @@ Seu trabalho é ajudar ${person}s a agendar, consultar, remarcar e cancelar hor�
 
 Agora: ${weekdayName(now.weekday)}, ${day}/${month}/${year}, ${now.time}.
 ${person[0]!.toUpperCase()}${person.slice(1)}: ${data.customerName ?? "nome ainda não informado"}.
-${tenant.address ? `Endereço: ${tenant.address}${tenant.locationUrl ? ` — localização: ${tenant.locationUrl}` : ""}\n` : ""}
+${fullAddress(tenant) ? `Endereço: ${fullAddress(tenant)}${tenant.locationUrl ? ` — localização: ${tenant.locationUrl}` : ""}\n` : ""}
 Serviços:
 ${
   data.services
