@@ -38,7 +38,15 @@ emoji, informações extras, "sempre passar para a dona quando…", antecedênci
 frente, ativo), WhatsApp (QR code no painel) e Testar a Lia. Migration 002 com os campos novos.
 Nichos em `apps/server/src/tenants/niches.ts`: rótulo, "cliente"/"paciente" e serviços iniciais
 (criados com o cliente, junto com 1 profissional = dona e horário ter–sáb 09–18).
-Falta: login da dona, que vê só o próprio salão (antes de a piloto usar no dia a dia).
+Dois painéis (feito em 2026-10-20), mesmo endereço, decididos pelo login:
+- **Agência** (usuário `admin` + `ADMIN_PASSWORD`): todos os clientes, cadastro, WhatsApp e
+  "Acesso da dona" (cria usuário/senha, gera senha nova, bloqueia).
+- **Dona** (tabela `tenant_users`, migration 003): só o próprio negócio (Agenda, Serviços,
+  Profissionais, Horários, Configurações sem "ativo", Testar). Nada de Chama Lia nem de outros
+  clientes. O servidor recusa (403) rotas de outro tenant e rotas `adminOnly`.
+- Sessão: token assinado com `SESSION_SECRET` (HMAC), enviado como Bearer. Senha com scrypt.
+  Troca de senha ou bloqueio derruba as sessões. Login limitado a 10 tentativas/15 min por IP.
+  Em dev sem `ADMIN_PASSWORD`, chamada sem token vale como admin.
 
 Ordem de trabalho:
 1. Tela "Testar a Lia" funcionando (prioridade).
@@ -100,6 +108,8 @@ No Windows, se `npm` não for encontrado no terminal do VS Code, o PATH está de
 fechar todas as janelas do VS Code e reabrir.
 
 ## Regras
+- **Marca:** em todo texto visível o nome é **Chama Lia** (com espaço). Identificadores, pacotes,
+  pastas e domínio continuam `chamalia`.
 - **Idioma:** mensagens ao usuário final (WhatsApp, painel) em português; identificadores,
   nomes de tabela/coluna e comentários de código em inglês.
 - **Telefone nunca completo no log:** usar `maskPhone` (`apps/server/src/lib/phone.ts`); o logger
