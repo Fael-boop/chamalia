@@ -104,7 +104,8 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
   return (
     <AppShell
       brand={BRAND}
-      context="Painel da agência"
+      context="Agência"
+      contextLabel="Painel"
       items={items}
       mobileItems={[...items, { id: "more", label: "Mais", icon: Ellipsis }]}
       current={page}

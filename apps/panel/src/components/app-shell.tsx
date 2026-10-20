@@ -7,11 +7,22 @@ import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { Logo, LogoMark } from "@/components/logo";
 
+/** "Luciana Beauty Center" -> "LB". */
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter((word) => /^[\p{L}\d]/u.test(word))
+    .slice(0, 2)
+    .map((word) => word[0]!.toUpperCase())
+    .join("");
+
 export type NavItem = { id: string; label: string; icon: ComponentType<{ className?: string }> };
 
 type Props = {
   brand: string;
   context?: ReactNode;
+  /** Small label above the context in the sidebar (default "Negócio"). */
+  contextLabel?: string;
   items: NavItem[];
   /** Up to 4 items for the phone's bottom bar (the last one is usually "Mais"). */
   mobileItems: NavItem[];
@@ -39,7 +50,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
-export function AppShell({ brand, context, items, mobileItems, current, onNavigate, onLogout, onBack, children }: Props) {
+export function AppShell({ brand, context, contextLabel = "Negócio", items, mobileItems, current, onNavigate, onLogout, onBack, children }: Props) {
   const mobile = useIsMobile();
   const reduceMotion = useReducedMotion();
 
@@ -119,7 +130,16 @@ export function AppShell({ brand, context, items, mobileItems, current, onNaviga
       <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
         <div className="px-5 pt-5 pb-4">
           <Logo size={30} onDark textClassName="text-[15px]" />
-          <div className="mt-3 truncate text-xs">{context ?? brand}</div>
+          {/* The business being managed, in evidence right under the brand. */}
+          <div className="mt-4 flex items-center gap-3 rounded-lg border border-sidebar-border bg-white/[0.04] px-3 py-2.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-white">
+              {initialsOf(String(context ?? brand))}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] tracking-wide text-sidebar-foreground/70 uppercase">{contextLabel}</span>
+              <span className="line-clamp-2 block text-sm leading-snug font-semibold break-words text-white">{context ?? brand}</span>
+            </span>
+          </div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Menu principal">
           {items.map((item) => {
