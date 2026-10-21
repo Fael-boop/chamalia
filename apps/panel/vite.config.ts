@@ -38,6 +38,8 @@ export default defineConfig({
   server: {
     // Reachable from a phone on the same Wi-Fi (http://<PC IP>:5173).
     host: true,
+    // Demo through a Cloudflare Tunnel (quick tunnel or app.chamalia.com.br).
+    allowedHosts: [".trycloudflare.com", "app.chamalia.com.br"],
     // In dev the panel runs on :5173 and forwards API calls to the bot on :3000.
     proxy: {
       "/api": "http://localhost:3000",
