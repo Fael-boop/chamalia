@@ -100,7 +100,8 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
         </header>
         <main className="px-4 py-4">{content}</main>
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-card pb-[env(safe-area-inset-bottom)]"
+          className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-card pb-[env(safe-area-inset-bottom)]"
+          style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))` }}
           aria-label="Menu principal"
         >
           {mobileItems.map((item) => {
