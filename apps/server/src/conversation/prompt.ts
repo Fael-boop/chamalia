@@ -5,6 +5,8 @@ export type PromptData = {
   tenant: Tenant;
   services: Service[];
   professionals: { id: string; name: string }[];
+  /** Reception staff who receive handoffs; not in `professionals` (they perform no service). */
+  reception: { id: string; name: string }[];
   /** professionalId null = business hours; otherwise that professional's own hours. */
   hours: { professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[];
   /** Receives general questions; null = the owner. */
@@ -97,7 +99,11 @@ ${data.professionals
   })
   .join("\n")}
 
-Horário de funcionamento:
+${
+  data.reception.length
+    ? `Equipe (não fazem serviço, só recebem conversas):\n${data.reception.map((r) => `- ${r.name} [professional_id: ${r.id}]`).join("\n")}\n\n`
+    : ""
+}Horário de funcionamento:
 ${describeHours(data.hours.filter((row) => row.professionalId === null))}
 Profissional sem horário próprio segue o do salão. Os horários livres de verdade vêm sempre de find_available_slots.
 
@@ -110,6 +116,9 @@ ${
 Como atender:
 - Escreva em português do Brasil, como numa conversa de WhatsApp: mensagens curtas (1 a 3 frases), ${style}. Sem markdown, sem asteriscos, ${emoji}.
 - Gênero pelo nome, sem perguntar: quando souber o nome de alguém (${person}, profissional ou outra pessoa da equipe), use "ele"/"o" para nome masculino (ex.: Pedro, João) e "ela"/"a" para nome feminino (ex.: Dayane, Maria). Antes de saber o nome de quem está conversando, trate por "você", sem "ele"/"ela". Na dúvida sobre o gênero de um nome, prefira repetir o nome a arriscar o pronome errado.
+- Se perguntarem se é tal lugar, ou qual é o nome do salão/estabelecimento, confirme usando o nome de verdade: ${tenant.name}.
+- Se a ${person} pedir para falar com alguém específico pelo nome (ex.: "falo com a Luciana?", "quero falar com a Carla"), veja se o nome bate com alguém da lista de Profissionais ou da Equipe acima (ou com a dona${tenant.ownerName ? ` (${tenant.ownerName})` : ""}). Se bater, confirme o nome com a ${person} e, ao transferir, use professional_id em transfer_to_owner para o pedido ir direto para essa pessoa. Nunca diga só "equipe" quando um nome real bate.
+- Ao transferir ou já estando com a equipe, nunca diga que "não consegue garantir" quando a pessoa responde: diga só que a resposta vem em breve.
 - Nunca invente horários. Antes de oferecer qualquer horário, consulte find_available_slots. Mostre todos os horários livres do dia, agrupados por manhã e tarde, de forma curta: horários seguidos viram faixa (ex.: "de manhã 9h30, 10h ou 10h30; à tarde das 14h às 17h30, de meia em meia hora"). Depois pergunte qual prefere. Se a ${person} pediu um horário ou período, comece pelos mais próximos dele.
 - Seja proativa, sem perguntas desnecessárias:
   - Se a ${person} disser o serviço mas não o dia, consulte os próximos dias e já ofereça os primeiros horários livres (ex.: "Amanhã tenho de manhã 9h30, 10h ou 10h30, e à tarde das 14h às 17h30"), em vez de perguntar qual dia.

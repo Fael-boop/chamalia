@@ -174,6 +174,13 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
+Pedido por nome (feito em 2026-10-20): se a cliente pede uma pessoa pelo nome ("falo com a Luciana?"), a Lia
+confere na lista de Profissionais e na nova seção "Equipe" do prompt (recepção com WhatsApp de avisos) e usa
+`professional_id` em transfer_to_owner, que tem prioridade sobre serviço/assunto/padrão. Sem pessoa definida,
+fala o nome do responsável (antes dizia "a equipe" mesmo com nome cadastrado). Confirma o nome do negócio quando
+perguntam e nunca diz que "não consegue garantir" quando respondem: "a resposta vem em breve".
+Lista de Negócios (agência): clicar na linha abre a edição do cadastro (nome, nicho, responsável, endereço,
+atendente); interruptor Ativo na própria linha; a seta abre a agenda do negócio.
 Gênero por nome (feito em 2026-10-20): a Lia usa "ele"/"ela" e "o"/"a" de acordo com o nome de quem
 está conversando e dos profissionais, sem perguntar (regra explícita no prompt, logo após o estilo de
 escrever). Antes de saber o nome de quem conversa, trata por "você". Corrigido um bug de verdade: o texto que

@@ -59,7 +59,10 @@ const inputs = {
   save_customer_name: z.object({ name: z.string().trim().min(1).max(80) }),
   transfer_to_owner: z.object({
     service_id: z.string().uuid().optional(),
-    topic_id: z.string().uuid().optional(), reason: z.string().trim().min(1).max(300) }),
+    topic_id: z.string().uuid().optional(),
+    professional_id: z.string().uuid().optional(),
+    reason: z.string().trim().min(1).max(300),
+  }),
 };
 
 type ToolName = keyof typeof inputs;
@@ -157,13 +160,14 @@ export const tools: Anthropic.Tool[] = [
   {
     name: "transfer_to_owner",
     description:
-      "Passa a conversa para a pessoa certa da equipe (quem foi definida para o caso, ou o responsável pelo negócio). Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista, os serviços e assuntos marcados e qualquer pedido que você não consiga resolver. Informe service_id ou topic_id quando o motivo for um deles: assim o pedido vai para a pessoa certa.",
+      "Passa a conversa para a pessoa certa da equipe (quem foi definida para o caso, ou o responsável pelo negócio). Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista, os serviços e assuntos marcados e qualquer pedido que você não consiga resolver. Informe service_id ou topic_id quando o motivo for um deles. Se a cliente pediu por nome uma pessoa específica da lista de Profissionais ou Equipe, informe também professional_id: tem prioridade sobre as outras regras.",
     input_schema: {
       type: "object",
       properties: {
         reason: { type: "string", description: "Resumo curto para quem vai atender: o que a cliente quer" },
         service_id: { type: "string", description: "Opcional: service_id quando o motivo é um serviço" },
         topic_id: { type: "string", description: "Opcional: topic_id quando o motivo é um dos assuntos da lista" },
+        professional_id: { type: "string", description: "Opcional: id de quem a cliente pediu por nome (lista de Profissionais ou Equipe)" },
       },
       required: ["reason"],
     },
@@ -181,20 +185,24 @@ function customerLabel(ctx: ToolContext): string {
  */
 async function handoffTarget(
   ctx: ToolContext,
-  input: { service_id?: string; topic_id?: string },
+  input: { service_id?: string; topic_id?: string; professional_id?: string },
 ): Promise<{ name: string; kind: string; notifyPhone: string } | undefined> {
   const { sql, tenant } = ctx;
-  let personId = tenant.defaultHandoffProfessionalId;
-  if (input.topic_id) {
-    const [topic] = await sql<{ professionalId: string | null }[]>`
-      select professional_id from handoff_topics where tenant_id = ${tenant.id} and id = ${input.topic_id}
-    `;
-    if (topic) personId = topic.professionalId;
-  } else if (input.service_id) {
-    const [service] = await sql<{ handoffProfessionalId: string | null }[]>`
-      select handoff_professional_id from services where tenant_id = ${tenant.id} and id = ${input.service_id} and handoff
-    `;
-    if (service) personId = service.handoffProfessionalId;
+  // An explicit name match from the customer wins over the configured routing.
+  let personId: string | null | undefined = input.professional_id;
+  if (!personId) {
+    personId = tenant.defaultHandoffProfessionalId;
+    if (input.topic_id) {
+      const [topic] = await sql<{ professionalId: string | null }[]>`
+        select professional_id from handoff_topics where tenant_id = ${tenant.id} and id = ${input.topic_id}
+      `;
+      if (topic) personId = topic.professionalId;
+    } else if (input.service_id) {
+      const [service] = await sql<{ handoffProfessionalId: string | null }[]>`
+        select handoff_professional_id from services where tenant_id = ${tenant.id} and id = ${input.service_id} and handoff
+      `;
+      if (service) personId = service.handoffProfessionalId;
+    }
   }
   if (!personId) return undefined;
   const [person] = await sql<{ name: string; kind: string; notifyPhone: string }[]>`
@@ -394,7 +402,7 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
     }
     // No article before a name ("vou chamar Pedro"/"vou chamar Dayane" are both correct Portuguese);
     // "a recepção"/"a equipe" are common nouns, so they keep theirs.
-    const who = person ? (person.kind === "reception" ? "a recepção" : person.name) : "a equipe";
+    const who = person ? (person.kind === "reception" ? "a recepção" : person.name) : (ctx.tenant.ownerName ?? "a equipe");
     return {
       transferred: true,
       instruction: `Quem vai atender é ${who}. Responda à cliente de forma simpática, em uma ou duas frases: diga que vai chamar ${who} para cuidar desse pedido e que a resposta vem por aqui em breve. Não troque esse nome por outro.`,

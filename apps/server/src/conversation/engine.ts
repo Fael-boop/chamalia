@@ -344,13 +344,19 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
   const { sql } = deps;
   const { tenant } = ctx;
 
-  const [services, professionals, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson, niche] = await Promise.all([
+  const [services, professionals, reception, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson, niche] = await Promise.all([
     sql<Service[]>`
       select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason
       from services where tenant_id = ${tenant.id} and active and archived_at is null order by name
     `,
     sql<{ id: string; name: string }[]>`
       select id, name from professionals where tenant_id = ${tenant.id} and active and kind = 'professional' order by name
+    `,
+    // Reception staff: not offered for services, but a customer can still ask for them by name.
+    sql<{ id: string; name: string }[]>`
+      select id, name from professionals
+      where tenant_id = ${tenant.id} and active and kind = 'reception' and notify_phone is not null
+      order by name
     `,
     sql<{ professionalId: string | null; weekday: number; opensAt: string; closesAt: string }[]>`
       select professional_id, weekday, opens_at, closes_at from business_hours
@@ -402,6 +408,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
       niche,
       services,
       professionals,
+      reception,
       hours,
       handoffTopics,
       faq,
