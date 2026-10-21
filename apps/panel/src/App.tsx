@@ -3,6 +3,7 @@ import {
   Building2,
   CalendarDays,
   Clock,
+  GraduationCap,
   Ellipsis,
   KeyRound,
   MessagesSquare,
@@ -38,6 +39,7 @@ import { ProfessionalsPage } from "./pages/ProfessionalsPage";
 import { ServicesPage } from "./pages/ServicesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestChatPage } from "./pages/TestChatPage";
+import { TrainPage } from "./pages/TrainPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 
 const BRAND = "Chama Lia";
@@ -163,6 +165,7 @@ function BusinessWorkspace({
     { id: "prices", label: "Tabela de preços", icon: Receipt },
     { id: "handoff", label: "Passar para a equipe", icon: UserRoundCheck },
     { id: "settings", label: "Configurações", icon: Settings },
+    { id: "train", label: `Treinar a ${t.assistantName}`, icon: GraduationCap },
     { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
     ...(role === "admin" ? [{ id: "access", label: "Acesso do responsável", icon: KeyRound }] : []),
@@ -195,6 +198,7 @@ function BusinessWorkspace({
       {page === "prices" && <PriceTablePage tenant={t} />}
       {page === "handoff" && <HandoffPage tenant={t} />}
       {page === "settings" && <SettingsPage tenant={t} role={role} />}
+      {page === "train" && <TrainPage tenant={t} onNavigate={navigate} />}
       {page === "test-chat" && <TestChatPage tenant={t} />}
       {page === "whatsapp" && <WhatsAppPage tenant={t} />}
       {page === "access" && role === "admin" && <AccessPage tenant={t} />}

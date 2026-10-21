@@ -162,6 +162,8 @@ export type TeamConversation = {
   lastMessage: string | null;
 };
 
+export type AssistantRule = { id: string; kind: "always" | "never"; text: string };
+
 export type FaqEntry = { id: string; question: string; answer: string };
 
 export type HandoffTopic = { id: string; topic: string; reason: string | null; professionalId: string | null };

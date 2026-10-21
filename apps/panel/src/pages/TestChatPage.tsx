@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { api, type PriceTable, type Tenant, type TestChatReply, type TestChatState } from "@/api";
+import { CorrectAnswer, type Correction } from "@/components/correct-answer";
 import { Hint, PageHeader } from "@/components/page-header";
+import { useServices } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,7 +40,19 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [pending, setPending] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [correction, setCorrection] = useState<Correction | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  const services = useServices(tenant.id);
+  const firstService = services.data?.find((s) => s.active)?.name;
+  // Common questions to try with one tap, so nobody has to invent a test.
+  const suggestions = [
+    firstService ? `Quanto custa ${firstService.toLowerCase()}?` : "Quanto custa?",
+    firstService ? `Quero marcar ${firstService.toLowerCase()} amanhã` : "Tem horário amanhã?",
+    "Aceita cartão?",
+    "Qual o endereço?",
+    "Preciso remarcar meu horário",
+    "Quero falar com alguém",
+  ];
 
   const base = `/tenants/${tenant.id}/test-chat`;
   const validPhone = /^\d{10,15}$/.test(phone);
@@ -57,10 +71,18 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
     bottom.current?.scrollIntoView({ block: "end", behavior: reduceMotion ? "auto" : "smooth" });
   }, [state, notices, pending, reduceMotion]);
 
-  async function send() {
-    const text = draft.trim();
+  const questionBefore = (messageId: string) => {
+    const list = state?.messages ?? [];
+    const index = list.findIndex((m) => m.id === messageId);
+    for (let i = index - 1; i >= 0; i--) if (list[i]!.direction === "inbound") return list[i]!.body;
+    return "";
+  };
+
+  /** Sends the draft, or a suggested question (the draft is kept). */
+  async function send(suggested?: string) {
+    const text = (suggested ?? draft).trim();
     if (!text || pending) return;
-    setDraft("");
+    if (!suggested) setDraft("");
     setPending(text);
     try {
       const result = await api<TestChatReply>(base, { method: "POST", body: { phone, text } });
@@ -75,7 +97,7 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
       await load();
     } catch (e) {
       toast.error((e as Error).message);
-      setDraft(text);
+      if (!suggested) setDraft(text);
     } finally {
       setPending(null);
     }
@@ -191,10 +213,19 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
                 )}
                 <div
                   className={cn(
-                    "mt-0.5 text-right text-[10px]",
+                    "mt-0.5 flex items-center justify-end gap-3 text-[10px]",
                     item.message.direction === "inbound" ? "text-primary-foreground/70" : "text-muted-foreground",
                   )}
                 >
+                  {item.message.direction === "outbound" && !item.message.attachment && (
+                    <button
+                      type="button"
+                      onClick={() => setCorrection({ question: questionBefore(item.message.id), answer: item.message.body })}
+                      className="mr-auto font-medium text-primary hover:underline"
+                    >
+                      Corrigir
+                    </button>
+                  )}
                   {formatTime(item.message.createdAt, tenant.timezone)}
                 </div>
               </motion.div>
@@ -233,8 +264,21 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
           <div ref={bottom} />
         </div>
 
+        <div className="flex gap-1.5 overflow-x-auto border-t px-2 pt-2 pb-0.5">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={!validPhone || Boolean(pending)}
+              onClick={() => void send(s)}
+              className="shrink-0 rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95 disabled:opacity-50"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
         <form
-          className="flex gap-2 border-t p-2"
+          className="flex gap-2 p-2"
           onSubmit={(e) => {
             e.preventDefault();
             void send();
@@ -260,8 +304,9 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
         </form>
       </div>
       <div className="mt-2">
-        <Hint>É o mesmo motor que responde no WhatsApp. Avisos para a equipe aparecem no meio da conversa.</Hint>
+        <Hint>É o mesmo motor que responde no WhatsApp. Se uma resposta não ficou boa, toque em "Corrigir" embaixo dela para ensinar o jeito certo.</Hint>
       </div>
+      <CorrectAnswer tenant={tenant} correction={correction} onOpenChange={(open) => !open && setCorrection(null)} />
     </>
   );
 }
