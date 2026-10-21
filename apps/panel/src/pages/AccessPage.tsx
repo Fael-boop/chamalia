@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, KeyRound } from "lucide-react";
+import { Copy, KeyRound, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { api, type Tenant, type TenantUser } from "@/api";
 import { Hint, PageHeader } from "@/components/page-header";
+import { ResponsiveSheet } from "@/components/responsive-sheet";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,9 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
   const mobile = useIsMobile();
   const queryClient = useQueryClient();
   const [created, setCreated] = useState<{ login: string; password: string } | null>(null);
+  // "Nova senha": typed by the agency or generated.
+  const [resetting, setResetting] = useState<TenantUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const users = useQuery({ queryKey: ["users", tenant.id], queryFn: () => api<TenantUser[]>(`/tenants/${tenant.id}/users`) });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["users", tenant.id] });
   const form = useForm<z.infer<typeof schema>>({
@@ -59,8 +63,11 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
     mutationFn: ({ user, body }: { user: TenantUser; body: { password?: string; active?: boolean } }) =>
       api(`/tenants/${tenant.id}/users/${user.id}`, { method: "PATCH", body }),
     onSuccess: (_d, { user, body }) => {
-      if (body.password) setCreated({ login: user.login, password: body.password });
-      toast.success(body.password ? "Senha nova gerada" : body.active ? "Acesso liberado" : "Acesso bloqueado");
+      if (body.password) {
+        setCreated({ login: user.login, password: body.password });
+        setResetting(null);
+      }
+      toast.success(body.password ? "Senha alterada" : body.active ? "Acesso liberado" : "Acesso bloqueado");
     },
     onError: (e) => toast.error((e as Error).message),
     onSettled: refresh,
@@ -108,9 +115,8 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (window.confirm(`Gerar senha nova para ${user.name}? A atual para de funcionar na hora.`)) {
-                      patch.mutate({ user, body: { password: generatePassword() } });
-                    }
+                    setNewPassword(generatePassword());
+                    setResetting(user);
                   }}
                 >
                   <KeyRound /> Nova senha
@@ -154,9 +160,50 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
       <div className="mt-3">
         <Hint>
           O responsável entra no mesmo endereço e vê só o {tenant.name}: agenda, clientes, serviços e configurações. Não vê
-          outros negócios, o WhatsApp nem esta tela.
+          outros negócios nem esta tela.
         </Hint>
       </div>
+
+      <ResponsiveSheet
+        open={Boolean(resetting)}
+        onOpenChange={(open) => !open && setResetting(null)}
+        title={`Nova senha para ${resetting?.name ?? ""}`}
+        description="Digite a senha que quiser ou gere uma. A senha atual para de funcionar na hora."
+        footer={
+          <div className="grid w-full grid-cols-2 gap-2">
+            <Button variant="outline" size="lg" onClick={() => setResetting(null)}>
+              Cancelar
+            </Button>
+            <Button
+              size="lg"
+              disabled={newPassword.length < 8 || patch.isPending}
+              onClick={() => resetting && patch.mutate({ user: resetting, body: { password: newPassword } })}
+            >
+              Salvar senha
+            </Button>
+          </div>
+        }
+      >
+        <label className="block space-y-1.5 pb-2 text-sm">
+          <span className="font-medium">Senha</span>
+          <div className="flex gap-2">
+            <Input
+              className="flex-1"
+              autoCapitalize="none"
+              autoComplete="new-password"
+              maxLength={200}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <Button type="button" variant="outline" onClick={() => setNewPassword(generatePassword())}>
+              <RefreshCw /> Gerar
+            </Button>
+          </div>
+          <span className={newPassword.length < 8 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+            Pelo menos 8 caracteres.
+          </span>
+        </label>
+      </ResponsiveSheet>
     </>
   );
 }

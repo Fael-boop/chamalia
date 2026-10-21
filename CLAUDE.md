@@ -173,6 +173,7 @@ Cada serviço "com a dona" e cada assunto escolhe quem resolve (`handoff_profess
 Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde pelo WhatsApp do salão.
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
+Acesso do responsável: "Nova senha" abre uma janela onde a agência digita a senha que quiser (mín. 8) ou gera uma; usa o PATCH que já existia.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
 Treinar a Lia (migration 015, tabela `assistant_rules`, feito em 2026-10-20): tela "Treinar a Lia" com
 (1) primeiros passos com barra de progresso (serviços, quem faz o quê, horários, endereço/WhatsApp do
