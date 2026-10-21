@@ -17,7 +17,7 @@ declare module "fastify" {
 
 export const ADMIN_LOGIN = "admin";
 const MAX_ATTEMPTS = 10;
-const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const ATTEMPT_WINDOW_MS = 60 * 1000;
 
 const sameText = (a: string, b: string) =>
   timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
@@ -57,7 +57,7 @@ export function registerAuth(
     const body = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(request.body);
     const key = `${request.ip}|${body.login}`;
     if (blocked(key)) {
-      return reply.code(429).send({ error: "too_many_attempts", message: "Muitas tentativas. Espere 15 minutos." });
+      return reply.code(429).send({ error: "too_many_attempts", message: "Muitas senhas erradas. Tente de novo em 1 minuto." });
     }
     const invalid = () => {
       recordFailure(key);

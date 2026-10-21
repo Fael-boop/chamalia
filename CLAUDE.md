@@ -45,7 +45,7 @@ Dois painéis (feito em 2026-10-20), mesmo endereço, decididos pelo login:
   Profissionais, Horários, Configurações sem "ativo", Testar). Nada de Chama Lia nem de outros
   clientes. O servidor recusa (403) rotas de outro tenant e rotas `adminOnly`.
 - Sessão: token assinado com `SESSION_SECRET` (HMAC), enviado como Bearer. Senha com scrypt.
-  Troca de senha ou bloqueio derruba as sessões. Login limitado a 10 tentativas/15 min por IP.
+  Troca de senha ou bloqueio derruba as sessões. Login: 10 senhas erradas por IP + usuário bloqueiam por 1 min.
   Em dev sem `ADMIN_PASSWORD`, chamada sem token vale como admin.
 
 Ordem de trabalho:
