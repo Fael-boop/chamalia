@@ -12,6 +12,8 @@ export type PromptData = {
   /** Receives general questions; null = the owner. */
   defaultPerson: { name: string; kind: string } | null;
   faq: { question: string; answer: string }[];
+  /** Plain-language rules written by the business in "Treinar a Lia". */
+  rules: { kind: "always" | "never"; text: string }[];
   /** How the assistant talks about this kind of place and its customers. */
   niche: { place: string; customerWord: string };
   handoffTopics: { id: string; topic: string; reason: string | null }[];
@@ -113,7 +115,13 @@ ${
     ? `\nRespostas prontas da equipe (quando a ${person} perguntar isso ou algo parecido, responda com estas informações, com suas palavras e sem inventar nada além):\n${data.faq.map((f) => `P: ${f.question}\nR: ${f.answer}`).join("\n")}\n`
     : ""
 }${tenant.extraInfo ? `\nInformações que você pode passar (só estas):\n${tenant.extraInfo}\n` : ""}
-Como atender:
+${
+  data.rules.length
+    ? `Regras da equipe (OBRIGATÓRIAS: siga em TODAS as respostas, mesmo nas curtas; só não invente horário, preço ou serviço por causa delas):\n${data.rules
+        .map((r) => `- ${r.kind === "always" ? "Sempre" : "Nunca"}: ${r.text}`)
+        .join("\n")}\n\n`
+    : ""
+}Como atender:
 - Escreva em português do Brasil, como numa conversa de WhatsApp: mensagens curtas (1 a 3 frases), ${style}. Sem markdown, sem asteriscos, ${emoji}.
 - Gênero pelo nome, sem perguntar: quando souber o nome de alguém (${person}, profissional ou outra pessoa da equipe), use "ele"/"o" para nome masculino (ex.: Pedro, João) e "ela"/"a" para nome feminino (ex.: Dayane, Maria). Antes de saber o nome de quem está conversando, trate por "você", sem "ele"/"ela". Na dúvida sobre o gênero de um nome, prefira repetir o nome a arriscar o pronome errado.
 - Se perguntarem se é tal lugar, ou qual é o nome do salão/estabelecimento, confirme usando o nome de verdade: ${tenant.name}.

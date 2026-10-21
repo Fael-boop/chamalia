@@ -174,6 +174,13 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
+Treinar a Lia (migration 015, tabela `assistant_rules`, feito em 2026-10-20): tela "Treinar a Lia" com
+(1) primeiros passos com barra de progresso (serviços, quem faz o quê, horários, endereço/WhatsApp do
+responsável, 3 respostas prontas, tabela de preços, 3 mensagens no teste, WhatsApp conectado; cada passo
+leva para a tela certa), (2) regras "Sempre/Nunca" em frase curta, com sugestões de um toque, que entram no
+prompt num bloco OBRIGATÓRIO antes de "Como atender" (no fim da lista ela ignorava). Em Testar a Lia:
+perguntas prontas de um toque e botão "Corrigir" em cada resposta, que vira resposta pronta (pergunta
+anterior + resposta certa) ou regra. "Treinar" é cadastro guiado, não treino de modelo.
 Pedido por nome (feito em 2026-10-20): se a cliente pede uma pessoa pelo nome ("falo com a Luciana?"), a Lia
 confere na lista de Profissionais e na nova seção "Equipe" do prompt (recepção com WhatsApp de avisos) e usa
 `professional_id` em transfer_to_owner, que tem prioridade sobre serviço/assunto/padrão. Sem pessoa definida,

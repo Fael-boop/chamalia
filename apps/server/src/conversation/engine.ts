@@ -344,7 +344,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
   const { sql } = deps;
   const { tenant } = ctx;
 
-  const [services, professionals, reception, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson, niche] = await Promise.all([
+  const [services, professionals, reception, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson, niche, rules] = await Promise.all([
     sql<Service[]>`
       select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason
       from services where tenant_id = ${tenant.id} and active and archived_at is null order by name
@@ -394,6 +394,9 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
         `
       : Promise.resolve([] as { name: string; kind: string }[]),
     nicheForPrompt(sql, tenant.businessType),
+    sql<{ kind: "always" | "never"; text: string }[]>`
+      select kind, text from assistant_rules where tenant_id = ${tenant.id} order by created_at
+    `,
   ]);
   const cancelledNote = recentlyCancelled.length
     ? "\n\nHorários desta cliente desmarcados nas últimas horas (já cancelados de verdade, não aparecem em list_customer_appointments):\n" +
@@ -412,6 +415,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
       hours,
       handoffTopics,
       faq,
+      rules,
       defaultPerson: defaultPerson[0] ?? null,
       customerName: ctx.customer.name,
       now: new Date(),
