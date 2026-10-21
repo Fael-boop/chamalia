@@ -38,7 +38,8 @@ export const formatTime = (iso: string, timeZone: string) => zoned(iso, timeZone
 /** "segunda, 20 de outubro" */
 export const formatDayLong = (date: string) => format(parseISO(date), "EEEE, d 'de' MMMM", { locale: ptBR });
 /** "seg" */
-export const formatWeekdayShort = (date: string) => format(parseISO(date), "EEE", { locale: ptBR }).replace(".", "");
+/** "seg", "ter"… (ptBR's EEE gives the full name, which does not fit the phone's day strip). */
+export const formatWeekdayShort = (date: string) => format(parseISO(date), "EEE", { locale: ptBR }).replace(".", "").slice(0, 3);
 /** "20/10" */
 export const formatDayShort = (date: string) => format(parseISO(date), "dd/MM");
 /** "20/10/2026 às 14:30" */

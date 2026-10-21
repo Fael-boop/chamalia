@@ -39,27 +39,34 @@ export function registerAuth(
   const { sql, adminPassword, sessionSecret } = options;
   if (!adminPassword) app.log.warn("ADMIN_PASSWORD não definida: painel da agência aberto (só em desenvolvimento)");
 
-  const attempts = new Map<string, { count: number; since: number }>();
-  function tooManyAttempts(ip: string): boolean {
-    const now = Date.now();
-    const entry = attempts.get(ip);
-    if (!entry || now - entry.since > ATTEMPT_WINDOW_MS) {
-      attempts.set(ip, { count: 1, since: now });
-      return false;
-    }
-    entry.count += 1;
-    return entry.count > MAX_ATTEMPTS;
+  // Wrong passwords per IP + login. Only failures count and a successful login clears them:
+  // behind a proxy or tunnel every visitor shares one IP, and a typo must not lock everyone out.
+  const failures = new Map<string, { count: number; since: number }>();
+  function blocked(key: string): boolean {
+    const entry = failures.get(key);
+    if (entry && Date.now() - entry.since > ATTEMPT_WINDOW_MS) failures.delete(key);
+    return (failures.get(key)?.count ?? 0) >= MAX_ATTEMPTS;
+  }
+  function recordFailure(key: string) {
+    const entry = failures.get(key);
+    if (entry) entry.count += 1;
+    else failures.set(key, { count: 1, since: Date.now() });
   }
 
   app.post("/api/auth/login", async (request, reply) => {
-    if (tooManyAttempts(request.ip)) {
+    const body = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(request.body);
+    const key = `${request.ip}|${body.login}`;
+    if (blocked(key)) {
       return reply.code(429).send({ error: "too_many_attempts", message: "Muitas tentativas. Espere 15 minutos." });
     }
-    const body = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(request.body);
-    const invalid = () => reply.code(401).send({ error: "invalid_login", message: "Usuário ou senha incorretos." });
+    const invalid = () => {
+      recordFailure(key);
+      return reply.code(401).send({ error: "invalid_login", message: "Usuário ou senha incorretos." });
+    };
 
     if (body.login === ADMIN_LOGIN) {
       if (adminPassword && !sameText(body.password, adminPassword)) return invalid();
+      failures.delete(key);
       return { token: signSession({ role: "admin" }, sessionSecret), role: "admin" };
     }
 
@@ -71,6 +78,7 @@ export function registerAuth(
     `;
     if (!user || !(await verifyPassword(body.password, user.passwordHash))) return invalid();
 
+    failures.delete(key);
     await sql`update tenant_users set last_login_at = now() where id = ${user.id}`;
     return {
       token: signSession({ role: "owner", tenantId: user.tenantId, userId: user.id }, sessionSecret),

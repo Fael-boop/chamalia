@@ -174,6 +174,8 @@ Pessoa inativa ou sem WhatsApp → aviso vai para a dona. Quem recebe responde p
 A tool `transfer_to_owner` recebe `service_id`/`topic_id` e o servidor decide o destino.
 Depois (com cliente pagante): caixa de conversas no painel com login por pessoa.
 Acesso do responsável: "Nova senha" abre uma janela onde a agência digita a senha que quiser (mín. 8) ou gera uma; usa o PATCH que já existia.
+Login: o limite conta só senhas erradas, por IP + usuário, e zera ao acertar (antes contava todo login por IP; pelo túnel todos os visitantes têm o mesmo IP e travavam juntos).
+Demonstração (2026-10-20): `cloudflared tunnel --url http://localhost:5173` gera um link trycloudflare.com para o painel no PC (Vite aceita `.trycloudflare.com` e `app.chamalia.com.br` em allowedHosts). Exige `ADMIN_PASSWORD` no .env (entre aspas se tiver `#`). Login `demo` no Studio Bella; `db:seed:salon` apaga esse login (cascade), recriar depois. Site no Cloudflare Pages (`chamalia.pages.dev`, build `npm run build -w @chamalia/site`, saída `apps/site/dist`); domínio em transição para os nameservers da Cloudflare.
 Clientes (migration 009): a dona cria e edita clientes no painel (nome, WhatsApp com DDD — o servidor põe o 55 —, observações só para a equipe; telefone único por negócio, 409 se repetir). Não há excluir cliente.
 Treinar a Lia (migration 015, tabela `assistant_rules`, feito em 2026-10-20): tela "Treinar a Lia" com
 (1) primeiros passos com barra de progresso (serviços, quem faz o quê, horários, endereço/WhatsApp do

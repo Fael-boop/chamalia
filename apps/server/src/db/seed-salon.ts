@@ -70,13 +70,26 @@ try {
         businessType: "beauty_salon",
         assistantName: "Lia",
         ownerName: "Bella",
-        address: "Rua das Flores, 120 - Centro",
+        address: "Rua das Flores, 120",
+        addressNeighborhood: "Centro",
+        addressCity: "São Paulo - SP",
         extraInfo: "Aceitamos Pix, débito e crédito.\nAtraso de mais de 15 minutos precisa remarcar.",
         minNoticeMinutes: 60,
       })}
       returning id
     `;
     const tenantId = tenant!.id;
+
+    await tx`
+      insert into faq_entries ${tx(
+        [
+          { question: "Tem estacionamento?", answer: "Temos sim! Estacionamento conveniado na rua de trás, com 1 hora grátis." },
+          { question: "Aceita cartão parcelado?", answer: "Aceitamos crédito em até 3x sem juros, débito e Pix." },
+          { question: "Atende crianças?", answer: "Atendemos sim, corte infantil a partir de 4 anos, sempre com um responsável junto." },
+        ].map((f) => ({ tenantId, ...f })),
+        "tenantId", "question", "answer",
+      )}
+    `;
 
     const services = await tx<{ id: string; name: string }[]>`
       insert into services ${tx(

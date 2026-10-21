@@ -287,7 +287,7 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
           <Textarea
             className="max-h-32 min-h-11 flex-1 resize-none py-2.5 leading-snug"
             rows={1}
-            placeholder="Escreva como a cliente… (Shift+Enter quebra a linha)"
+            placeholder={mobile ? "Escreva como a cliente…" : "Escreva como a cliente… (Shift+Enter quebra a linha)"}
             value={draft}
             disabled={!validPhone}
             onChange={(e) => setDraft(e.target.value)}
