@@ -133,15 +133,27 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
                   {user.active ? "Liberado" : "Bloqueado"}
                   <Switch checked={user.active} onCheckedChange={(active) => patch.mutate({ user, body: { active } })} />
                 </label>
-                <ConfirmDelete
-                  title={`Excluir o acesso de ${user.name}?`}
-                  description={`O usuário "${user.login}" para de funcionar na hora. Os dados do negócio não mudam.`}
-                  onConfirm={() => remove.mutate(user)}
-                >
-                  <Button variant="ghost" size="icon" aria-label={`Excluir acesso ${user.login}`} className="text-muted-foreground hover:text-destructive">
+                {users.data!.length > 1 ? (
+                  <ConfirmDelete
+                    title={`Excluir o acesso de ${user.name}?`}
+                    description={`O usuário "${user.login}" para de funcionar na hora. Os dados do negócio não mudam.`}
+                    onConfirm={() => remove.mutate(user)}
+                  >
+                    <Button variant="ghost" size="icon" aria-label={`Excluir acesso ${user.login}`} className="text-muted-foreground hover:text-destructive">
+                      <Trash2 />
+                    </Button>
+                  </ConfirmDelete>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Excluir acesso ${user.login}`}
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => toast.error("O negócio precisa ter pelo menos 1 acesso. Crie outro antes de excluir este.")}
+                  >
                     <Trash2 />
                   </Button>
-                </ConfirmDelete>
+                )}
               </li>
             ))}
           </ul>
