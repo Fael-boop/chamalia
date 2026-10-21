@@ -60,4 +60,11 @@ export function registerUserRoutes(app: FastifyInstance, sql: Sql) {
     `;
     return user ?? reply.code(404).send({ error: "not_found" });
   });
+
+  // Open sessions of a deleted user stop working on the next request (auth.ts looks the user up).
+  app.delete("/api/tenants/:tenantId/users/:id", adminOnly, async (request, reply) => {
+    const { tenantId, id } = itemParams.parse(request.params);
+    const [user] = await sql`delete from tenant_users where tenant_id = ${tenantId} and id = ${id} returning id`;
+    return user ? reply.code(204).send() : reply.code(404).send({ error: "not_found" });
+  });
 }

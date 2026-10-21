@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, KeyRound, RefreshCw } from "lucide-react";
+import { Copy, KeyRound, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { api, type Tenant, type TenantUser } from "@/api";
+import { ConfirmDelete } from "@/components/confirm-delete";
 import { Hint, PageHeader } from "@/components/page-header";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,13 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
     onSettled: refresh,
   });
 
+  const remove = useMutation({
+    mutationFn: (user: TenantUser) => api(`/tenants/${tenant.id}/users/${user.id}`, { method: "DELETE" }),
+    onSuccess: () => toast.success("Acesso excluído"),
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: refresh,
+  });
+
   const message = created ? `Endereço: ${window.location.origin}\nUsuário: ${created.login}\nSenha: ${created.password}` : "";
 
   return (
@@ -125,6 +133,15 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
                   {user.active ? "Liberado" : "Bloqueado"}
                   <Switch checked={user.active} onCheckedChange={(active) => patch.mutate({ user, body: { active } })} />
                 </label>
+                <ConfirmDelete
+                  title={`Excluir o acesso de ${user.name}?`}
+                  description={`O usuário "${user.login}" para de funcionar na hora. Os dados do negócio não mudam.`}
+                  onConfirm={() => remove.mutate(user)}
+                >
+                  <Button variant="ghost" size="icon" aria-label={`Excluir acesso ${user.login}`} className="text-muted-foreground hover:text-destructive">
+                    <Trash2 />
+                  </Button>
+                </ConfirmDelete>
               </li>
             ))}
           </ul>
