@@ -46,14 +46,14 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["users", tenant.id] });
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { name: tenant.ownerName ?? "", login: suggestLogin(tenant), password: generatePassword() },
+    defaultValues: { name: tenant.ownerName ?? "", login: suggestLogin(tenant), password: "" },
   });
 
   const create = useMutation({
     mutationFn: (v: z.infer<typeof schema>) => api(`/tenants/${tenant.id}/users`, { method: "POST", body: v }),
     onSuccess: (_d, v) => {
       setCreated({ login: v.login, password: v.password });
-      form.setValue("password", generatePassword());
+      form.reset({ name: "", login: "", password: "" });
       toast.success("Acesso criado");
     },
     onError: (e) => toast.error((e as Error).message),
@@ -135,14 +135,14 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
         <div className="mb-3 text-sm font-semibold">Novo acesso</div>
         <Form {...form}>
           <form className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end" onSubmit={form.handleSubmit((v) => create.mutate(v))}>
-            {(["name", "login", "password"] as const).map((name) => (
+            {(["name", "login"] as const).map((name) => (
               <FormField
                 key={name}
                 control={form.control}
                 name={name}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{{ name: "Nome", login: "Usuário", password: "Senha" }[name]}</FormLabel>
+                    <FormLabel>{{ name: "Nome", login: "Usuário" }[name]}</FormLabel>
                     <FormControl>
                       <Input autoCapitalize="none" {...field} />
                     </FormControl>
@@ -151,6 +151,24 @@ export function AccessPage({ tenant }: { tenant: Tenant }) {
                 )}
               />
             ))}
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Senha</FormLabel>
+                  <div className="flex gap-2">
+                    <FormControl>
+                      <Input autoCapitalize="none" autoComplete="new-password" placeholder="Digite ou gere" {...field} />
+                    </FormControl>
+                    <Button type="button" variant="outline" onClick={() => form.setValue("password", generatePassword(), { shouldValidate: true })}>
+                      <RefreshCw /> Gerar
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <Button type="submit" disabled={create.isPending}>
               Criar acesso
             </Button>
