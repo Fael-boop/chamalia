@@ -3,7 +3,7 @@ import type { FastifyBaseLogger } from "fastify";
 import type { Channel } from "../channels/channel.js";
 import type { Sql } from "../db/client.js";
 import { KeyedLock } from "../lib/keyed-lock.js";
-import { withCountryCode } from "../lib/phone.js";
+import { samePhone } from "../lib/phone.js";
 import { formatDateTimePtBr } from "../lib/time.js";
 import { nicheForPrompt } from "../tenants/niches.js";
 import type { PendingReminder } from "../reminders/reminders.js";
@@ -373,13 +373,12 @@ async function handleTeamDone(
   const match = TEAM_DONE.exec(message.text);
   if (!match) return false;
   const { sql, log } = deps;
-  const from = withCountryCode(message.fromPhone);
   const professionals = await sql<{ name: string; notifyPhone: string }[]>`
     select name, notify_phone from professionals
     where tenant_id = ${tenant.id} and active and archived_at is null and notify_phone is not null
   `;
-  const isOwner = Boolean(tenant.ownerPhone) && withCountryCode(tenant.ownerPhone!) === from;
-  const person = professionals.find((p) => withCountryCode(p.notifyPhone) === from);
+  const isOwner = Boolean(tenant.ownerPhone) && samePhone(tenant.ownerPhone!, message.fromPhone);
+  const person = professionals.find((p) => samePhone(p.notifyPhone, message.fromPhone));
   if (!isOwner && !person) return false;
 
   const open = await sql<{ id: string; context: ConversationContext; name: string | null }[]>`

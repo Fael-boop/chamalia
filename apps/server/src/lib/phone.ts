@@ -15,6 +15,18 @@ export function withCountryCode(value: string): string {
   return digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
 }
 
+/**
+ * Same WhatsApp number? Brazilian mobiles may come with or without the extra 9
+ * after the area code (older accounts keep "55 62 8888-7777" style JIDs).
+ */
+export function samePhone(a: string, b: string): boolean {
+  const canonical = (value: string) => {
+    const digits = withCountryCode(value);
+    return digits.length === 13 && digits.startsWith("55") && digits[4] === "9" ? digits.slice(0, 4) + digits.slice(5) : digits;
+  };
+  return canonical(a) === canonical(b);
+}
+
 /** Masks every phone-like run of digits inside free text (error messages, stacks). */
 export function maskPhonesInText(text: string): string {
   return text.replace(/\d{8,}/g, (digits) => maskPhone(digits));

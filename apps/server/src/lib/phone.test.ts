@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maskPhone, maskPhonesInText, normalizePhone, withCountryCode } from "./phone.js";
+import { maskPhone, maskPhonesInText, normalizePhone, samePhone, withCountryCode } from "./phone.js";
 
 describe("normalizePhone", () => {
   it("strips formatting and WhatsApp JID suffix", () => {
@@ -35,5 +35,14 @@ describe("maskPhonesInText", () => {
   it("masks numbers quoted inside provider errors", () => {
     expect(maskPhonesInText('{"jid":"11988887777@s.whatsapp.net"}')).toBe('{"jid":"1198***7777@s.whatsapp.net"}');
     expect(maskPhonesInText("Evolution POST /message/sendText/x: 400")).toBe("Evolution POST /message/sendText/x: 400");
+  });
+});
+
+describe("samePhone", () => {
+  it("treats Brazilian mobiles with and without the extra 9 as the same number", () => {
+    expect(samePhone("5562988887777", "556288887777")).toBe(true);
+    expect(samePhone("(62) 98888-7777", "556288887777@s.whatsapp.net".split("@")[0]!)).toBe(true);
+    expect(samePhone("5562988887777", "5562988886666")).toBe(false);
+    expect(samePhone("551133334444", "5511933334444")).toBe(true);
   });
 });
