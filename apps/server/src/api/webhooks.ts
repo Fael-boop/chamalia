@@ -8,9 +8,11 @@ type EvolutionMessage = {
   key?: { remoteJid?: string; remoteJidAlt?: string; fromMe?: boolean; id?: string };
   message?: {
     conversation?: string;
-    extendedTextMessage?: { text?: string };
+    extendedTextMessage?: { text?: string; contextInfo?: { stanzaId?: string } };
     [type: string]: unknown;
   };
+  /** Evolution v2 also copies the reply info here. */
+  contextInfo?: { stanzaId?: string };
   messageType?: string;
 };
 
@@ -30,6 +32,11 @@ export function customerJid(key: NonNullable<EvolutionMessage["key"]>): string |
 export function messageText(data: EvolutionMessage): string | undefined {
   const text = data.message?.conversation ?? data.message?.extendedTextMessage?.text;
   return text?.trim() || undefined;
+}
+
+/** Id of the message this one replies to (WhatsApp "Responder"), if any. */
+export function quotedMessageId(data: EvolutionMessage): string | undefined {
+  return data.message?.extendedTextMessage?.contextInfo?.stanzaId ?? data.contextInfo?.stanzaId ?? undefined;
 }
 
 export function registerWebhookRoutes(
@@ -81,6 +88,7 @@ export function registerWebhookRoutes(
             fromPhone: phone,
             text: text ?? `[${data.messageType ?? "mídia"}]`,
             providerMessageId,
+            quotedMessageId: quotedMessageId(data),
             unsupported: !text,
           });
         }

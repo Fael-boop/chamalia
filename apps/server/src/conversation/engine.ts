@@ -20,6 +20,8 @@ export type IncomingMessage = {
   providerMessageId: string;
   /** Audio, image, sticker...: stored as-is, answered with a fixed message. */
   unsupported?: boolean;
+  /** The message this one replies to (WhatsApp "Responder"). */
+  quotedMessageId?: string;
 };
 
 export type EngineDeps = {
@@ -47,6 +49,8 @@ type ConversationContext = {
   handoffAt?: string;
   /** Sent in the handoff notice; "RESOLVIDO <code>" from the team gives the conversation back. */
   handoffCode?: string;
+  /** WhatsApp ids of the handoff notices; replying "RESOLVIDO" to one of them closes this conversation. */
+  handoffNoticeIds?: string[];
   /** Last time someone from the team wrote in this conversation. */
   teamLastAt?: string;
   /** The conversation came back from the team: by the panel button, or by itself after silence. */
@@ -204,11 +208,17 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     await sql`update conversations set last_message_at = now() where id = ${conversation.id}`;
   }
 
+  const noticeIds: string[] = [];
   for (const notice of ctx.ownerNotices) {
-    if (tenant.ownerPhone) await safeSend(channel, log, tenant.id, tenant.ownerPhone, notice);
+    if (tenant.ownerPhone) noticeIds.push((await safeSend(channel, log, tenant.id, tenant.ownerPhone, notice)) ?? "");
     else log.warn({ tenantId: tenant.id }, "owner phone not set; notification not sent");
   }
-  for (const notice of ctx.teamNotices) await safeSend(channel, log, tenant.id, notice.phone, notice.text);
+  for (const notice of ctx.teamNotices) noticeIds.push((await safeSend(channel, log, tenant.id, notice.phone, notice.text)) ?? "");
+  // Lets the team close this exact conversation by replying to its notice.
+  const sentIds = noticeIds.filter(Boolean);
+  if (ctx.handoffReason && sentIds.length) {
+    await sql`update conversations set context = context || ${sql.json({ handoffNoticeIds: sentIds })} where id = ${conversation.id}`;
+  }
   return {
     reply,
     ownerNotices: [...ctx.ownerNotices, ...ctx.teamNotices.map((notice) => `[Para ${notice.name}] ${notice.text}`)],
@@ -388,13 +398,19 @@ async function handleTeamDone(
     order by c.last_message_at desc
   `;
   const code = match[2];
-  // With a code: that conversation. Without: the only one with this person (the owner sees all).
-  const candidates = code
-    ? open.filter((c) => c.context.handoffCode === code)
-    : open.filter((c) => isOwner || c.context.handoffTo === person!.name);
+  const quoted = message.quotedMessageId;
+  // A reply to a notice: that conversation. A code: that one. Otherwise the only one
+  // with this person (the owner sees all).
+  const candidates = quoted
+    ? open.filter((c) => c.context.handoffNoticeIds?.includes(quoted))
+    : code
+      ? open.filter((c) => c.context.handoffCode === code)
+      : open.filter((c) => isOwner || c.context.handoffTo === person!.name);
 
   let answer: string;
-  if (candidates.length === 1) {
+  if (quoted && candidates.length === 0) {
+    answer = "Não achei atendimento aberto para essa mensagem. Ele pode já ter sido resolvido.";
+  } else if (candidates.length === 1) {
     const target = candidates[0]!;
     await releaseToAssistant(sql, tenant.id, target.id);
     answer = `Pronto! A ${tenant.assistantName} voltou a atender ${target.name ?? "esse cliente"}.`;
@@ -405,7 +421,7 @@ async function handleTeamDone(
       : "Não há nenhum atendimento aberto com você agora.";
   } else {
     answer =
-      "Há mais de um atendimento aberto. Responda com o código do aviso, por exemplo:\n" +
+      "Há mais de um atendimento aberto. Toque e segure o aviso do cliente, escolha Responder e escreva RESOLVIDO. Ou mande o código:\n" +
       candidates
         .slice(0, 5)
         .map((c) => `*RESOLVIDO ${c.context.handoffCode ?? "????"}* - ${c.name ?? "cliente sem nome"}`)

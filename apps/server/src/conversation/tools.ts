@@ -396,7 +396,7 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
     const code = String(1000 + Math.floor(Math.random() * 9000));
     const notice =
       `A ${ctx.tenant.assistantName} passou uma conversa para você responder.\nCliente: ${customerLabel(ctx)}\nPedido: ${input.reason}` +
-      `\n\nQuando resolver, responda aqui *RESOLVIDO ${code}* e a ${ctx.tenant.assistantName} volta a atender esse cliente.`;
+      `\n\nQuando resolver, responda esta mensagem com *RESOLVIDO* (ou mande *RESOLVIDO ${code}*) e a ${ctx.tenant.assistantName} volta a atender esse cliente.`;
     ctx.handoffReason = input.reason;
     ctx.handoffCode = code;
     if (person) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customerJid, messageText } from "./webhooks.js";
+import { customerJid, messageText, quotedMessageId } from "./webhooks.js";
 
 describe("Evolution webhook parsing", () => {
   it("uses the phone JID, also when WhatsApp addresses the chat by LID", () => {
@@ -18,5 +18,11 @@ describe("Evolution webhook parsing", () => {
     expect(messageText({ message: { conversation: " oi " } })).toBe("oi");
     expect(messageText({ message: { extendedTextMessage: { text: "link aqui" } } })).toBe("link aqui");
     expect(messageText({ message: { audioMessage: {} }, messageType: "audioMessage" })).toBeUndefined();
+  });
+
+  it("reads which message a reply quotes", () => {
+    expect(quotedMessageId({ message: { extendedTextMessage: { text: "resolvido", contextInfo: { stanzaId: "ABC" } } } })).toBe("ABC");
+    expect(quotedMessageId({ message: { conversation: "resolvido" }, contextInfo: { stanzaId: "XYZ" } })).toBe("XYZ");
+    expect(quotedMessageId({ message: { conversation: "resolvido" } })).toBeUndefined();
   });
 });
