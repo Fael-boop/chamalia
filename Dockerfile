@@ -1,13 +1,18 @@
 # Builds the bot (apps/server) and the panel (apps/panel) into one image.
+# The landing page (apps/site) is not in it: it is hosted on Cloudflare Pages.
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/
 COPY apps/panel/package.json apps/panel/
+COPY apps/site/package.json apps/site/
 RUN npm ci
 COPY tsconfig.base.json ./
-COPY apps apps
-RUN npm run build && npm prune --omit=dev
+# The panel imports its colours from brand/palette.css.
+COPY brand brand
+COPY apps/server apps/server
+COPY apps/panel apps/panel
+RUN npm run build -w @chamalia/server -w @chamalia/panel && npm prune --omit=dev
 
 FROM node:22-alpine
 ENV NODE_ENV=production TZ=America/Sao_Paulo

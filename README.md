@@ -33,5 +33,4 @@ docker compose up -d --build
 ```
 
 Sobe Postgres, Redis, Evolution API e o bot. Bot e Evolution ficam acessíveis só
-no próprio VPS (`127.0.0.1`); a exposição pública via proxy com HTTPS será
-documentada no passo a passo de onboarding.
+no próprio VPS (`127.0.0.1`). Passo a passo completo, com Easypanel e HTTPS: [docs/DEPLOY.md](docs/DEPLOY.md).

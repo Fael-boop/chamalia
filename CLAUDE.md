@@ -89,7 +89,7 @@ Fonte principal: doc da Meta "Onboard WhatsApp Business app users" (Embedded Sig
 - WhatsApp: Evolution API self-hosted (`evoapicloud/evolution-api:v2.3.7`) para demo e prospecção,
   atrás de uma abstração que permite trocar pela WhatsApp Cloud API oficial da Meta.
 - IA: `@anthropic-ai/sdk`, modelo `claude-haiku-5-5` na conversa, chave em `ANTHROPIC_API_KEY`.
-- Deploy: `docker compose` (Postgres + Redis + Evolution + bot) num VPS. Ainda não há VPS.
+- Deploy: VPS Hostinger KVM 2 (Brasil, Ubuntu 24.04 + Easypanel; comprada em 2026-10-23, aguardando IP). Guia em `docs/DEPLOY.md`. Easypanel usa a porta 3000 do host, então lá o app roda como app do Easypanel (Dockerfile do repo, rede interna); o `docker-compose.yml` (Postgres + Redis + Evolution + bot) serve para outro servidor sem Easypanel. Dockerfile corrigido em 2026-10-23: copia `brand/` (o painel importa a paleta) e compila só server + painel; imagem testada (sobe, serve o painel, recusa /api sem login).
   Dev local no Windows: bot e painel com npm; Evolution no Docker Desktop (`docker-compose.dev.yml`),
   chamando o bot em `host.docker.internal:3000`.
 
