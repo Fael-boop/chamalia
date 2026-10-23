@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maskPhone, normalizePhone, withCountryCode } from "./phone.js";
+import { maskPhone, maskPhonesInText, normalizePhone, withCountryCode } from "./phone.js";
 
 describe("normalizePhone", () => {
   it("strips formatting and WhatsApp JID suffix", () => {
@@ -28,5 +28,12 @@ describe("withCountryCode", () => {
 
   it("keeps numbers that already have a country code", () => {
     expect(withCountryCode("+55 11 98888-7777")).toBe("5511988887777");
+  });
+});
+
+describe("maskPhonesInText", () => {
+  it("masks numbers quoted inside provider errors", () => {
+    expect(maskPhonesInText('{"jid":"11988887777@s.whatsapp.net"}')).toBe('{"jid":"1198***7777@s.whatsapp.net"}');
+    expect(maskPhonesInText("Evolution POST /message/sendText/x: 400")).toBe("Evolution POST /message/sendText/x: 400");
   });
 });

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { EvolutionError } from "../channels/evolution.js";
 import { connectTenantWhatsapp, syncConnectedNumber, type WhatsappSetup } from "../channels/evolution-setup.js";
 import type { Sql } from "../db/client.js";
+import { withCountryCode } from "../lib/phone.js";
 import { isOwner } from "./auth.js";
 import { getTenant, TENANT_COLUMNS, type Tenant } from "../scheduling/service.js";
 import { getNicheBySlug } from "../tenants/niches.js";
@@ -10,7 +11,8 @@ import { getNicheBySlug } from "../tenants/niches.js";
 const uuid = z.string().uuid();
 const phone = z
   .string()
-  .transform((value) => value.replace(/\D/g, ""))
+  // A Brazilian number typed without 55 gets it, so WhatsApp notices reach it.
+  .transform(withCountryCode)
   .pipe(z.string().regex(/^\d{10,15}$/, "telefone com DDI e DDD, só números"));
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "horário no formato HH:MM");
 const optionalText = (max: number) =>

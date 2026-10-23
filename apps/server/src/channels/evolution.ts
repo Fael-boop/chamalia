@@ -1,3 +1,4 @@
+import { maskPhonesInText, withCountryCode } from "../lib/phone.js";
 import type { Channel, OutgoingFile } from "./channel.js";
 
 export class EvolutionError extends Error {
@@ -26,7 +27,9 @@ export class EvolutionClient {
       signal: AbortSignal.timeout(30_000),
     });
     const text = await response.text();
-    if (!response.ok) throw new EvolutionError(response.status, `Evolution ${method} ${path}: ${response.status} ${text.slice(0, 300)}`);
+    if (!response.ok) {
+      throw new EvolutionError(response.status, maskPhonesInText(`Evolution ${method} ${path}: ${response.status} ${text.slice(0, 300)}`));
+    }
     return (text ? JSON.parse(text) : {}) as T;
   }
 
@@ -100,7 +103,8 @@ export class EvolutionClient {
 
   async sendFile(instance: string, toPhone: string, file: OutgoingFile): Promise<string | undefined> {
     const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendMedia/${instance}`, {
-      number: toPhone,
+      // Team numbers typed in the panel may lack the 55; WhatsApp then reads them as another country.
+      number: withCountryCode(toPhone),
       mediatype: file.mime.startsWith("image/") ? "image" : "document",
       mimetype: file.mime,
       fileName: file.name,
@@ -112,7 +116,7 @@ export class EvolutionClient {
 
   async sendText(instance: string, toPhone: string, text: string): Promise<string | undefined> {
     const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendText/${instance}`, {
-      number: toPhone,
+      number: withCountryCode(toPhone),
       text,
     });
     return result.key?.id;

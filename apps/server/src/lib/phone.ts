@@ -15,6 +15,11 @@ export function withCountryCode(value: string): string {
   return digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
 }
 
+/** Masks every phone-like run of digits inside free text (error messages, stacks). */
+export function maskPhonesInText(text: string): string {
+  return text.replace(/\d{8,}/g, (digits) => maskPhone(digits));
+}
+
 /**
  * Phone numbers must never be logged in full. Keeps the country/area prefix
  * and the last 4 digits: "5511987654321" -> "5511*****4321".
