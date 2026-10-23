@@ -27,6 +27,8 @@ export type ToolContext = {
   handoffReason?: string;
   /** Who got it (name), for the panel. */
   handoffTo?: string;
+  /** Short number the team replies with ("RESOLVIDO 1234") to give the conversation back. */
+  handoffCode?: string;
 };
 
 const date = z.string().refine(isValidDate, "use o formato AAAA-MM-DD");
@@ -391,11 +393,15 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
 
   async transfer_to_owner(ctx, input) {
     const person = await handoffTarget(ctx, input);
-    const notice = `A ${ctx.tenant.assistantName} passou uma conversa para você responder.\nCliente: ${customerLabel(ctx)}\nPedido: ${input.reason}`;
+    const code = String(1000 + Math.floor(Math.random() * 9000));
+    const notice =
+      `A ${ctx.tenant.assistantName} passou uma conversa para você responder.\nCliente: ${customerLabel(ctx)}\nPedido: ${input.reason}` +
+      `\n\nQuando resolver, responda aqui *RESOLVIDO ${code}* e a ${ctx.tenant.assistantName} volta a atender esse cliente.`;
     ctx.handoffReason = input.reason;
+    ctx.handoffCode = code;
     if (person) {
       ctx.handoffTo = person.name;
-      ctx.teamNotices.push({ name: person.name, phone: person.notifyPhone, text: `${notice}\nResponda pelo WhatsApp do salão.` });
+      ctx.teamNotices.push({ name: person.name, phone: person.notifyPhone, text: `${notice}\nPara falar com o cliente, use o WhatsApp do salão.` });
     } else {
       ctx.handoffTo = ctx.tenant.ownerName ?? "equipe";
       ctx.ownerNotices.push(notice);

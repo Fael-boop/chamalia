@@ -3,6 +3,7 @@ import type { FastifyBaseLogger } from "fastify";
 import type { Channel } from "../channels/channel.js";
 import type { Sql } from "../db/client.js";
 import { KeyedLock } from "../lib/keyed-lock.js";
+import { withCountryCode } from "../lib/phone.js";
 import { formatDateTimePtBr } from "../lib/time.js";
 import { nicheForPrompt } from "../tenants/niches.js";
 import type { PendingReminder } from "../reminders/reminders.js";
@@ -44,6 +45,8 @@ type ConversationContext = {
   handoffReason?: string;
   handoffTo?: string;
   handoffAt?: string;
+  /** Sent in the handoff notice; "RESOLVIDO <code>" from the team gives the conversation back. */
+  handoffCode?: string;
   /** Last time someone from the team wrote in this conversation. */
   teamLastAt?: string;
   /** The conversation came back from the team: by the panel button, or by itself after silence. */
@@ -89,10 +92,25 @@ async function upsertConversation(sql: Sql, tenantId: string, phone: string) {
   return { customer: customer!, conversation: conversation! };
 }
 
+/**
+ * Ids of messages we sent that are not stored (team notices). Their echo comes
+ * back as fromMe and must not look like the team taking over that chat.
+ */
+const sentByUs = new Map<string, number>();
+const SENT_BY_US_TTL_MS = 10 * 60_000;
+function rememberSent(id: string | null | undefined) {
+  if (!id) return;
+  const now = Date.now();
+  for (const [key, at] of sentByUs) if (now - at > SENT_BY_US_TTL_MS) sentByUs.delete(key);
+  sentByUs.set(id, now);
+}
+
 /** Sends through the channel; a failure is logged and does not lose the stored message. */
 async function safeSend(channel: Channel, log: FastifyBaseLogger, tenantId: string, to: string, text: string) {
   try {
-    return (await channel.sendText(to, text)).providerMessageId ?? null;
+    const id = (await channel.sendText(to, text)).providerMessageId ?? null;
+    rememberSent(id);
+    return id;
   } catch (error) {
     log.error({ err: error, tenantId, to, channel: channel.name }, "failed to send message");
     return null;
@@ -114,6 +132,10 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
   if (!tenant?.active) {
     log.warn({ tenantId: message.tenantId }, "message for unknown or inactive tenant ignored");
     return;
+  }
+
+  if (!message.unsupported && (await handleTeamDone(deps, channel, tenant, message))) {
+    return { reply: null, ownerNotices: [], ownerPhoneMissing: !tenant.ownerPhone, withOwner: false };
   }
 
   const { customer, conversation } = await upsertConversation(sql, tenant.id, message.fromPhone);
@@ -168,7 +190,12 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
   `;
   if (ctx.priceTable) await sendPriceTable(deps, channel, conversation.id, tenant.id, message.fromPhone, ctx.priceTable);
   if (ctx.handoffReason) {
-    const context = { handoffReason: ctx.handoffReason, handoffTo: ctx.handoffTo, handoffAt: new Date().toISOString() };
+    const context = {
+      handoffReason: ctx.handoffReason,
+      handoffTo: ctx.handoffTo,
+      handoffCode: ctx.handoffCode,
+      handoffAt: new Date().toISOString(),
+    };
     await sql`
       update conversations set state = ${HUMAN_STATE}, context = ${sql.json(context)}, last_message_at = now()
       where id = ${conversation.id}
@@ -228,6 +255,7 @@ export async function handleOwnerMessage(
 ) {
   const { sql, log } = deps;
   return lock.run(`${message.tenantId}:${message.toPhone}`, async () => {
+    if (sentByUs.has(message.providerMessageId)) return;
     const [echo] = await sql`
       select 1 from messages where tenant_id = ${message.tenantId} and provider_message_id = ${message.providerMessageId}
     `;
@@ -325,6 +353,67 @@ async function answerReminder(
     if (error instanceof SchedulingError) return null; // already cancelled or gone: just talk
     throw error;
   }
+}
+
+/** "RESOLVIDO 1234", "fim", "finalizar"...; the code is optional. */
+const TEAM_DONE = /^[\s*_]*(resolvido|resolvida|fim|finalizar|finalizado|finalizada|encerrar|encerrado|encerrada)[\s*_.!]*(\d{4})?[\s*_.!]*$/i;
+
+/**
+ * Someone from the team (owner or a professional with a notice number) answers
+ * a handoff notice with "RESOLVIDO 1234": the conversation goes back to the
+ * assistant. Returns false when the message is not that, so it is handled as a
+ * normal customer message.
+ */
+async function handleTeamDone(
+  deps: EngineDeps,
+  channel: Channel,
+  tenant: { id: string; ownerPhone: string | null; assistantName: string },
+  message: IncomingMessage,
+): Promise<boolean> {
+  const match = TEAM_DONE.exec(message.text);
+  if (!match) return false;
+  const { sql, log } = deps;
+  const from = withCountryCode(message.fromPhone);
+  const professionals = await sql<{ name: string; notifyPhone: string }[]>`
+    select name, notify_phone from professionals
+    where tenant_id = ${tenant.id} and active and archived_at is null and notify_phone is not null
+  `;
+  const isOwner = Boolean(tenant.ownerPhone) && withCountryCode(tenant.ownerPhone!) === from;
+  const person = professionals.find((p) => withCountryCode(p.notifyPhone) === from);
+  if (!isOwner && !person) return false;
+
+  const open = await sql<{ id: string; context: ConversationContext; name: string | null }[]>`
+    select c.id, c.context, cu.name
+    from conversations c join customers cu on cu.id = c.customer_id and cu.tenant_id = c.tenant_id
+    where c.tenant_id = ${tenant.id} and c.state = ${HUMAN_STATE}
+    order by c.last_message_at desc
+  `;
+  const code = match[2];
+  // With a code: that conversation. Without: the only one with this person (the owner sees all).
+  const candidates = code
+    ? open.filter((c) => c.context.handoffCode === code)
+    : open.filter((c) => isOwner || c.context.handoffTo === person!.name);
+
+  let answer: string;
+  if (candidates.length === 1) {
+    const target = candidates[0]!;
+    await releaseToAssistant(sql, tenant.id, target.id);
+    answer = `Pronto! A ${tenant.assistantName} voltou a atender ${target.name ?? "esse cliente"}.`;
+    log.info({ tenantId: tenant.id }, "team marked a handoff as resolved; assistant is back");
+  } else if (candidates.length === 0) {
+    answer = code
+      ? `Não achei atendimento aberto com o código ${code}. Ele pode já ter sido resolvido.`
+      : "Não há nenhum atendimento aberto com você agora.";
+  } else {
+    answer =
+      "Há mais de um atendimento aberto. Responda com o código do aviso, por exemplo:\n" +
+      candidates
+        .slice(0, 5)
+        .map((c) => `*RESOLVIDO ${c.context.handoffCode ?? "????"}* - ${c.name ?? "cliente sem nome"}`)
+        .join("\n");
+  }
+  await safeSend(channel, log, tenant.id, message.fromPhone, answer);
+  return true;
 }
 
 /** Gives a conversation back to the assistant after the owner handled it. */
