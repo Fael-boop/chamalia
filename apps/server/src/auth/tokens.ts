@@ -11,6 +11,8 @@ export type SessionInput =
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LIFETIME_MS = { admin: 7 * DAY_MS, owner: 30 * DAY_MS };
+/** Without "lembrar de mim": one working day, and the panel keeps the token only until the browser closes. */
+export const SHORT_SESSION_MS = 12 * 60 * 60 * 1000;
 
 const encode = (value: string | Buffer) => Buffer.from(value).toString("base64url");
 
@@ -18,8 +20,8 @@ const encode = (value: string | Buffer) => Buffer.from(value).toString("base64ur
  * Signed, self-contained session token: "<payload>.<hmac>". The panel keeps it
  * and sends it as `Authorization: Bearer <token>`.
  */
-export function signSession(input: SessionInput, secret: string, now = Date.now()): string {
-  const session = { ...input, issuedAt: now, expiresAt: now + LIFETIME_MS[input.role] } as Session;
+export function signSession(input: SessionInput, secret: string, now = Date.now(), lifetimeMs = LIFETIME_MS[input.role]): string {
+  const session = { ...input, issuedAt: now, expiresAt: now + lifetimeMs } as Session;
   const payload = encode(JSON.stringify(session));
   return `${payload}.${encode(createHmac("sha256", secret).update(payload).digest())}`;
 }

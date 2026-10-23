@@ -74,8 +74,8 @@ export function App() {
   if (authState === "login") {
     return (
       <LoginPage
-        onLoggedIn={(token) => {
-          setToken(token);
+        onLoggedIn={(token, remember) => {
+          setToken(token, remember);
           setAuthState("checking");
           void checkSession();
         }}

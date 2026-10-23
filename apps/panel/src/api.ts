@@ -2,16 +2,21 @@ const TOKEN_KEY = "chamalia.adminToken";
 
 export function getToken(): string {
   try {
-    return localStorage.getItem(TOKEN_KEY) ?? "";
+    return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY) ?? "";
   } catch {
     return "";
   }
 }
 
-export function setToken(token: string) {
+/**
+ * "Lembrar de mim" keeps the session in localStorage (survives closing the browser);
+ * otherwise it lives in sessionStorage and ends with the tab. An empty token logs out of both.
+ */
+export function setToken(token: string, remember = true) {
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    if (token) (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
   } catch {
     // Storage blocked: the user will need to log in again on reload.
   }

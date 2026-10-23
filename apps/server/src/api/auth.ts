@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { verifyPassword } from "../auth/passwords.js";
-import { signSession, verifySession, type Session } from "../auth/tokens.js";
+import { SHORT_SESSION_MS, signSession, verifySession, type Session } from "../auth/tokens.js";
 import type { Sql } from "../db/client.js";
 
 declare module "fastify" {
@@ -54,7 +54,11 @@ export function registerAuth(
   }
 
   app.post("/api/auth/login", async (request, reply) => {
-    const body = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(request.body);
+    const body = z
+      .object({ login: z.string().trim().toLowerCase(), password: z.string(), remember: z.boolean().optional() })
+      .parse(request.body);
+    // "Lembrar de mim" off: a short session; on (or an old client that does not send it): the full one.
+    const lifetime = body.remember === false ? SHORT_SESSION_MS : undefined;
     const key = `${request.ip}|${body.login}`;
     if (blocked(key)) {
       return reply.code(429).send({ error: "too_many_attempts", message: "Muitas senhas erradas. Tente de novo em 1 minuto." });
@@ -67,7 +71,7 @@ export function registerAuth(
     if (body.login === ADMIN_LOGIN) {
       if (adminPassword && !sameText(body.password, adminPassword)) return invalid();
       failures.delete(key);
-      return { token: signSession({ role: "admin" }, sessionSecret), role: "admin" };
+      return { token: signSession({ role: "admin" }, sessionSecret, Date.now(), lifetime), role: "admin" };
     }
 
     if (!sql) return invalid();
@@ -81,7 +85,7 @@ export function registerAuth(
     failures.delete(key);
     await sql`update tenant_users set last_login_at = now() where id = ${user.id}`;
     return {
-      token: signSession({ role: "owner", tenantId: user.tenantId, userId: user.id }, sessionSecret),
+      token: signSession({ role: "owner", tenantId: user.tenantId, userId: user.id }, sessionSecret, Date.now(), lifetime),
       role: "owner",
       tenantId: user.tenantId,
       name: user.name,
