@@ -144,34 +144,41 @@ export function HandoffNotice({ className = "" }: { className?: string }) {
   );
 }
 
-const DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
-const HOURS: Record<string, string[]> = {
-  Ana: ["9–18", "9–18", "9–18", "9–18", "9–18", "9–13"],
-  Carla: ["—", "13–19", "13–19", "13–19", "13–19", "9–15"],
-};
+const HOURS: { name: string; days: { when: string; hours: string; off?: boolean }[] }[] = [
+  {
+    name: "Ana",
+    days: [
+      { when: "Seg a Sex", hours: "9h às 18h" },
+      { when: "Sábado", hours: "9h às 13h" },
+    ],
+  },
+  {
+    name: "Carla",
+    days: [
+      { when: "Ter a Sex", hours: "13h às 19h" },
+      { when: "Sábado", hours: "9h às 15h" },
+      { when: "Segunda", hours: "folga", off: true },
+    ],
+  },
+];
 
-/** Each professional with her own days and hours. */
+/** Each professional with her own days and hours, one readable line per stretch of days. */
 export function HoursTable({ className = "" }: { className?: string }) {
   return (
-    <div data-ui className={`${frame} w-full max-w-[420px] p-3 text-[14px] ${className}`}>
-      <div className="grid grid-cols-[3.5rem_repeat(6,1fr)] gap-1">
-        <span />
-        {DAYS.map((day) => (
-          <span key={day} className="py-1.5 text-center text-graphite-300">
-            {day}
-          </span>
-        ))}
-        {Object.entries(HOURS).map(([name, slots]) => (
-          <div key={name} className="contents">
-            <span className="flex items-center font-semibold">{name}</span>
-            {slots.map((slot, index) => (
-              <span key={index} className={`rounded-md py-3 text-center tabular-nums ${slot === "—" ? "text-graphite-500" : "bg-graphite-900"}`}>
-                {slot}
-              </span>
+    <div data-ui className={`${frame} w-full max-w-[380px] space-y-3 p-3 text-[14px] ${className}`}>
+      {HOURS.map((person) => (
+        <div key={person.name}>
+          <p className="px-1 pb-1.5 font-semibold">{person.name}</p>
+          <ul className="space-y-1">
+            {person.days.map((day) => (
+              <li key={day.when} className="flex items-center justify-between gap-3 rounded-md bg-graphite-900 px-3 py-2.5">
+                <span className="text-graphite-300">{day.when}</span>
+                <span className={`tabular-nums ${day.off ? "text-graphite-400" : "font-medium"}`}>{day.hours}</span>
+              </li>
             ))}
-          </div>
-        ))}
-      </div>
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
