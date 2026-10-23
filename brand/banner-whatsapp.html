@@ -16,25 +16,38 @@
     font-family: "Inter", "Segoe UI", sans-serif;
   }
   /*
-   * WhatsApp shows only a middle band of the cover and puts the round profile
-   * photo over its bottom center. So: no logo here (the photo is the logo),
-   * text in the upper part of the band, bottom center left empty.
+   * WhatsApp puts the round profile photo over the cover from about y = 480
+   * down, in the middle third. Logo and text live above that line; only the
+   * site goes lower, on the right, away from the photo.
    */
-  .headline {
-    position: absolute; left: 0; right: 0; top: 300px;
-    text-align: center; margin: 0;
-    font-size: 92px; line-height: 1.08; font-weight: 700; letter-spacing: -2.5px;
+  .top {
+    position: absolute; left: 0; right: 0; top: 150px;
+    display: flex; align-items: center; justify-content: center; gap: 64px;
   }
-  .headline span { color: #3b82f6; }
-  .sub {
-    position: absolute; left: 0; right: 0; top: 530px;
-    text-align: center; margin: 0;
-    font-size: 40px; color: #a1a1aa;
+  .mark { width: 270px; height: 270px; flex: none; }
+  .brand { font-size: 56px; font-weight: 600; letter-spacing: -1px; margin: 0 0 18px; color: #d4d4d8; }
+  .brand span { color: #3b82f6; }
+  h1 { font-size: 78px; line-height: 1.06; font-weight: 700; letter-spacing: -2.2px; margin: 0; }
+  h1 span { color: #3b82f6; }
+  .site {
+    position: absolute; right: 150px; top: 600px;
+    font-size: 36px; font-weight: 600; color: #a1a1aa;
   }
 </style>
 </head>
 <body>
-  <h1 class="headline">Sua atendente no WhatsApp,<br><span>sempre disponível.</span></h1>
-  <p class="sub">Agenda, confirma e lembra seus clientes.</p>
+  <div class="top">
+    <svg class="mark" viewBox="0 0 512 512" aria-hidden="true">
+      <rect width="512" height="512" rx="112" fill="#1a1c22"/>
+      <rect x="176" y="136" width="56" height="240" rx="8" fill="#ffffff"/>
+      <rect x="176" y="320" width="168" height="56" rx="8" fill="#ffffff"/>
+      <circle cx="340" cy="180" r="36" fill="#3b82f6"/>
+    </svg>
+    <div>
+      <div class="brand">Chama <span>Lia</span></div>
+      <h1>Sua atendente no WhatsApp,<br><span>sempre disponível.</span></h1>
+    </div>
+  </div>
+  <div class="site">chamalia.com.br</div>
 </body>
 </html>
