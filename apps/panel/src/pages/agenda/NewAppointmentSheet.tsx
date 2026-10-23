@@ -152,7 +152,7 @@ export function NewAppointmentSheet({
                 />
               </div>
               <ul className="divide-y overflow-hidden rounded-md border">
-                {(customers.data ?? []).slice(0, 5).map((c) => (
+                {(customers.data ?? []).slice(0, deferred ? 5 : 3).map((c) => (
                   <li key={c.id}>
                     <button className="flex min-h-11 w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => setCustomerId(c.id)}>
                       <span className="font-medium">{c.name ?? "Sem nome"}</span>

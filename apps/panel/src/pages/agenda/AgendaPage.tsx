@@ -2,6 +2,7 @@ import { format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { Appointment, Tenant } from "@/api";
 import { PageHeader } from "@/components/page-header";
 import { STATUS_STYLES, StatusBadge } from "@/components/status-badge";
@@ -14,8 +15,21 @@ import { cn } from "@/lib/utils";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { NewAppointmentSheet } from "./NewAppointmentSheet";
 
-const PX_PER_MIN = 1.4;
+const MAX_PX_PER_MIN = 1.4;
+const MIN_PX_PER_MIN = 0.9;
+/** Space taken by the page header, week strip and column titles above the grid. */
+const GRID_CHROME_PX = 330;
 const HIGHLIGHT_MS = 4000;
+
+function useViewportHeight() {
+  const [height, setHeight] = useState(() => window.innerHeight);
+  useEffect(() => {
+    const onResize = () => setHeight(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return height;
+}
 
 /** Ids that appeared after the first load of this week (e.g. booked by the Lia just now). */
 function useNewIds(list: Appointment[] | undefined, weekStart: string) {
@@ -74,6 +88,31 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
     setSelected(appointment);
     setSheetOpen(true);
   };
+
+  // A booking made by the assistant may land outside the screen or on another day: say so out loud.
+  useEffect(() => {
+    if (fresh.size === 0) return;
+    const added = (appointments.data ?? []).filter((a) => fresh.has(a.id) && a.source === "whatsapp");
+    const first = added[0];
+    if (!first) return;
+    const when = zoned(first.startsAt, tenant.timezone);
+    toast.info(
+      added.length === 1
+        ? `Novo agendamento: ${first.customerName ?? "cliente"}, ${when.date.slice(8)}/${when.date.slice(5, 7)} às ${when.time}`
+        : `${added.length} novos agendamentos`,
+      {
+        duration: 12_000,
+        action: {
+          label: "Ver",
+          onClick: () => {
+            go(when.date);
+            open(first);
+          },
+        },
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fresh]);
 
   const pending = dayList.filter((a) => a.status === "scheduled").length;
   const activeCount = dayList.filter((a) => a.status !== "cancelled").length;
@@ -160,13 +199,15 @@ function WeekStrip(props: {
       {props.days.map((day) => {
         const selected = day === props.selected;
         const count = (props.counts.get(day) ?? []).filter((a) => a.status !== "cancelled").length;
+        const waiting = (props.counts.get(day) ?? []).filter((a) => a.status === "scheduled").length;
         return (
           <button
             key={day}
             onClick={() => props.onSelect(day)}
             aria-current={selected ? "date" : undefined}
+            aria-label={waiting ? `${day.slice(8)}, ${count} agendamentos, ${waiting} pendentes` : undefined}
             className={cn(
-              "flex flex-col items-center rounded-lg border py-2 transition-colors duration-150 active:scale-[0.97]",
+              "relative flex flex-col items-center rounded-lg border py-2 transition-colors duration-150 active:scale-[0.97]",
               selected
                 ? "border-primary bg-primary text-primary-foreground"
                 : "bg-card hover:border-primary/40",
@@ -181,6 +222,7 @@ function WeekStrip(props: {
             <span className={cn("text-[10px] tabular-nums", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
               {count ? `${count}` : "–"}
             </span>
+            {waiting > 0 && <span className="absolute top-1 right-1 size-2 rounded-full bg-amber-500" aria-hidden />}
           </button>
         );
       })}
@@ -214,10 +256,17 @@ function DayGrid(props: {
     start: minutesOf(zoned(a.startsAt, tz).time),
     end: minutesOf(zoned(a.endsAt, tz).time),
   }));
-  const dayStart = Math.min(8 * 60, ...items.map((i) => Math.floor(i.start / 60) * 60));
-  const dayEnd = Math.max(20 * 60, ...items.map((i) => Math.ceil(i.end / 60) * 60));
+  // Only the hours that matter (first to last appointment, at least 6 h), scaled to fit the screen
+  // so the whole day is visible without scrolling.
+  const firstHour = items.length ? Math.min(...items.map((i) => Math.floor(i.start / 60))) : 9;
+  const lastHour = items.length ? Math.max(...items.map((i) => Math.ceil(i.end / 60))) : 18;
+  const spanHours = Math.max(lastHour - firstHour, 6);
+  const dayStart = Math.min(firstHour, 24 - spanHours) * 60;
+  const dayEnd = dayStart + spanHours * 60;
+  const viewportHeight = useViewportHeight();
+  const pxPerMin = Math.min(MAX_PX_PER_MIN, Math.max(MIN_PX_PER_MIN, (viewportHeight - GRID_CHROME_PX) / (dayEnd - dayStart)));
   const hours = Array.from({ length: (dayEnd - dayStart) / 60 }, (_, i) => dayStart + i * 60);
-  const height = (dayEnd - dayStart) * PX_PER_MIN;
+  const height = (dayEnd - dayStart) * pxPerMin;
   const nowMinutes = props.date === props.today ? minutesOf(zoned(new Date().toISOString(), tz).time) : null;
   const columns = props.professionals.length || 1;
 
@@ -255,7 +304,7 @@ function DayGrid(props: {
               <div
                 key={h}
                 className="absolute right-2 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums"
-                style={{ top: (h - dayStart) * PX_PER_MIN }}
+                style={{ top: (h - dayStart) * pxPerMin }}
               >
                 {h > dayStart && `${String(h / 60).padStart(2, "0")}:00`}
               </div>
@@ -265,15 +314,15 @@ function DayGrid(props: {
           {props.professionals.map((p) => (
             <div key={p.id} className="relative border-l" style={{ height }}>
               {hours.map((h) => (
-                <div key={h} className="absolute inset-x-0 border-t border-border/70" style={{ top: (h - dayStart) * PX_PER_MIN }}>
-                  <div className="absolute inset-x-0 border-t border-dashed border-border/40" style={{ top: 30 * PX_PER_MIN }} />
+                <div key={h} className="absolute inset-x-0 border-t border-border/70" style={{ top: (h - dayStart) * pxPerMin }}>
+                  <div className="absolute inset-x-0 border-t border-dashed border-border/40" style={{ top: 30 * pxPerMin }} />
                 </div>
               ))}
               {items
                 .filter((i) => i.a.professionalId === p.id)
                 .map(({ a, start, end }) => {
                   const isNew = props.fresh.has(a.id);
-                  const blockHeight = Math.max((end - start) * PX_PER_MIN - 3, 22);
+                  const blockHeight = Math.max((end - start) * pxPerMin - 3, 22);
                   return (
                     <motion.button
                       key={a.id}
@@ -286,19 +335,29 @@ function DayGrid(props: {
                         blockClasses(a),
                         isNew && "ring-2 ring-primary/40",
                       )}
-                      style={{ top: (start - dayStart) * PX_PER_MIN + 1, height: blockHeight }}
+                      style={{ top: (start - dayStart) * pxPerMin + 1, height: blockHeight }}
                     >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-medium tabular-nums">{zoned(a.startsAt, props.tenant.timezone).time}</span>
-                        {blockHeight > 40 && a.status === "scheduled" && <span className="text-[10px]">Pendente</span>}
-                      </div>
-                      <div className="truncate font-semibold text-foreground">{a.customerName ?? "Sem nome"}</div>
+                      {blockHeight < 40 ? (
+                        // Short block: time and name share one line so nobody is hidden.
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-medium tabular-nums">{zoned(a.startsAt, props.tenant.timezone).time}</span>
+                          <span className="truncate font-semibold text-foreground">{a.customerName ?? "Sem nome"}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-medium tabular-nums">{zoned(a.startsAt, props.tenant.timezone).time}</span>
+                            {a.status === "scheduled" && <span className="text-[10px]">Pendente</span>}
+                          </div>
+                          <div className="truncate font-semibold text-foreground">{a.customerName ?? "Sem nome"}</div>
+                        </>
+                      )}
                       {blockHeight > 52 && <div className="truncate text-muted-foreground">{a.serviceName}</div>}
                     </motion.button>
                   );
                 })}
               {nowMinutes !== null && nowMinutes > dayStart && nowMinutes < dayEnd && (
-                <div className="pointer-events-none absolute inset-x-0 z-[5] border-t-2 border-primary" style={{ top: (nowMinutes - dayStart) * PX_PER_MIN }} />
+                <div className="pointer-events-none absolute inset-x-0 z-[5] border-t-2 border-primary" style={{ top: (nowMinutes - dayStart) * pxPerMin }} />
               )}
             </div>
           ))}
@@ -387,7 +446,7 @@ function MobileDay(props: {
             {props.loading ? (
               <div className="space-y-2">
                 {Array.from({ length: 6 }, (_, i) => (
-                  <Skeleton key={i} className="h-[68px] rounded-lg" />
+                  <Skeleton key={i} className="h-14 rounded-lg" />
                 ))}
               </div>
             ) : props.list.length === 0 ? (
@@ -402,7 +461,8 @@ function MobileDay(props: {
                       transition={{ duration: 1.2, ease: "easeOut" }}
                       onClick={() => props.onOpen(a)}
                       className={cn(
-                        "flex min-h-[68px] w-full items-center gap-3 px-3 py-2 text-left active:bg-muted",
+                        "flex min-h-14 w-full items-center gap-3 border-l-[3px] border-l-transparent px-3 py-1.5 text-left active:bg-muted",
+                        a.status === "scheduled" && "border-l-amber-500 bg-amber-500/5",
                         a.status === "cancelled" && "opacity-60",
                       )}
                     >
@@ -427,7 +487,6 @@ function MobileDay(props: {
           </motion.div>
         </AnimatePresence>
       </div>
-      <p className="mt-3 text-center text-[11px] text-muted-foreground">Deslize para o lado para trocar de dia.</p>
     </div>
   );
 }
