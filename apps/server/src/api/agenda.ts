@@ -4,6 +4,7 @@ import type { Sql } from "../db/client.js";
 import { withCountryCode } from "../lib/phone.js";
 import { addDays, isValidDate, utcToZoned, zonedToUtc } from "../lib/time.js";
 import {
+  bookAppointment,
   findAvailableSlots,
   getTenant,
   rescheduleAppointment,
@@ -91,6 +92,24 @@ export function registerAgendaRoutes(app: FastifyInstance, sql: Sql) {
         startsAt: slot.startsAt,
         professionals: slot.professionals,
       }));
+    } catch (error) {
+      return schedulingError(reply, error);
+    }
+  });
+
+  // Booked by hand in the panel: same hours/notice rules as the assistant, but already confirmed.
+  app.post("/api/tenants/:tenantId/appointments", async (request, reply) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    const body = z
+      .object({ customerId: uuid, serviceId: uuid, professionalId: uuid, date, time: z.string().regex(/^\d{2}:\d{2}$/) })
+      .parse(request.body);
+    const tenant = await loadTenant(tenantId, reply);
+    if (!tenant) return;
+    const [customer] = await sql`select id from customers where tenant_id = ${tenantId} and id = ${body.customerId}`;
+    if (!customer) return reply.code(404).send({ error: "customer_not_found", message: "Cliente não encontrada." });
+    try {
+      const booked = await bookAppointment(sql, tenant, { ...body, source: "panel", status: "confirmed" });
+      return reply.code(201).send(booked);
     } catch (error) {
       return schedulingError(reply, error);
     }

@@ -1,5 +1,5 @@
 import { format, parseISO, startOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Appointment, Tenant } from "@/api";
@@ -12,6 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAppointments, useProfessionals } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { AppointmentSheet } from "./AppointmentSheet";
+import { NewAppointmentSheet } from "./NewAppointmentSheet";
 
 const PX_PER_MIN = 1.4;
 const HIGHLIGHT_MS = 4000;
@@ -43,6 +44,7 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
   const [direction, setDirection] = useState(0);
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const [professionalFilter, setProfessionalFilter] = useState<string | null>(null);
 
   const weekStart = format(startOfWeek(parseISO(date), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -84,6 +86,9 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
           description={`${formatDayLong(date)} · ${activeCount} ${activeCount === 1 ? "agendamento" : "agendamentos"}${pending ? ` · ${pending} pendente${pending > 1 ? "s" : ""}` : ""}`}
           actions={
             <>
+              <Button onClick={() => setNewOpen(true)}>
+                <Plus /> Novo agendamento
+              </Button>
               <Button variant="outline" size="icon" onClick={() => go(shiftDate(date, -7))} aria-label="Semana anterior">
                 <ChevronLeft />
               </Button>
@@ -96,6 +101,12 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
             </>
           }
         />
+      )}
+
+      {mobile && (
+        <Button size="lg" className="mb-3 w-full" onClick={() => setNewOpen(true)}>
+          <Plus /> Novo agendamento
+        </Button>
       )}
 
       <WeekStrip days={weekDays} selected={date} today={today} counts={byDay} onSelect={go} compact={mobile} />
@@ -131,6 +142,7 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
       )}
 
       <AppointmentSheet tenant={tenant} appointment={current} open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      <NewAppointmentSheet tenant={tenant} open={newOpen} initialDate={date} onClose={() => setNewOpen(false)} />
     </>
   );
 }

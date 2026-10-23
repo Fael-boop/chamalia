@@ -215,6 +215,8 @@ export async function bookAppointment(
     date: string;
     time: string;
     source: "whatsapp" | "panel";
+    /** The owner booking by hand needs no approval, so the panel passes "confirmed". */
+    status?: "scheduled" | "confirmed";
   },
 ): Promise<BookedAppointment> {
   // Re-check against business rules (hours, notice, horizon); the database
@@ -229,9 +231,9 @@ export async function bookAppointment(
 
   try {
     const [row] = await sql<{ id: string }[]>`
-      insert into appointments (tenant_id, customer_id, service_id, professional_id, starts_at, ends_at, source)
+      insert into appointments (tenant_id, customer_id, service_id, professional_id, starts_at, ends_at, source, status)
       values (${tenant.id}, ${params.customerId}, ${service.id}, ${params.professionalId},
-              ${slot.startsAt}, ${slot.endsAt}, ${params.source})
+              ${slot.startsAt}, ${slot.endsAt}, ${params.source}, ${params.status ?? "scheduled"})
       returning id
     `;
     return {
