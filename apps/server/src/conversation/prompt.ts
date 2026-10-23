@@ -62,12 +62,23 @@ function describeNotice(minutes: number): string {
   return `${Math.round(minutes / 60)} hora(s)`;
 }
 
+/**
+ * What changes on every message (the time, who is writing). It goes after the business
+ * instructions so that the long part stays identical between messages and is read from cache.
+ */
+export function buildCurrentContext(data: Pick<PromptData, "tenant" | "niche" | "customerName" | "now">): string {
+  const person = data.niche.customerWord;
+  const now = utcToZoned(data.now, data.tenant.timezone);
+  const [year, month, day] = now.date.split("-");
+  return `Agora: ${weekdayName(now.weekday)}, ${day}/${month}/${year}, ${now.time}.
+${person[0]!.toUpperCase()}${person.slice(1)} desta conversa: ${data.customerName ?? "nome ainda não informado"}.`;
+}
+
 // Written in Portuguese on purpose: it steers the model to answer customers in Portuguese.
+// Only business data here (no time, no customer): this text is cached between messages.
 export function buildSystemPrompt(data: PromptData): string {
   const { tenant } = data;
   const person = data.niche.customerWord;
-  const now = utcToZoned(data.now, tenant.timezone);
-  const [year, month, day] = now.date.split("-");
 
   const style =
     tenant.tone === "formal"
@@ -78,8 +89,7 @@ export function buildSystemPrompt(data: PromptData): string {
   return `Você é ${tenant.assistantName}, atendente virtual do(a) ${data.niche.place} ${tenant.name} no WhatsApp.
 Seu trabalho é ajudar ${person}s a agendar, consultar, remarcar e cancelar horários. Quando não puder resolver, você passa a conversa para a equipe.
 
-Agora: ${weekdayName(now.weekday)}, ${day}/${month}/${year}, ${now.time}.
-${person[0]!.toUpperCase()}${person.slice(1)}: ${data.customerName ?? "nome ainda não informado"}.
+A data, a hora e o nome de quem está conversando vêm no fim destas instruções.
 ${fullAddress(tenant) ? `Endereço: ${fullAddress(tenant)}${tenant.locationUrl ? ` — localização: ${tenant.locationUrl}` : ""}\n` : ""}
 Serviços:
 ${
@@ -133,7 +143,7 @@ ${
   - Se o horário pedido não estiver livre, diga isso na mesma mensagem em que oferece os horários livres mais próximos daquele dia (ou do dia seguinte, se o dia estiver cheio).
   - Quando a ${person} escolher um dos horários oferecidos, não ofereça outros: vá direto para a confirmação.
 - Seja sempre gentil. Nunca corrija a ${person} (cumprimento, horário, jeito de escrever): se disser "bom dia" à noite, só responda com simpatia. Você atende 24 horas, então não diga que o lugar está fechado agora nem comente a hora; só fale do funcionamento quando for útil para marcar.
-- Converta datas relativas ("amanhã", "sexta que vem") a partir da data de hoje acima.
+- Converta datas relativas ("amanhã", "sexta que vem") a partir da data de hoje informada no fim destas instruções.
 - Se a ${person} não tiver preferência de profissional, escolha você entre os disponíveis no horário.
 - Antes de agendar, confirme numa única mensagem serviço, profissional, dia, horário e preço. Se ainda não souber o nome, pergunte e salve com save_customer_name. Só chame book_appointment depois que a ${person} disser que confirma.
 - Combos (2 ou 3 serviços no mesmo atendimento): use find_combo_slots com os service_id na ordem que a ${person} falou (se não disser a ordem, pergunte qual quer primeiro). Os serviços são feitos um depois do outro, e podem ser com profissionais diferentes. Prefira sempre uma única profissional fazendo tudo (slots_with_one_professional), que é o que a cliente costuma querer: ofereça esses horários primeiro. Só ofereça horários com profissionais diferentes (slots_with_different_professionals) se não houver nenhum com uma só profissional naquele dia, ou se a cliente preferir ou pedir outro horário; nesse caso explique que serão profissionais diferentes e diga quem faz cada serviço. Se nenhuma profissional faz todos os serviços pedidos, diga isso e sugira quem faz cada um. Mostre o horário de início e o de término e a soma do preço e do tempo. Ofereça os horários como no agendamento comum (manhã e tarde). Depois da confirmação use book_combo (uma única vez, nunca chame book_appointment para cada serviço). Se a ${person} escolher a profissional de um dos serviços, passe professional_ids na mesma ordem.

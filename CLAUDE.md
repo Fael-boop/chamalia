@@ -239,6 +239,7 @@ Excluir profissional (migration 006, `archived_at`): mesmo critério do serviço
 Excluir serviço: apaga se nunca teve agendamento; senão arquiva (`archived_at`, some do painel e da Lia).
 Corrigido: PATCH de serviço apagava preço/descrição (defaults do zod no partial).
 
+Cache de prompt (2026-10-23): o system vai em 2 blocos: instruções fixas do negócio (`buildSystemPrompt`, sem hora nem cliente) com `cache_control` ephemeral, depois `buildCurrentContext` (agora, nome do cliente, cancelados recentes, aviso). Mais cache automático (`cache_control` no topo do request) para o resto da conversa nas rodadas de ferramenta. Medido no Studio Bella: 1ª chamada grava ~6.000 tokens, as seguintes leem ~6.000 do cache e pagam poucos tokens cheios (leitura de cache custa ~10%). Cache dura 5 min sem uso; editar serviços/regras no painel muda o texto e grava de novo. Log "model usage" (info) mostra tokens por chamada, sem conteúdo.
 Histórico para a IA guarda só texto (sem as chamadas de ferramenta): o prompt avisa que ações
 anteriores aconteceram de verdade, e mostra horários cancelados nas últimas 24h.
 

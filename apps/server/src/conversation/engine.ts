@@ -9,7 +9,7 @@ import { nicheForPrompt } from "../tenants/niches.js";
 import type { PendingReminder } from "../reminders/reminders.js";
 import { cancelCustomerAppointment, getTenant, SchedulingError, type Service } from "../scheduling/service.js";
 import type { PriceTable } from "./price-table.js";
-import { buildSystemPrompt } from "./prompt.js";
+import { buildCurrentContext, buildSystemPrompt } from "./prompt.js";
 import { executeTool, tools, type ToolContext } from "./tools.js";
 
 export type IncomingMessage = {
@@ -511,23 +511,30 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
         .join("\n")
     : "";
 
-  const system =
-    buildSystemPrompt({
-      tenant,
-      niche,
-      services,
-      professionals,
-      reception,
-      hours,
-      handoffTopics,
-      faq,
-      rules,
-      defaultPerson: defaultPerson[0] ?? null,
-      customerName: ctx.customer.name,
-      now: new Date(),
-    }) +
-    cancelledNote +
-    (note ? `\n\nAviso do sistema sobre esta mensagem: ${note}` : "");
+  const promptData = {
+    tenant,
+    niche,
+    services,
+    professionals,
+    reception,
+    hours,
+    handoffTopics,
+    faq,
+    rules,
+    defaultPerson: defaultPerson[0] ?? null,
+    customerName: ctx.customer.name,
+    now: new Date(),
+  };
+  // Prompt caching: the business instructions are the same for every customer of this business
+  // until something is edited in the panel, so they are marked for cache; the time, the customer
+  // and this message's notes come after them and change freely.
+  const system: Anthropic.TextBlockParam[] = [
+    { type: "text", text: buildSystemPrompt(promptData), cache_control: { type: "ephemeral" } },
+    {
+      type: "text",
+      text: buildCurrentContext(promptData) + cancelledNote + (note ? `\n\nAviso do sistema sobre esta mensagem: ${note}` : ""),
+    },
+  ];
 
   const messages: Anthropic.MessageParam[] = history.map((row) => ({
     role: row.direction === "inbound" ? "user" : "assistant",
@@ -543,8 +550,19 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
       system,
       tools,
       output_config: { effort: "medium" },
+      // Automatic caching of the growing conversation: each tool round re-reads the turn so far from cache.
+      cache_control: { type: "ephemeral" },
       messages,
     });
+    deps.log.info(
+      {
+        tenantId: tenant.id,
+        inputTokens: response.usage.input_tokens,
+        cacheReadTokens: response.usage.cache_read_input_tokens,
+        cacheWriteTokens: response.usage.cache_creation_input_tokens,
+      },
+      "model usage",
+    );
 
     if (response.stop_reason === "refusal") {
       deps.log.warn({ tenantId: tenant.id, category: response.stop_details?.category }, "model refused");
