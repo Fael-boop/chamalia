@@ -1,0 +1,1 @@
+Origem: pacote npm @playwright/cli  (Microsoft), skill que vem dentro dele. Copiada em 2026-10-22.
