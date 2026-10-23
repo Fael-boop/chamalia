@@ -15,15 +15,11 @@
     <meta property="og:locale" content="pt_BR" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
-    <script>
-      // Follow the system theme before the first paint (no white flash).
-      try {
-        if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark");
-      } catch (e) {}
-    </script>
+    <script>document.documentElement.classList.add("js");</script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript><p style="padding:24px;font-family:sans-serif">A Chama Lia é uma atendente no WhatsApp que agenda, confirma e lembra seus clientes. Fale com a gente: <a href="https://wa.me/556294737276">(62) 9473-7276</a>.</p></noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

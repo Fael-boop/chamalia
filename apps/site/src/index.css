@@ -1,78 +1,192 @@
 @import "tailwindcss";
 @import "../../../brand/palette.css";
 
-@custom-variant dark (&:is(.dark *));
-
-/* Roles used by the site; the palette scales come from brand/palette.css. */
+/*
+ * Chama Lia landing. Palette comes from brand/palette.css (blue = brand and action,
+ * graphite = structure). One ground, one ink, one accent; fields change by tone, not by lines.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: var(--graphite-950);
-  --muted: var(--graphite-50);
-  --muted-foreground: var(--graphite-500);
-  --border: var(--graphite-200);
-  --primary: var(--brand-600);
-  --primary-hover: var(--brand-700);
-}
-
-.dark {
-  --background: var(--graphite-950);
-  --foreground: var(--graphite-50);
-  --muted: var(--graphite-900);
-  --muted-foreground: var(--graphite-400);
-  --border: var(--graphite-800);
-  --primary: var(--brand-500);
-  --primary-hover: var(--brand-400);
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: var(--graphite-50);
+  --surface-2: var(--graphite-100);
+  --ink: var(--graphite-950);
+  --muted: var(--graphite-700);
+  --accent: var(--brand-600);
+  --accent-hover: var(--brand-700);
+  --dark: var(--graphite-950);
+  --dark-2: var(--graphite-900);
+  --radius: 12px;
+  --pad: clamp(16px, 3.2vw, 40px);
 }
 
 @theme inline {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
   --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-dark: var(--dark);
+  --color-dark-2: var(--dark-2);
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
   --color-brand-400: var(--brand-400);
   --color-brand-500: var(--brand-500);
   --color-brand-600: var(--brand-600);
-  --color-graphite-950: var(--graphite-950);
+  --color-graphite-100: var(--graphite-100);
+  --color-graphite-200: var(--graphite-200);
+  --color-graphite-300: var(--graphite-300);
+  --color-graphite-400: var(--graphite-400);
+  --color-graphite-800: var(--graphite-800);
+  --color-graphite-900: var(--graphite-900);
+  --radius-xl: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-md: var(--radius);
 }
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
+  scroll-padding-top: 1.5rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Demo conversation: messages arrive one after the other. */
-@keyframes rise {
+/* The five type steps of the page: display, heading, statement, body, small. */
+.t-display {
+  font-size: clamp(2.25rem, 7.4vw, 7.25rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  font-weight: 700;
+}
+.t-heading {
+  font-size: clamp(2rem, 4.4vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+}
+.t-statement {
+  font-size: clamp(1.125rem, 1.6vw, 1.375rem);
+  line-height: 1.45;
+}
+/* Lead: statements, card titles, questions, order clauses (same 22px step). */
+.t-lead {
+  font-size: clamp(1.125rem, 1.6vw, 1.375rem);
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+.t-small {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.page-x {
+  padding-inline: var(--pad);
+}
+.page-wrap {
+  margin-inline: auto;
+  max-width: 1360px;
+}
+/* Gap between sections is clearly larger than any gap inside one. */
+.section-y {
+  padding-block: clamp(72px, 11vw, 168px);
+}
+
+/* Scroll entrance: parts of a section rise in one after the other. Content never stays hidden without JS. */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 650ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 650ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--d, 0ms);
+}
+.js .reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Chat: messages arrive and the typing dots breathe. */
+@keyframes pop {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px) scale(0.98);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-.rise {
-  animation: rise 300ms ease-out both;
+.pop {
+  animation: pop 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.dot {
+  animation: dot 1s infinite;
+}
+.dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.nudge {
+  animation: nudge 1.6s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-  .rise {
-    animation: none;
-  }
+/* Feedback on controls and tiles. */
+.press {
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+}
+.press:hover {
+  transform: translateY(-1px);
+}
+.press:active {
+  transform: scale(0.97);
+}
+.lift {
+  transition: transform 200ms ease;
+}
+.lift:hover {
+  transform: translateY(-6px);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 3px;
 }
 
 details > summary {
@@ -80,4 +194,24 @@ details > summary {
 }
 details > summary::-webkit-details-marker {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .pop,
+  .dot,
+  .nudge {
+    animation: none;
+  }
+  .press:hover,
+  .lift:hover {
+    transform: none;
+  }
 }
