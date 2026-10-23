@@ -1,5 +1,9 @@
 import { maskPhonesInText, withCountryCode } from "../lib/phone.js";
 import type { Channel, OutgoingFile } from "./channel.js";
+import { SendLimiter, typingDelayMs } from "./send-pacing.js";
+
+/** Shared by every client: the cap is per WhatsApp number (instance), not per request. */
+const limiter = new SendLimiter(20);
 
 export class EvolutionError extends Error {
   constructor(
@@ -102,7 +106,10 @@ export class EvolutionClient {
   }
 
   async sendFile(instance: string, toPhone: string, file: OutgoingFile): Promise<string | undefined> {
+    await limiter.wait(instance);
     const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendMedia/${instance}`, {
+      // Evolution shows "typing…" for this long before sending.
+      delay: 1_500,
       // Team numbers typed in the panel may lack the 55; WhatsApp then reads them as another country.
       number: withCountryCode(toPhone),
       mediatype: file.mime.startsWith("image/") ? "image" : "document",
@@ -115,9 +122,11 @@ export class EvolutionClient {
   }
 
   async sendText(instance: string, toPhone: string, text: string): Promise<string | undefined> {
+    await limiter.wait(instance);
     const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendText/${instance}`, {
       number: withCountryCode(toPhone),
       text,
+      delay: typingDelayMs(text),
     });
     return result.key?.id;
   }
