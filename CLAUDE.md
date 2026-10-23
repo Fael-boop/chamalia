@@ -189,6 +189,7 @@ leva para a tela certa), (2) regras "Sempre/Nunca" em frase curta, com sugestõe
 prompt num bloco OBRIGATÓRIO antes de "Como atender" (no fim da lista ela ignorava). Em Testar a Lia:
 perguntas prontas de um toque e botão "Corrigir" em cada resposta, que vira resposta pronta (pergunta
 anterior + resposta certa) ou regra. "Treinar" é cadastro guiado, não treino de modelo.
+Sugestão para a Lia (2026-10-23): caixa abaixo do chat em Testar a Lia. O dono escreve do jeito dele ("escreve textos menores"); `POST /tenants/:id/rules/suggest` manda o pedido + a última pergunta/resposta para a Claude (modelo da conversa, effort low, saída estruturada com `zodOutputFormat`) e volta uma regra Sempre/Nunca clara; o dono confere/edita e salva como regra comum (`assistant_rules`). O toast oferece "Testar de novo" (reenvia a última pergunta).
 Pedido por nome (feito em 2026-10-20): se a cliente pede uma pessoa pelo nome ("falo com a Luciana?"), a Lia
 confere na lista de Profissionais e na nova seção "Equipe" do prompt (recepção com WhatsApp de avisos) e usa
 `professional_id` em transfer_to_owner, que tem prioridade sobre serviço/assunto/padrão. Sem pessoa definida,

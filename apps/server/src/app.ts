@@ -55,10 +55,10 @@ export async function buildApp(config: Config, sql?: Sql) {
     registerUserRoutes(app, sql);
     registerAgendaRoutes(app, sql);
     registerNicheRoutes(app, sql);
-    registerRuleRoutes(app, sql);
+    const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
+    registerRuleRoutes(app, sql, anthropic && { anthropic, model: config.ANTHROPIC_MODEL });
     registerPriceTableRoutes(app, sql);
     registerConversationRoutes(app, sql);
-    const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
     const whatsapp =
       config.EVOLUTION_API_URL && config.EVOLUTION_API_KEY && config.WEBHOOK_SECRET
         ? {

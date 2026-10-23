@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type PriceTable, type Tenant, type TestChatReply, type TestChatState } from "@/api";
 import { CorrectAnswer, type Correction } from "@/components/correct-answer";
 import { Hint, PageHeader } from "@/components/page-header";
+import { SuggestionBox } from "@/components/suggestion-box";
 import { useServices } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,6 +126,10 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
     await load();
     toast.success(`Conversa devolvida para a ${tenant.assistantName}`);
   }
+
+  // The last answer and the message it replied to: context for "Sugestão para a Lia".
+  const lastAnswer = [...(state?.messages ?? [])].reverse().find((m) => m.direction === "outbound" && !m.attachment);
+  const lastQuestion = lastAnswer ? questionBefore(lastAnswer.id) : undefined;
 
   const items = [
     ...(state?.messages ?? []).map((m) => ({ kind: "message" as const, id: m.id, createdAt: m.createdAt, message: m })),
@@ -302,6 +307,9 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
             <SendHorizontal />
           </Button>
         </form>
+      </div>
+      <div className="mt-3">
+        <SuggestionBox tenant={tenant} lastQuestion={lastQuestion} lastAnswer={lastAnswer?.body} onRetry={(question) => void send(question)} />
       </div>
       <div className="mt-2">
         <Hint>É o mesmo motor que responde no WhatsApp. Se uma resposta não ficou boa, toque em "Corrigir" embaixo dela para ensinar o jeito certo.</Hint>
