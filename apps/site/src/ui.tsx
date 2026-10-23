@@ -22,7 +22,7 @@ export function LogoMark({ size = 32, ring = true }: { size?: number; ring?: boo
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
     <span className={`font-semibold tracking-tight whitespace-nowrap ${className}`}>
-      Chama <span className="text-accent">Lia</span>
+      Chama <span className="text-accent-text">Lia</span>
     </span>
   );
 }
@@ -43,8 +43,8 @@ export function Button({
 }) {
   const styles = {
     primary: "bg-accent text-white hover:bg-accent-hover",
-    quiet: "bg-surface-2 text-ink hover:bg-graphite-200",
-    light: "bg-white text-ink hover:bg-graphite-100",
+    quiet: "bg-surface-2 text-ink hover:bg-graphite-700",
+    light: "bg-white text-graphite-950 hover:bg-brand-50",
   }[variant];
   const cls = `press inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 font-medium whitespace-nowrap ${styles} ${className}`;
   return href ? (
@@ -97,5 +97,37 @@ export function Reveal({
     <Element ref={ref as never} className={`reveal ${shown ? "in" : ""} ${className}`} style={style}>
       {children}
     </Element>
+  );
+}
+
+/** The "+" where a section line meets the frame. */
+function Cross({ className }: { className: string }) {
+  return (
+    <span aria-hidden className={`pointer-events-none absolute z-10 size-[13px] ${className}`}>
+      <span className="absolute top-1/2 left-0 h-px w-full -translate-y-1/2 bg-graphite-500" />{/* taste-skill-ignore: page frame, owner choice */}
+      <span className="absolute top-0 left-1/2 h-full w-px -translate-x-1/2 bg-graphite-500" />{/* taste-skill-ignore: page frame, owner choice */}
+    </span>
+  );
+}
+
+/*
+ * The page frame (owner's choice, after Cal.com): every band sits between two vertical lines and
+ * starts with a full-width line, with a "+" where they cross. It makes the division of the content clear.
+ */
+export function Band({ children, className = "", first = false }: { children: ReactNode; className?: string; first?: boolean }) {
+  return (
+    <div className={first ? "" : "border-t border-graphite-800"}>{/* taste-skill-ignore: page frame, owner choice */}
+      <div className="page-x">
+        <div className="relative mx-auto max-w-[1360px] border-x border-graphite-800">{/* taste-skill-ignore: page frame, owner choice */}
+          {!first && (
+            <>
+              <Cross className="-top-[7px] -left-[7px]" />
+              <Cross className="-top-[7px] -right-[7px]" />
+            </>
+          )}
+          <div className={`px-4 md:px-10 ${className}`}>{children}</div>
+        </div>
+      </div>
+    </div>
   );
 }

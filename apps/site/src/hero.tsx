@@ -1,7 +1,7 @@
 import { Check, RotateCcw } from "lucide-react";
 import { useEffect, useReducer, useRef } from "react";
-import { AgendaDay, LiaAvatar, type AgendaRow } from "./fragments";
-import { Button, Reveal, whatsappUrl } from "./ui";
+import { AgendaDay, LiaAvatar, Typing, bubble, customerBubble, liaBubble, type AgendaRow } from "./fragments";
+import { Band, Button, Reveal, whatsappUrl } from "./ui";
 
 const TIMES = ["9h30", "10h", "14h"] as const;
 type Time = (typeof TIMES)[number];
@@ -34,20 +34,6 @@ function useConversation() {
   return { state, dispatch };
 }
 
-const bubble = "pop w-fit max-w-[86%] rounded-xl px-3.5 py-2.5 text-[14px] leading-snug";
-const lia = "border border-graphite-800 bg-graphite-950 text-white";
-const customer = "ml-auto bg-brand-600 text-white";
-
-function Typing() {
-  return (
-    <div className={`pop flex w-fit items-center gap-1 rounded-xl px-3.5 py-3 ${lia}`} aria-label="A Lia está digitando">
-      <span className="dot size-1.5 rounded-full bg-graphite-400" />
-      <span className="dot size-1.5 rounded-full bg-graphite-400" />
-      <span className="dot size-1.5 rounded-full bg-graphite-400" />
-    </div>
-  );
-}
-
 /** Dark card, like the Lia's chat in the product: the customer in blue, the Lia in graphite. */
 function Chat({ state, dispatch }: ReturnType<typeof useConversation>) {
   const { step, picked } = state;
@@ -57,7 +43,7 @@ function Chat({ state, dispatch }: ReturnType<typeof useConversation>) {
   }, [step]);
   return (
     <div data-ui className="flex h-[440px] w-full max-w-[400px] flex-col overflow-hidden rounded-[14px] bg-graphite-900 text-white">
-      <div className="flex items-center gap-3 border-b border-graphite-800 px-4 py-3.5">{/* taste-skill-ignore: header of the data-ui chat */}
+      <div className="flex items-center gap-3 px-4 py-3.5">
         <LiaAvatar size={36} />
         <div className="leading-tight">
           <p className="text-[14px] font-semibold">Lia</p>
@@ -74,12 +60,12 @@ function Chat({ state, dispatch }: ReturnType<typeof useConversation>) {
           <RotateCcw className="size-4" aria-hidden />
         </button>
       </div>
-      <div ref={scroller} className="flex flex-1 flex-col justify-end gap-2.5 overflow-hidden p-4" aria-live="polite">
+      <div ref={scroller} className="flex flex-1 flex-col justify-end gap-2.5 overflow-hidden px-4 pb-4" aria-live="polite">
         <p className="mx-auto mb-1 text-[14px] text-graphite-400">Hoje, 23h42</p>
-        <div className={`${bubble} ${customer}`}>Oi! Quero marcar um corte de cabelo amanhã</div>
+        <div className={`${bubble} ${customerBubble}`}>Oi! Quero marcar um corte de cabelo amanhã</div>
         {step === 1 && <Typing />}
         {step >= 2 && (
-          <div className={`${bubble} ${lia}`}>
+          <div className={`${bubble} ${liaBubble}`}>
             Oi, Camila! Amanhã tenho <strong>9h30, 10h ou 14h</strong> com a Ana. Qual prefere?
           </div>
         )}
@@ -97,10 +83,10 @@ function Chat({ state, dispatch }: ReturnType<typeof useConversation>) {
             ))}
           </div>
         )}
-        {step >= 3 && <div className={`${bubble} ${customer}`}>{picked}, por favor</div>}
+        {step >= 3 && <div className={`${bubble} ${customerBubble}`}>{picked}, por favor</div>}
         {step === 4 && <Typing />}
         {step === 5 && (
-          <div className={`pop flex w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-[14px] ${lia}`}>
+          <div className={`pop flex w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-[14px] ${liaBubble}`}>
             <Check className="size-4 shrink-0 text-brand-400" aria-hidden />
             <span>
               <strong>Agendado</strong> <span className="text-graphite-300">· amanhã às {picked} · Corte com a Ana</span>
@@ -130,10 +116,10 @@ export function Hero() {
   const { step, picked } = conversation.state;
   const booked = step === 5;
   return (
-    <section id="topo" className="page-x">
-      <div className="page-wrap pt-8 pb-16 md:pt-14 md:pb-24">
+    <section id="topo">
+      <Band className="pt-10 pb-16 md:pt-16 md:pb-24">
         <h1 className="t-display max-w-[14ch] sm:max-w-none">
-          Seu negócio com hora&nbsp;marcada<span className="text-accent">!</span>
+          Seu negócio com hora&nbsp;marcada<span className="text-accent-text">!</span>
         </h1>
         <div className="mt-10 grid items-stretch gap-10 md:mt-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
           <div className="flex max-w-xl flex-col justify-between gap-10">
@@ -162,7 +148,7 @@ export function Hero() {
             </Reveal>
           </div>
           <Reveal delay={120}>
-            <div className="flex flex-col items-center gap-5 rounded-xl bg-brand-50 p-5 sm:flex-row sm:items-start sm:justify-center md:p-8">
+            <div className="flex flex-col items-center gap-5 rounded-xl bg-brand-950 p-5 sm:flex-row sm:items-start sm:justify-center md:p-8">
               <Chat {...conversation} />
               <div className="hidden sm:block">
                 <AgendaDay title="Amanhã, quarta" person="Ana" rows={agendaRows(picked, booked)} className="max-w-[300px]" />
@@ -170,7 +156,7 @@ export function Hero() {
             </div>
           </Reveal>
         </div>
-      </div>
+      </Band>
     </section>
   );
 }

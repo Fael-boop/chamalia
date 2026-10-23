@@ -1,12 +1,12 @@
 import { Hero } from "./hero";
 import { Closing, Faq, Features, ForWho, HowItWorks, Teach } from "./sections";
-import { APP_URL, Button, LogoMark, Wordmark, WHATSAPP_LABEL, whatsappUrl } from "./ui";
+import { APP_URL, Band, Button, LogoMark, Wordmark, WHATSAPP_LABEL, whatsappUrl } from "./ui";
 
 /** A plain bar: the mark, a few links, one action. No lines, no blur. */
 function Header() {
   return (
-    <header className="page-x">
-      <div className="page-wrap flex h-20 items-center gap-6">
+    <header>
+      <Band first className="flex h-20 items-center gap-6">
         <a href="#topo" className="flex items-center gap-2.5" aria-label="Chama Lia, início">
           <LogoMark size={36} />
           <Wordmark className="text-xl" />
@@ -27,7 +27,7 @@ function Header() {
             </Button>
           </span>
         </div>
-      </div>
+      </Band>
     </header>
   );
 }

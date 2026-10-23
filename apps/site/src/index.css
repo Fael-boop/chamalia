@@ -3,21 +3,21 @@
 
 /*
  * Chama Lia landing. Palette comes from brand/palette.css (blue = brand and action,
- * graphite = structure). One ground, one ink, one accent; fields change by tone, not by lines.
+ * graphite = structure). The page is dark: graphite ground, one blue accent, fields change by
+ * tone, not by lines.
  */
 :root {
-  color-scheme: light;
-  --bg: #ffffff;
-  --surface: var(--graphite-50);
-  --surface-2: var(--graphite-100);
-  --ink: var(--graphite-950);
-  --muted: var(--graphite-700);
+  color-scheme: dark;
+  --bg: var(--graphite-950);
+  --surface: var(--graphite-900);
+  --surface-2: var(--graphite-800);
+  --ink: var(--graphite-50);
+  --muted: var(--graphite-300);
   --accent: var(--brand-600);
-  --accent-hover: var(--brand-700);
-  --dark: var(--graphite-950);
-  --dark-2: var(--graphite-900);
+  --accent-hover: var(--brand-500);
+  --accent-text: var(--brand-400);
   --radius: 12px;
-  --pad: clamp(16px, 3.2vw, 40px);
+  --pad: clamp(12px, 3.2vw, 40px);
 }
 
 @theme inline {
@@ -29,25 +29,36 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
-  --color-dark: var(--dark);
-  --color-dark-2: var(--dark-2);
+  --color-accent-text: var(--accent-text);
   --color-brand-50: var(--brand-50);
   --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
   --color-brand-400: var(--brand-400);
   --color-brand-500: var(--brand-500);
   --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+  --color-graphite-50: var(--graphite-50);
   --color-graphite-100: var(--graphite-100);
   --color-graphite-200: var(--graphite-200);
   --color-graphite-300: var(--graphite-300);
   --color-graphite-400: var(--graphite-400);
+  --color-graphite-500: var(--graphite-500);
+  --color-graphite-600: var(--graphite-600);
+  --color-graphite-700: var(--graphite-700);
   --color-graphite-800: var(--graphite-800);
   --color-graphite-900: var(--graphite-900);
+  --color-graphite-950: var(--graphite-950);
   --radius-xl: var(--radius);
   --radius-lg: var(--radius);
   --radius-md: var(--radius);
 }
 
 html {
+  background: var(--bg);
   scroll-behavior: smooth;
   scroll-padding-top: 1.5rem;
 }
@@ -61,7 +72,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* The five type steps of the page: display, heading, statement, body, small. */
+/* The five type steps of the page: display, heading, lead, body, small. */
 .t-display {
   font-size: clamp(2.25rem, 7.4vw, 7.25rem);
   line-height: 0.98;
@@ -97,9 +108,9 @@ body {
   margin-inline: auto;
   max-width: 1360px;
 }
-/* Gap between sections is clearly larger than any gap inside one. */
+/* Gap between sections is clearly larger than any gap inside one: 120–240px on desktop. */
 .section-y {
-  padding-block: clamp(72px, 11vw, 168px);
+  padding-block: clamp(64px, 8vw, 128px);
 }
 
 /* Scroll entrance: parts of a section rise in one after the other. Content never stays hidden without JS. */
@@ -151,18 +162,6 @@ body {
 .dot:nth-child(3) {
   animation-delay: 0.3s;
 }
-@keyframes nudge {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-.nudge {
-  animation: nudge 1.6s ease-in-out infinite;
-}
 
 /* Feedback on controls and tiles. */
 .press {
@@ -185,7 +184,7 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--brand-500);
+  outline: 2px solid var(--brand-400);
   outline-offset: 3px;
 }
 
@@ -206,8 +205,7 @@ details > summary::-webkit-details-marker {
     transition: none;
   }
   .pop,
-  .dot,
-  .nudge {
+  .dot {
     animation: none;
   }
   .press:hover,
