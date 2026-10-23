@@ -1,5 +1,5 @@
 import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/api";
 import { Logo, LogoMark, Wordmark } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,20 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: (token: string, remember
     }
   }
 
-  const trackCapsLock = (e: React.KeyboardEvent<HTMLInputElement>) => setCapsLock(e.getModifierState("CapsLock"));
+  // Caps Lock is read from any key or click on the page, so the warning is right before the password is typed.
+  useEffect(() => {
+    const track = (e: KeyboardEvent | MouseEvent) => {
+      if (typeof e.getModifierState === "function") setCapsLock(e.getModifierState("CapsLock"));
+    };
+    window.addEventListener("keydown", track);
+    window.addEventListener("keyup", track);
+    window.addEventListener("mousedown", track);
+    return () => {
+      window.removeEventListener("keydown", track);
+      window.removeEventListener("keyup", track);
+      window.removeEventListener("mousedown", track);
+    };
+  }, []);
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)]">
@@ -168,9 +181,6 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: (token: string, remember
                 value={password}
                 aria-describedby={capsLock ? "caps-lock" : undefined}
                 onChange={(e) => setPassword(e.target.value)}
-                onKeyUp={trackCapsLock}
-                onKeyDown={trackCapsLock}
-                onBlur={() => setCapsLock(false)}
               />
               <button
                 type="button"
@@ -183,8 +193,8 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: (token: string, remember
               </button>
             </div>
             {capsLock && (
-              <p id="caps-lock" className="text-xs text-muted-foreground" aria-live="polite">
-                Caps Lock ligado.
+              <p id="caps-lock" className="text-xs font-medium text-amber-500" aria-live="polite">
+                Caps Lock está ligado.
               </p>
             )}
           </div>
