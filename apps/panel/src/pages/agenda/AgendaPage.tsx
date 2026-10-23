@@ -2,7 +2,6 @@ import { format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 import type { Appointment, Tenant } from "@/api";
 import { PageHeader } from "@/components/page-header";
 import { STATUS_STYLES, StatusBadge } from "@/components/status-badge";
@@ -15,21 +14,7 @@ import { cn } from "@/lib/utils";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { NewAppointmentSheet } from "./NewAppointmentSheet";
 
-const MAX_PX_PER_MIN = 1.4;
-const MIN_PX_PER_MIN = 0.9;
-/** Space taken by the page header, week strip and column titles above the grid. */
-const GRID_CHROME_PX = 330;
 const HIGHLIGHT_MS = 4000;
-
-function useViewportHeight() {
-  const [height, setHeight] = useState(() => window.innerHeight);
-  useEffect(() => {
-    const onResize = () => setHeight(window.innerHeight);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  return height;
-}
 
 /** Ids that appeared after the first load of this week (e.g. booked by the Lia just now). */
 function useNewIds(list: Appointment[] | undefined, weekStart: string) {
@@ -51,14 +36,15 @@ function useNewIds(list: Appointment[] | undefined, weekStart: string) {
   return fresh;
 }
 
-export function AgendaPage({ tenant }: { tenant: Tenant }) {
+export function AgendaPage({ tenant, focus }: { tenant: Tenant; focus?: { date: string; key: number } | null }) {
   const mobile = useIsMobile();
   const today = todayIn(tenant.timezone);
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(focus?.date ?? today);
   const [direction, setDirection] = useState(0);
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const [professionalFilter, setProfessionalFilter] = useState<string | null>(null);
 
   const weekStart = format(startOfWeek(parseISO(date), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -76,7 +62,10 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
     return map;
   }, [appointments.data, tenant.timezone]);
 
-  const dayList = byDay.get(date) ?? [];
+  const fullDay = byDay.get(date) ?? [];
+  // Cancelled ones are noise by default (the time is free again); one tap brings them back.
+  const cancelledCount = fullDay.filter((a) => a.status === "cancelled").length;
+  const dayList = showCancelled ? fullDay : fullDay.filter((a) => a.status !== "cancelled");
   // Keep the sheet's appointment fresh after refetches/optimistic updates.
   const current = selected ? ((appointments.data ?? []).find((a) => a.id === selected.id) ?? selected) : null;
 
@@ -89,30 +78,11 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
     setSheetOpen(true);
   };
 
-  // A booking made by the assistant may land outside the screen or on another day: say so out loud.
+  // "Ver" on an agenda alert (AgendaAlerts) opens the agenda on the booking's day.
   useEffect(() => {
-    if (fresh.size === 0) return;
-    const added = (appointments.data ?? []).filter((a) => fresh.has(a.id) && a.source === "whatsapp");
-    const first = added[0];
-    if (!first) return;
-    const when = zoned(first.startsAt, tenant.timezone);
-    toast.info(
-      added.length === 1
-        ? `Novo agendamento: ${first.customerName ?? "cliente"}, ${when.date.slice(8)}/${when.date.slice(5, 7)} às ${when.time}`
-        : `${added.length} novos agendamentos`,
-      {
-        duration: 12_000,
-        action: {
-          label: "Ver",
-          onClick: () => {
-            go(when.date);
-            open(first);
-          },
-        },
-      },
-    );
+    if (focus) go(focus.date);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fresh]);
+  }, [focus?.key]);
 
   const pending = dayList.filter((a) => a.status === "scheduled").length;
   const activeCount = dayList.filter((a) => a.status !== "cancelled").length;
@@ -168,16 +138,23 @@ export function AgendaPage({ tenant }: { tenant: Tenant }) {
           summary={`${activeCount} ${activeCount === 1 ? "agendamento" : "agendamentos"}${pending ? ` · ${pending} pendente${pending > 1 ? "s" : ""}` : ""}`}
         />
       ) : (
-        <DayGrid
+        <DayTable
           tenant={tenant}
-          date={date}
-          today={today}
           loading={appointments.isLoading || professionals.isLoading}
           list={dayList}
           fresh={fresh}
           professionals={(professionals.data ?? []).filter((p) => p.active && p.kind === "professional")}
           onOpen={open}
+          onNew={() => setNewOpen(true)}
         />
+      )}
+
+      {cancelledCount > 0 && (
+        <div className="mt-3 text-center">
+          <Button variant="ghost" size="sm" onClick={() => setShowCancelled((value) => !value)}>
+            {showCancelled ? "Esconder cancelados" : `Mostrar cancelados (${cancelledCount})`}
+          </Button>
+        </div>
       )}
 
       <AppointmentSheet tenant={tenant} appointment={current} open={sheetOpen} onClose={() => setSheetOpen(false)} />
@@ -205,7 +182,7 @@ function WeekStrip(props: {
             key={day}
             onClick={() => props.onSelect(day)}
             aria-current={selected ? "date" : undefined}
-            aria-label={waiting ? `${day.slice(8)}, ${count} agendamentos, ${waiting} pendentes` : undefined}
+            aria-label={waiting ? `${formatWeekdayShort(day)} ${day.slice(8)}: ${count} ${count === 1 ? "agendamento" : "agendamentos"}, ${waiting} ${waiting === 1 ? "pendente" : "pendentes"}` : undefined}
             className={cn(
               "relative flex flex-col items-center rounded-lg border py-2 transition-colors duration-150 active:scale-[0.97]",
               selected
@@ -238,37 +215,22 @@ function blockClasses(a: Appointment) {
   );
 }
 
-/** Desktop: one column per professional, blocks positioned by time. */
-function DayGrid(props: {
+/**
+ * Desktop: the day as a table. One row per start time that exists, one column per professional.
+ * No hour scale, so nothing is squeezed, hidden or pushed below the fold: a day with 6 bookings
+ * is 6 rows, whether they are at 09:00 or at 19:00. A booking that runs into the next rows spans them.
+ */
+function DayTable(props: {
   tenant: Tenant;
-  date: string;
-  today: string;
   loading: boolean;
   list: Appointment[];
   fresh: Set<string>;
   professionals: { id: string; name: string }[];
   onOpen: (a: Appointment) => void;
+  onNew: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const tz = props.tenant.timezone;
-  const items = props.list.map((a) => ({
-    a,
-    start: minutesOf(zoned(a.startsAt, tz).time),
-    end: minutesOf(zoned(a.endsAt, tz).time),
-  }));
-  // Only the hours that matter (first to last appointment, at least 6 h), scaled to fit the screen
-  // so the whole day is visible without scrolling.
-  const firstHour = items.length ? Math.min(...items.map((i) => Math.floor(i.start / 60))) : 9;
-  const lastHour = items.length ? Math.max(...items.map((i) => Math.ceil(i.end / 60))) : 18;
-  const spanHours = Math.max(lastHour - firstHour, 6);
-  const dayStart = Math.min(firstHour, 24 - spanHours) * 60;
-  const dayEnd = dayStart + spanHours * 60;
-  const viewportHeight = useViewportHeight();
-  const pxPerMin = Math.min(MAX_PX_PER_MIN, Math.max(MIN_PX_PER_MIN, (viewportHeight - GRID_CHROME_PX) / (dayEnd - dayStart)));
-  const hours = Array.from({ length: (dayEnd - dayStart) / 60 }, (_, i) => dayStart + i * 60);
-  const height = (dayEnd - dayStart) * pxPerMin;
-  const nowMinutes = props.date === props.today ? minutesOf(zoned(new Date().toISOString(), tz).time) : null;
-  const columns = props.professionals.length || 1;
 
   if (props.loading) {
     return (
@@ -282,15 +244,45 @@ function DayGrid(props: {
     );
   }
 
+  if (props.list.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg border bg-card py-16 text-center">
+        <p className="text-sm text-muted-foreground">Nenhum agendamento neste dia.</p>
+        <Button variant="outline" onClick={props.onNew}>
+          <Plus /> Novo agendamento
+        </Button>
+      </div>
+    );
+  }
+
+  const items = props.list.map((a) => ({
+    a,
+    start: minutesOf(zoned(a.startsAt, tz).time),
+    end: minutesOf(zoned(a.endsAt, tz).time),
+  }));
+  const rows = [...new Set(items.map((i) => i.start))].sort((x, y) => x - y);
+  // Active professionals, plus anyone with a booking that day who is no longer listed.
+  const columns = [...props.professionals];
+  for (const { a } of items) {
+    if (!columns.some((p) => p.id === a.professionalId)) columns.push({ id: a.professionalId, name: a.professionalName });
+  }
+  const label = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
       <div className="overflow-x-auto">
-        <div className="min-w-[640px]" style={{ display: "grid", gridTemplateColumns: `56px repeat(${columns}, minmax(170px, 1fr))` }}>
-          <div className="sticky top-0 z-10 border-b bg-card" />
-          {props.professionals.map((p) => {
+        <div
+          className="grid min-w-[640px]"
+          style={{
+            gridTemplateColumns: `64px repeat(${columns.length}, minmax(180px, 1fr))`,
+            gridTemplateRows: `auto repeat(${rows.length}, minmax(64px, auto))`,
+          }}
+        >
+          <div className="border-b" style={{ gridRow: 1, gridColumn: 1 }} />
+          {columns.map((p, c) => {
             const count = props.list.filter((a) => a.professionalId === p.id && a.status !== "cancelled").length;
             return (
-              <div key={p.id} className="sticky top-0 z-10 border-b border-l bg-card px-3 py-2.5">
+              <div key={p.id} className="border-b border-l px-3 py-2.5" style={{ gridRow: 1, gridColumn: c + 2 }}>
                 <div className="text-sm font-medium">{p.name}</div>
                 <div className="text-xs text-muted-foreground">
                   {count} {count === 1 ? "atendimento" : "atendimentos"}
@@ -299,73 +291,49 @@ function DayGrid(props: {
             );
           })}
 
-          <div className="relative" style={{ height }}>
-            {hours.map((h) => (
-              <div
-                key={h}
-                className="absolute right-2 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums"
-                style={{ top: (h - dayStart) * pxPerMin }}
-              >
-                {h > dayStart && `${String(h / 60).padStart(2, "0")}:00`}
+          {rows.map((time, r) => (
+            <div key={time} className="contents">
+              <div className="border-t px-2 pt-2.5 text-right text-xs font-medium text-muted-foreground tabular-nums" style={{ gridRow: r + 2, gridColumn: 1 }}>
+                {label(time)}
               </div>
-            ))}
-          </div>
-
-          {props.professionals.map((p) => (
-            <div key={p.id} className="relative border-l" style={{ height }}>
-              {hours.map((h) => (
-                <div key={h} className="absolute inset-x-0 border-t border-border/70" style={{ top: (h - dayStart) * pxPerMin }}>
-                  <div className="absolute inset-x-0 border-t border-dashed border-border/40" style={{ top: 30 * pxPerMin }} />
-                </div>
+              {columns.map((p, c) => (
+                <div key={p.id} className="border-t border-l" style={{ gridRow: r + 2, gridColumn: c + 2 }} />
               ))}
-              {items
-                .filter((i) => i.a.professionalId === p.id)
-                .map(({ a, start, end }) => {
-                  const isNew = props.fresh.has(a.id);
-                  const blockHeight = Math.max((end - start) * pxPerMin - 3, 22);
-                  return (
-                    <motion.button
-                      key={a.id}
-                      initial={isNew && !reduceMotion ? { opacity: 0, scale: 0.97 } : false}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.22 }}
-                      onClick={() => props.onOpen(a)}
-                      className={cn(
-                        "absolute inset-x-1 overflow-hidden rounded-md px-2 py-1 text-left text-xs hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring",
-                        blockClasses(a),
-                        isNew && "ring-2 ring-primary/40",
-                      )}
-                      style={{ top: (start - dayStart) * pxPerMin + 1, height: blockHeight }}
-                    >
-                      {blockHeight < 40 ? (
-                        // Short block: time and name share one line so nobody is hidden.
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="font-medium tabular-nums">{zoned(a.startsAt, props.tenant.timezone).time}</span>
-                          <span className="truncate font-semibold text-foreground">{a.customerName ?? "Sem nome"}</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="font-medium tabular-nums">{zoned(a.startsAt, props.tenant.timezone).time}</span>
-                            {a.status === "scheduled" && <span className="text-[10px]">Pendente</span>}
-                          </div>
-                          <div className="truncate font-semibold text-foreground">{a.customerName ?? "Sem nome"}</div>
-                        </>
-                      )}
-                      {blockHeight > 52 && <div className="truncate text-muted-foreground">{a.serviceName}</div>}
-                    </motion.button>
-                  );
-                })}
-              {nowMinutes !== null && nowMinutes > dayStart && nowMinutes < dayEnd && (
-                <div className="pointer-events-none absolute inset-x-0 z-[5] border-t-2 border-primary" style={{ top: (nowMinutes - dayStart) * pxPerMin }} />
-              )}
             </div>
           ))}
+
+          {items.map(({ a, start, end }) => {
+            const row = rows.indexOf(start);
+            const column = columns.findIndex((p) => p.id === a.professionalId);
+            const span = Math.max(rows.filter((time, j) => j >= row && time < end).length, 1);
+            const isNew = props.fresh.has(a.id);
+            return (
+              <div key={a.id} className="z-[1] p-1" style={{ gridRow: `${row + 2} / span ${span}`, gridColumn: column + 2 }}>
+                <motion.button
+                  initial={isNew && !reduceMotion ? { opacity: 0, scale: 0.97 } : false}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.22 }}
+                  onClick={() => props.onOpen(a)}
+                  className={cn(
+                    "flex h-full w-full flex-col justify-center overflow-hidden rounded-md px-2.5 py-1.5 text-left text-xs hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring",
+                    blockClasses(a),
+                    isNew && "ring-2 ring-primary/40",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium tabular-nums">
+                      {zoned(a.startsAt, tz).time}–{zoned(a.endsAt, tz).time}
+                    </span>
+                    {a.status === "scheduled" && <span className="text-[11px] font-medium">Pendente</span>}
+                  </div>
+                  <div className="truncate text-sm font-semibold text-foreground">{a.customerName ?? "Sem nome"}</div>
+                  <div className="truncate text-muted-foreground">{a.serviceName}</div>
+                </motion.button>
+              </div>
+            );
+          })}
         </div>
       </div>
-      {props.list.length === 0 && (
-        <p className="border-t px-4 py-3 text-xs text-muted-foreground">Nenhum agendamento neste dia.</p>
-      )}
     </div>
   );
 }
@@ -397,7 +365,7 @@ function MobileDay(props: {
           <ChevronLeft />
         </Button>
         <div className="min-w-0 flex-1 text-center">
-          <div className="truncate text-sm font-semibold capitalize">
+          <div className="truncate text-sm font-semibold first-letter:uppercase">
             {props.date === props.today ? "Hoje" : formatDayLong(props.date)}
           </div>
           <div className="text-xs text-muted-foreground">{props.summary}</div>

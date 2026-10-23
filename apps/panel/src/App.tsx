@@ -25,6 +25,7 @@ import { Skeleton } from "./components/ui/skeleton";
 import { useIsMobile } from "./hooks/use-mobile";
 import { useTenant } from "./lib/queries";
 import { AccessPage } from "./pages/AccessPage";
+import { AgendaAlerts } from "@/components/agenda-alerts";
 import { AgendaPage } from "./pages/agenda/AgendaPage";
 import { BusinessesPage } from "./pages/BusinessesPage";
 import { CustomersPage } from "./pages/CustomersPage";
@@ -145,6 +146,8 @@ function BusinessWorkspace({
   const mobile = useIsMobile();
   const tenant = useTenant(tenantId);
   const [page, setPage] = useState("agenda");
+  // Set by an agenda alert's "Ver": the agenda opens on that day.
+  const [agendaFocus, setAgendaFocus] = useState<{ date: string; key: number } | null>(null);
 
   useEffect(() => {
     if (tenant.data) document.title = role === "owner" ? tenant.data.name : `${tenant.data.name} · ${BRAND}`;
@@ -189,7 +192,15 @@ function BusinessWorkspace({
       onLogout={onLogout}
       onBack={onBackToBusinesses}
     >
-      {page === "agenda" && <AgendaPage tenant={t} />}
+      <AgendaAlerts
+        key={t.id}
+        tenant={t}
+        onOpen={(date) => {
+          setAgendaFocus({ date, key: Date.now() });
+          setPage("agenda");
+        }}
+      />
+      {page === "agenda" && <AgendaPage tenant={t} focus={agendaFocus} />}
       {page === "customers" && <CustomersPage tenant={t} />}
       {page === "services" && <ServicesPage tenant={t} />}
       {page === "professionals" && <ProfessionalsPage tenant={t} />}

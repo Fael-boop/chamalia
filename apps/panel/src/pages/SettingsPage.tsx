@@ -11,6 +11,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { setAgendaAlerts, useAgendaAlertsEnabled } from "@/lib/agenda-alerts";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { keys } from "@/lib/queries";
@@ -57,7 +58,7 @@ const toValues = (t: Tenant): Values => ({
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <section className="grid gap-4 border-b py-6 first:pt-0 md:grid-cols-[220px_1fr] md:gap-8">
+    <section className="grid gap-4 border-b py-6 first:pt-0 last:border-b-0 last:pb-0 md:grid-cols-[220px_1fr] md:gap-8">
       <div>
         <h2 className="text-sm font-semibold">{title}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{description}</p>
@@ -262,6 +263,28 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
           </div>
         </form>
       </Form>
+
+      <AgendaAlertsSetting />
     </>
+  );
+}
+
+/** Saved on this device only, and applied right away (no need to press Salvar). */
+function AgendaAlertsSetting() {
+  const enabled = useAgendaAlertsEnabled();
+  return (
+    <div className="mt-4 rounded-lg border bg-card p-4 md:p-6">
+      <Section title="Avisos da agenda" description="Valem só neste aparelho. Cada pessoa escolhe no seu.">
+        <div className="flex items-start gap-3 sm:col-span-2">
+          <Switch id="agenda-alerts" checked={enabled} onCheckedChange={setAgendaAlerts} />
+          <label htmlFor="agenda-alerts" className="text-sm leading-snug">
+            Avisar sobre a agenda
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Quando a atendente marca um horário, e ao abrir o sistema se houver agendamentos pendentes.
+            </span>
+          </label>
+        </div>
+      </Section>
+    </div>
   );
 }

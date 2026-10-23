@@ -22,12 +22,12 @@ export const keys = {
 export const useTenant = (tenantId: string) =>
   useQuery({ queryKey: keys.tenant(tenantId), queryFn: () => api<Tenant>(`/tenants/${tenantId}`) });
 
-/** Agenda for a date range; refreshes every 30 s so new WhatsApp bookings show up. */
+/** Agenda for a date range; refreshes every 10 s so new WhatsApp bookings show up. */
 export const useAppointments = (tenantId: string, from: string, to: string) =>
   useQuery({
     queryKey: keys.appointments(tenantId, from, to),
     queryFn: () => api<Appointment[]>(`/tenants/${tenantId}/appointments?from=${from}&to=${to}`),
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
     placeholderData: (previous) => previous,
   });
 
