@@ -17,6 +17,7 @@ import { registerTestChatRoutes } from "./api/test-chat.js";
 import { registerUserRoutes } from "./api/users.js";
 import { registerWebhookRoutes } from "./api/webhooks.js";
 import { EvolutionChannel, EvolutionClient } from "./channels/evolution.js";
+import { groqTranscriber } from "./channels/transcribe.js";
 import type { Config } from "./config.js";
 import type { Sql } from "./db/client.js";
 import { loggerOptions } from "./lib/logger.js";
@@ -75,7 +76,9 @@ export async function buildApp(config: Config, sql?: Sql) {
         engine: { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log },
         evolution: whatsapp.evolution,
         secret: whatsapp.webhookSecret,
+        transcribe: config.GROQ_API_KEY ? groqTranscriber(config.GROQ_API_KEY, config.GROQ_TRANSCRIBE_MODEL) : undefined,
       });
+      if (!config.GROQ_API_KEY) app.log.warn("Áudios do WhatsApp sem transcrição: falta GROQ_API_KEY");
     }
     if (whatsapp) {
       // Day-before reminders only make sense where a real WhatsApp is connected.

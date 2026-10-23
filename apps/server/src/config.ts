@@ -19,6 +19,10 @@ const envSchema = z
     ANTHROPIC_API_KEY: optionalString,
     ANTHROPIC_MODEL: z.string().default("claude-haiku-5-5"),
 
+    // Transcreve áudios do WhatsApp (Groq, Whisper). Sem a chave, a Lia pede para a pessoa escrever.
+    GROQ_API_KEY: optionalString,
+    GROQ_TRANSCRIBE_MODEL: z.string().default("whisper-large-v3-turbo"),
+
     WHATSAPP_PROVIDER: z.enum(["evolution", "meta_cloud"]).default("evolution"),
     EVOLUTION_API_URL: optionalString,
     EVOLUTION_API_KEY: optionalString,

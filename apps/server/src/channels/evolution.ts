@@ -121,6 +121,16 @@ export class EvolutionClient {
     return result.key?.id;
   }
 
+  /** Downloads the media of a received message (the webhook's data, with key and message) as base64. */
+  async downloadMedia(instance: string, message: unknown): Promise<{ base64: string; mimetype: string }> {
+    const result = await this.request<{ base64?: string; mimetype?: string }>("POST", `/chat/getBase64FromMediaMessage/${instance}`, {
+      message,
+      convertToMp4: false,
+    });
+    if (!result.base64) throw new EvolutionError(502, "Evolution returned no media");
+    return { base64: result.base64, mimetype: result.mimetype ?? "audio/ogg" };
+  }
+
   async sendText(instance: string, toPhone: string, text: string): Promise<string | undefined> {
     await limiter.wait(instance);
     const result = await this.request<{ key?: { id?: string } }>("POST", `/message/sendText/${instance}`, {

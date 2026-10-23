@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customerJid, messageText, quotedMessageId } from "./webhooks.js";
+import { audioInfo, customerJid, messageText, quotedMessageId } from "./webhooks.js";
 
 describe("Evolution webhook parsing", () => {
   it("uses the phone JID, also when WhatsApp addresses the chat by LID", () => {
@@ -24,5 +24,12 @@ describe("Evolution webhook parsing", () => {
     expect(quotedMessageId({ message: { extendedTextMessage: { text: "resolvido", contextInfo: { stanzaId: "ABC" } } } })).toBe("ABC");
     expect(quotedMessageId({ message: { conversation: "resolvido" }, contextInfo: { stanzaId: "XYZ" } })).toBe("XYZ");
     expect(quotedMessageId({ message: { conversation: "resolvido" } })).toBeUndefined();
+  });
+});
+
+describe("voice messages", () => {
+  it("reads the length of a voice note", () => {
+    expect(audioInfo({ message: { audioMessage: { seconds: 14, mimetype: "audio/ogg; codecs=opus" } } })).toEqual({ seconds: 14 });
+    expect(audioInfo({ message: { conversation: "oi" } })).toBeUndefined();
   });
 });

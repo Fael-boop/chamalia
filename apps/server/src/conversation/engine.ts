@@ -20,6 +20,8 @@ export type IncomingMessage = {
   providerMessageId: string;
   /** Audio, image, sticker...: stored as-is, answered with a fixed message. */
   unsupported?: boolean;
+  /** The fixed answer for unsupported, when it is not the generic one (a long or unclear voice note). */
+  unsupportedReply?: string;
   /** The message this one replies to (WhatsApp "Responder"). */
   quotedMessageId?: string;
 };
@@ -38,7 +40,7 @@ const MAX_TOOL_ROUNDS = 8;
 /** conversations.state while the owner is handling the conversation. */
 export const HUMAN_STATE = "human";
 const FALLBACK_REPLY = "Desculpe, tive um probleminha aqui. Pode me mandar de novo em alguns instantes?";
-const UNSUPPORTED_REPLY = "Por enquanto eu só consigo ler mensagens de texto. Pode me escrever? 🙂";
+const UNSUPPORTED_REPLY = "Por enquanto eu não consigo abrir esse tipo de mensagem. Pode me escrever? 🙂";
 const OWNER_TOOK_OVER = "A equipe respondeu pelo WhatsApp";
 
 /** conversations.context: handoff info while with the team, and a pending reminder. */
@@ -174,7 +176,7 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
   const answer = message.unsupported ? null : await answerReminder(ctx, conversation, message.text);
   let reply: string;
   if (message.unsupported) {
-    reply = UNSUPPORTED_REPLY;
+    reply = message.unsupportedReply ?? UNSUPPORTED_REPLY;
   } else if (answer?.reply) {
     reply = answer.reply;
   } else {
