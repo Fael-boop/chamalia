@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Banner Chama Lia</title>
+<style>
+  @font-face {
+    font-family: "Inter";
+    src: url("../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2");
+    font-weight: 100 900;
+  }
+  html, body { margin: 0; }
+  body {
+    width: 1920px; height: 1080px; overflow: hidden;
+    background: #0e0f13; color: #fff;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* Content kept in the middle: WhatsApp crops the cover differently on each phone. */
+  .content { width: 1300px; display: flex; align-items: center; gap: 80px; }
+  .mark { width: 300px; height: 300px; flex: none; }
+  .brand { font-size: 60px; font-weight: 600; letter-spacing: -1px; margin: 0 0 28px; color: #d4d4d8; }
+  .brand span { color: #3b82f6; }
+  h1 { font-size: 84px; line-height: 1.05; font-weight: 700; letter-spacing: -2.5px; margin: 0 0 32px; }
+  h1 span { color: #3b82f6; }
+  p { font-size: 38px; line-height: 1.35; color: #a1a1aa; margin: 0 0 40px; }
+  .site { font-size: 34px; font-weight: 600; color: #fff; }
+  .site span { color: #71717a; font-weight: 400; margin: 0 14px; }
+</style>
+</head>
+<body>
+  <div class="content">
+    <svg class="mark" viewBox="0 0 512 512" aria-hidden="true">
+      <rect width="512" height="512" rx="112" fill="#1a1c22"/>
+      <rect x="176" y="136" width="56" height="240" rx="8" fill="#ffffff"/>
+      <rect x="176" y="320" width="168" height="56" rx="8" fill="#ffffff"/>
+      <circle cx="340" cy="180" r="36" fill="#3b82f6"/>
+    </svg>
+    <div>
+      <div class="brand">Chama <span>Lia</span></div>
+      <h1>Sua atendente no WhatsApp, <span>sempre disponível.</span></h1>
+      <p>Agenda, confirma e lembra seus clientes. Você só entra quando precisa.</p>
+      <div class="site">chamalia.com.br<span>·</span>(62) 99362-1633</div>
+    </div>
+  </div>
+</body>
+</html>
