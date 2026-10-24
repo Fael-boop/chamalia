@@ -39,32 +39,16 @@ export type NavGroup = {
   icon: ComponentType<{ className?: string }>;
 };
 
-const GROUP_KEY = "chamalia.navGroups";
-
-/** Which modules are open, remembered on this device. The module of the current screen is always open. */
-function useOpenGroups(): [Set<string>, (id: string) => void] {
-  const [open, setOpen] = useState<Set<string>>(() => {
-    try {
-      return new Set(
-        JSON.parse(localStorage.getItem(GROUP_KEY) ?? "[]") as string[],
-      );
-    } catch {
-      return new Set();
-    }
-  });
-  const toggle = (id: string) =>
-    setOpen((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      try {
-        localStorage.setItem(GROUP_KEY, JSON.stringify([...next]));
-      } catch {
-        // Private mode: the choice lasts until the page closes.
-      }
-      return next;
-    });
-  return [open, toggle];
+/**
+ * One module open at a time (accordion). Going to a screen opens its module and closes the others;
+ * clicking a module's name opens it (closing the one that was open) or closes it.
+ */
+function useOpenGroup(
+  currentGroup: string | null,
+): [string | null, (id: string) => void] {
+  const [open, setOpen] = useState<string | null>(currentGroup);
+  useEffect(() => setOpen(currentGroup), [currentGroup]);
+  return [open, (id) => setOpen((now) => (now === id ? null : id))];
 }
 
 type Props = {
@@ -159,7 +143,8 @@ export function AppShell({
   children,
 }: Props) {
   const [autoHide, setAutoHide] = useAutoHideNav();
-  const [openGroups, toggleGroup] = useOpenGroups();
+  const currentGroup = items.find((item) => item.id === current)?.group ?? null;
+  const [openGroup, toggleGroup] = useOpenGroup(currentGroup);
   const navLink = (item: NavItem, sub = false) => {
     const active = item.id === current;
     return (
@@ -427,12 +412,12 @@ export function AppShell({
               return null;
             const children = items.filter((other) => other.group === group.id);
             const holdsCurrent = children.some((child) => child.id === current);
-            const open = holdsCurrent || openGroups.has(group.id);
+            const open = openGroup === group.id;
             return (
               <div key={group.id} className="mt-2">
                 <button
                   type="button"
-                  onClick={() => !holdsCurrent && toggleGroup(group.id)}
+                  onClick={() => toggleGroup(group.id)}
                   aria-expanded={open}
                   className={cn(
                     "flex h-9 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
