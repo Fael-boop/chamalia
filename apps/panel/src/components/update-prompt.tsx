@@ -10,8 +10,11 @@ const TOAST_ID = "app-update";
 /** Last resort when no new service worker shows up: drop the cached app and load it fresh. */
 async function hardReload() {
   try {
-    const registrations = (await navigator.serviceWorker?.getRegistrations()) ?? [];
-    await Promise.all(registrations.map((registration) => registration.unregister()));
+    const registrations =
+      (await navigator.serviceWorker?.getRegistrations()) ?? [];
+    await Promise.all(
+      registrations.map((registration) => registration.unregister()),
+    );
     const keys = (await caches?.keys()) ?? [];
     await Promise.all(keys.map((key) => caches.delete(key)));
   } finally {
@@ -31,7 +34,16 @@ export function UpdatePrompt() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_url, registration) {
-      if (registration) setInterval(() => void registration.update().catch(() => {}), CHECK_EVERY_MS);
+      if (registration) {
+        setInterval(
+          () => void registration.update().catch(() => {}),
+          CHECK_EVERY_MS,
+        );
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible")
+            void registration.update().catch(() => {});
+        });
+      }
     },
   });
 
@@ -48,7 +60,17 @@ export function UpdatePrompt() {
     };
     void check();
     const timer = setInterval(check, CHECK_EVERY_MS);
-    return () => clearInterval(timer);
+    // Browsers slow timers in background tabs: look again as soon as the person comes back.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -58,7 +80,8 @@ export function UpdatePrompt() {
       duration: Infinity,
       action: {
         label: "Atualizar",
-        onClick: () => void (needRefresh ? updateServiceWorker(true) : hardReload()),
+        onClick: () =>
+          void (needRefresh ? updateServiceWorker(true) : hardReload()),
       },
     });
   }, [needRefresh, outdated, updateServiceWorker]);
