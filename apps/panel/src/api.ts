@@ -356,3 +356,13 @@ export type TestChatReply = {
   ownerPhoneMissing: boolean;
   withOwner: boolean;
 };
+
+export type TimeOff = {
+  id: string;
+  /** null = the whole business. */
+  professionalId: string | null;
+  professionalName: string | null;
+  startsAt: string;
+  endsAt: string;
+  reason: string | null;
+};

@@ -17,9 +17,31 @@ export type PromptData = {
   /** How the assistant talks about this kind of place and its customers. */
   niche: { place: string; customerWord: string };
   handoffTopics: { id: string; topic: string; reason: string | null }[];
+  /** Upcoming closures (professionalId null = the whole business) and absences. */
+  timeOff: { professionalId: string | null; professionalName: string | null; startsAt: Date; endsAt: Date; reason: string | null }[];
   customerName: string | null;
   now: Date;
 };
+
+/** Closures and absences, one per line, so she can explain why a day has no times. */
+function describeTimeOff(rows: PromptData["timeOff"], timeZone: string): string {
+  if (!rows.length) return "";
+  const lines = rows.map((row) => {
+    const start = utcToZoned(row.startsAt, timeZone);
+    const end = utcToZoned(new Date(row.endsAt.getTime() - 1), timeZone);
+    const day = (date: string) => date.split("-").reverse().slice(0, 2).join("/");
+    const allDay = start.time === "00:00" && utcToZoned(row.endsAt, timeZone).time === "00:00";
+    const when = allDay
+      ? start.date === end.date
+        ? `dia ${day(start.date)}`
+        : `de ${day(start.date)} a ${day(end.date)}`
+      : `dia ${day(start.date)}, das ${start.time} às ${utcToZoned(row.endsAt, timeZone).time}`;
+    const who = row.professionalName ? `${row.professionalName} não atende` : "fechado";
+    return `- ${who} ${when}${row.reason ? ` (${row.reason})` : ""}`;
+  });
+  const header = "Folgas e fechamentos (já valem na busca de horários; se a cliente pedir esse dia, explique de forma simples e ofereça outro):";
+  return `\n${header}\n${lines.join("\n")}\n`;
+}
 
 /** "Rua das Flores, 120, Centro – São Paulo" from the separate fields. */
 function fullAddress(tenant: Tenant): string | null {
@@ -118,7 +140,7 @@ ${
 }Horário de funcionamento:
 ${describeHours(data.hours.filter((row) => row.professionalId === null))}
 Profissional sem horário próprio segue o do salão. Os horários livres de verdade vêm sempre de find_available_slots.
-
+${describeTimeOff(data.timeOff, tenant.timezone)}
 Regras de agendamento: no mínimo ${describeNotice(tenant.minNoticeMinutes)} de antecedência e até ${tenant.bookingHorizonDays} dias à frente.
 ${
   data.faq.length

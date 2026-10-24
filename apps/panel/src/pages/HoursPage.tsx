@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, type BusinessHour, type Tenant } from "@/api";
 import { Hint, PageHeader } from "@/components/page-header";
+import { TimeOffSection } from "@/components/time-off-section";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fromWeek, toWeek, WeekHoursEditor, type Week } from "@/components/week-hours-editor";
@@ -52,6 +53,7 @@ export function HoursPage({ tenant }: { tenant: Tenant }) {
           Profissionais.
         </Hint>
       </div>
+      <TimeOffSection tenant={tenant} />
     </>
   );
 }

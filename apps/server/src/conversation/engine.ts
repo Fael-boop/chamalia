@@ -450,7 +450,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
   const { sql } = deps;
   const { tenant } = ctx;
 
-  const [services, professionals, reception, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson, niche, rules] = await Promise.all([
+  const [services, professionals, reception, hours, history, recentlyCancelled, handoffTopics, faq, defaultPerson, niche, rules, timeOff] = await Promise.all([
     sql<Service[]>`
       select id, name, description, duration_minutes, price_cents, active, handoff, handoff_reason
       from services where tenant_id = ${tenant.id} and active and archived_at is null order by name
@@ -503,6 +503,15 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
     sql<{ kind: "always" | "never"; text: string }[]>`
       select kind, text from assistant_rules where tenant_id = ${tenant.id} order by created_at
     `,
+    // Closures and absences in the booking window, so she can explain "fechado dia 25" instead of just having no slots.
+    sql<{ professionalId: string | null; professionalName: string | null; startsAt: Date; endsAt: Date; reason: string | null }[]>`
+      select t.professional_id, p.name as professional_name, t.starts_at, t.ends_at, t.reason
+      from time_off t
+      left join professionals p on p.id = t.professional_id and p.tenant_id = t.tenant_id
+      where t.tenant_id = ${tenant.id} and t.ends_at > now()
+        and t.starts_at < now() + make_interval(days => ${tenant.bookingHorizonDays})
+      order by t.starts_at limit 40
+    `,
   ]);
   const cancelledNote = recentlyCancelled.length
     ? "\n\nHorários desta cliente desmarcados nas últimas horas (já cancelados de verdade, não aparecem em list_customer_appointments):\n" +
@@ -521,6 +530,7 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
     handoffTopics,
     faq,
     rules,
+    timeOff,
     defaultPerson: defaultPerson[0] ?? null,
     customerName: ctx.customer.name,
     now: new Date(),

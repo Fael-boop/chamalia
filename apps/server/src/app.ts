@@ -10,6 +10,7 @@ import { registerBillingRoutes, type MercadoPagoSetup } from "./api/billing.js";
 import { registerBusinessLogoRoutes } from "./api/business-logo.js";
 import { registerNicheRoutes } from "./api/niches.js";
 import { registerRuleRoutes } from "./api/rules.js";
+import { registerTimeOffRoutes } from "./api/time-off.js";
 import { registerAuth } from "./api/auth.js";
 import { registerConversationRoutes } from "./api/conversations.js";
 import { registerPanelRoutes } from "./api/panel.js";
@@ -71,6 +72,7 @@ export async function buildApp(config: Config, sql?: Sql) {
     registerNicheRoutes(app, sql);
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;
     registerRuleRoutes(app, sql, anthropic && { anthropic, model: config.ANTHROPIC_MODEL });
+    registerTimeOffRoutes(app, sql);
     registerPriceTableRoutes(app, sql);
     registerConversationRoutes(app, sql);
     const whatsapp =
