@@ -80,6 +80,43 @@ export function TimeOffSection({ tenant }: { tenant: Tenant }) {
   );
 }
 
+/** Blocks that touch the given day ("AAAA-MM-DD", business timezone). */
+export function blocksOnDay(blocks: TimeOff[] | undefined, day: string, timeZone: string): TimeOff[] {
+  return (blocks ?? []).filter((row) => zoned(row.startsAt, timeZone).date <= day && day <= zoned(new Date(new Date(row.endsAt).getTime() - 1).toISOString(), timeZone).date);
+}
+
+/** True when the whole business is closed all day (no professional is bookable). */
+export function closedAllDay(blocks: TimeOff[], day: string, timeZone: string): boolean {
+  return blocks.some((row) => {
+    if (row.professionalId) return false;
+    const start = zoned(row.startsAt, timeZone);
+    const end = zoned(row.endsAt, timeZone);
+    return (start.date < day || start.time === "00:00") && (end.date > day || end.time === "00:00" || end.time > "23:59");
+  });
+}
+
+/** One line per block on the day, above the agenda: "Fechado (Feriado)" / "Ana de folga, 12:00 às 14:00". */
+export function TimeOffNotice({ blocks, day, timeZone }: { blocks: TimeOff[]; day: string; timeZone: string }) {
+  if (!blocks.length) return null;
+  return (
+    <ul className="mb-3 space-y-1 rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm" aria-label="Bloqueios do dia">
+      {blocks.map((row) => {
+        const start = zoned(row.startsAt, timeZone);
+        const end = zoned(row.endsAt, timeZone);
+        const partial = !(start.date < day || start.time === "00:00") || !(end.date > day || end.time === "00:00");
+        const hours = partial ? `, ${start.date === day ? start.time : "00:00"} às ${end.date === day ? end.time : "24:00"}` : "";
+        return (
+          <li key={row.id} className="text-muted-foreground">
+            <span className="font-medium text-foreground">{row.professionalName ? `${row.professionalName} fora` : "Fechado"}</span>
+            {hours}
+            {row.reason ? ` · ${row.reason}` : ""}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** "sáb, 25 de outubro" / "25 a 28 de outubro" / "sexta, 24 de outubro, 14:00 às 16:00" */
 function describe(row: TimeOff, timeZone: string): string {
   const start = zoned(row.startsAt, timeZone);

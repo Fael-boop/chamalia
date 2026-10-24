@@ -1,15 +1,17 @@
 import { format, parseISO, startOfWeek } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Appointment, Tenant } from "@/api";
+import { api, type Appointment, type Tenant, type TimeOff } from "@/api";
 import { PageHeader } from "@/components/page-header";
+import { blocksOnDay, closedAllDay, TimeOffNotice } from "@/components/time-off-section";
 import { STATUS_STYLES, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDayLong, formatWeekdayShort, minutesOf, shiftDate, todayIn, zoned } from "@/format";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAppointments, useProfessionals } from "@/lib/queries";
+import { keys, useAppointments, useProfessionals } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { NewAppointmentSheet } from "./NewAppointmentSheet";
@@ -52,6 +54,8 @@ export function AgendaPage({ tenant, focus }: { tenant: Tenant; focus?: { date: 
   const appointments = useAppointments(tenant.id, weekStart, weekDays[6]!);
   const professionals = useProfessionals(tenant.id);
   const fresh = useNewIds(appointments.data, weekStart);
+  const timeOff = useQuery({ queryKey: keys.timeOff(tenant.id), queryFn: () => api<TimeOff[]>(`/tenants/${tenant.id}/time-off`) });
+  const dayBlocks = blocksOnDay(timeOff.data, date, tenant.timezone);
 
   const byDay = useMemo(() => {
     const map = new Map<string, Appointment[]>();
@@ -118,7 +122,16 @@ export function AgendaPage({ tenant, focus }: { tenant: Tenant; focus?: { date: 
         </Button>
       )}
 
-      <WeekStrip days={weekDays} selected={date} today={today} counts={byDay} onSelect={go} compact={mobile} />
+      <WeekStrip
+        days={weekDays}
+        selected={date}
+        today={today}
+        counts={byDay}
+        closed={new Set(weekDays.filter((d) => closedAllDay(blocksOnDay(timeOff.data, d, tenant.timezone), d, tenant.timezone)))}
+        onSelect={go}
+        compact={mobile}
+      />
+      <TimeOffNotice blocks={dayBlocks} day={date} timeZone={tenant.timezone} />
 
       {mobile ? (
         <MobileDay
@@ -168,6 +181,8 @@ function WeekStrip(props: {
   selected: string;
   today: string;
   counts: Map<string, Appointment[]>;
+  /** Days the whole business is closed. */
+  closed: Set<string>;
   onSelect: (day: string) => void;
   compact: boolean;
 }) {
@@ -197,7 +212,7 @@ function WeekStrip(props: {
               {day.slice(8)}
             </span>
             <span className={cn("text-[10px] tabular-nums", selected ? "text-primary-foreground/80" : "text-muted-foreground")}>
-              {count ? `${count}` : "–"}
+              {props.closed.has(day) ? "fechado" : count ? `${count}` : "–"}
             </span>
             {waiting > 0 && <span className="absolute top-1 right-1 size-2 rounded-full bg-amber-500" aria-hidden />}
           </button>
