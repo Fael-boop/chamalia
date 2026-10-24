@@ -531,10 +531,13 @@ function WeekStrip(props: {
           >
             <span
               className={cn(
-                "text-[11px] capitalize",
+                "capitalize",
+                props.dense ? "text-sm font-semibold" : "text-[11px]",
                 selected
-                  ? "text-primary-foreground/80"
-                  : "text-muted-foreground",
+                  ? "text-primary-foreground"
+                  : props.dense
+                    ? "text-foreground/80"
+                    : "text-muted-foreground",
               )}
             >
               {formatWeekdayShort(day)}
