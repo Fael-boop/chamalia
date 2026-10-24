@@ -14,7 +14,7 @@ import { formatDayLong, shiftDate, todayIn, zoned } from "@/format";
 import { keys, useProfessionals } from "@/lib/queries";
 
 const selectClass =
-  "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+  "h-9 w-full rounded-md border border-input bg-background text-foreground [&>option]:bg-background [&>option]:text-foreground px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 /** "Folgas e feriados": closing days, a professional's absence or a blocked time. The Lia and the agenda respect them. */
 export function TimeOffSection({ tenant }: { tenant: Tenant }) {

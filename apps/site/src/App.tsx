@@ -1,3 +1,4 @@
+import { CookieNotice } from "./cookie-notice";
 import { Hero } from "./hero";
 import { Closing, Faq, Features, ForWho, HowItWorks, Teach } from "./sections";
 import { APP_URL, Band, Button, LogoMark, Wordmark, WHATSAPP_LABEL, whatsappUrl } from "./ui";
@@ -45,6 +46,7 @@ export function App() {
         <Faq />
       </main>
       <Closing appUrl={APP_URL} whatsappLabel={WHATSAPP_LABEL} />
+      <CookieNotice />
     </>
   );
 }
