@@ -116,10 +116,11 @@ export function TimeGrid(props: {
     24 * 60,
   );
   const range = Math.max(dayEnd - dayStart, 60);
-  const px = Math.min(
-    FIT_MAX,
-    Math.max(FIT_MIN, (viewHeight - HEADER_PX) / range || FIT_MIN),
-  );
+  // 1 px of margin so rounding never makes the grid a hair taller than the screen.
+  const fitPx = (viewHeight - HEADER_PX - 1) / range;
+  const px = Math.min(FIT_MAX, Math.max(FIT_MIN, fitPx || FIT_MIN));
+  // The day fits: no vertical bar. Only a very short window (below the minimum scale) scrolls.
+  const scrollsVertically = fitPx < FIT_MIN;
   const height = (dayEnd - dayStart) * px;
   const y = (minutes: number) => (minutes - dayStart) * px;
 
@@ -155,7 +156,13 @@ export function TimeGrid(props: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card">
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
+      <div
+        ref={scroller}
+        className={cn(
+          "min-h-0 flex-1 overflow-x-auto",
+          scrollsVertically ? "overflow-y-auto" : "overflow-y-hidden",
+        )}
+      >
         <div className="min-w-fit">
           {/* Who: sticky while scrolling the hours. */}
           <div
@@ -202,7 +209,11 @@ export function TimeGrid(props: {
                   key={m}
                   className={cn(
                     "absolute right-2 text-[11px] text-muted-foreground tabular-nums",
-                    m === dayStart ? "translate-y-0.5" : m === dayEnd ? "-translate-y-full" : "-translate-y-1/2",
+                    m === dayStart
+                      ? "translate-y-0.5"
+                      : m === dayEnd
+                        ? "-translate-y-full"
+                        : "-translate-y-1/2",
                   )}
                   style={{ top: y(m) }}
                 >
@@ -260,42 +271,72 @@ export function TimeGrid(props: {
                     </div>
                   ))}
                   {placed.map(({ a, start, end, lane, lanes }) => {
-                    const tall = (end - start) * px >= 44;
+                    // What fits depends on the height: 3 lines, 2 lines or a single line.
+                    const h = Math.max((end - start) * px - 2, 20);
+                    const size: "full" | "two" | "one" =
+                      h >= 68 ? "full" : h >= 42 ? "two" : "one";
+                    const from = zoned(a.startsAt, timeZone).time;
+                    const to = zoned(a.endsAt, timeZone).time;
+                    const name = a.customerName ?? "Sem nome";
                     return (
                       <button
                         key={a.id}
                         onClick={() => props.onOpen(a)}
+                        title={`${from}–${to} · ${name} · ${a.serviceName}`}
                         className={cn(
-                          "absolute z-[1] overflow-hidden rounded-md border border-l-[3px] px-2 text-left text-xs transition-colors duration-200 hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring",
+                          "absolute z-[1] overflow-hidden rounded-md border border-l-[3px] px-2 text-left text-xs leading-tight transition-colors duration-200 hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring",
                           STATUS_STYLES[a.status],
                           a.status === "cancelled" &&
                             "opacity-60 line-through decoration-1",
                           props.fresh.has(a.id) && "ring-2 ring-primary/40",
-                          tall ? "py-1" : "flex items-center gap-1.5",
+                          size === "one"
+                            ? "flex items-center gap-1.5"
+                            : "flex flex-col justify-center gap-0.5",
                         )}
                         style={{
                           top: y(start) + 1,
-                          height: Math.max((end - start) * px - 2, 20),
+                          height: h,
                           left: `calc(${(lane / lanes) * 100}% + 4px)`,
                           width: `calc(${100 / lanes}% - 8px)`,
                         }}
                       >
-                        <span className="font-medium tabular-nums">
-                          {zoned(a.startsAt, timeZone).time}
-                          {tall && `–${zoned(a.endsAt, timeZone).time}`}
-                        </span>
-                        <span
-                          className={cn(
-                            "truncate font-semibold text-foreground",
-                            tall && "block text-sm",
-                          )}
-                        >
-                          {a.customerName ?? "Sem nome"}
-                        </span>
-                        {tall && (
-                          <span className="block truncate text-muted-foreground">
-                            {a.serviceName}
-                          </span>
+                        {size === "one" && (
+                          <>
+                            <span className="shrink-0 font-medium tabular-nums">
+                              {from}
+                            </span>
+                            <span className="truncate font-semibold text-foreground">
+                              {name}
+                            </span>
+                          </>
+                        )}
+                        {size === "two" && (
+                          <>
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className="shrink-0 font-medium tabular-nums">
+                                {from}
+                              </span>
+                              <span className="truncate font-semibold text-foreground">
+                                {name}
+                              </span>
+                            </span>
+                            <span className="truncate text-muted-foreground">
+                              {a.serviceName}
+                            </span>
+                          </>
+                        )}
+                        {size === "full" && (
+                          <>
+                            <span className="truncate font-medium tabular-nums">
+                              {from}–{to}
+                            </span>
+                            <span className="truncate text-sm font-semibold text-foreground">
+                              {name}
+                            </span>
+                            <span className="truncate text-muted-foreground">
+                              {a.serviceName}
+                            </span>
+                          </>
                         )}
                       </button>
                     );
