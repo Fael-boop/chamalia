@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, CreditCard, ImageUp, KeyRound, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, CreditCard, ImageUp, KeyRound, LogOut, UserRound, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, replaceToken, type Me } from "@/api";
@@ -62,6 +62,7 @@ export function ProfileMenu({
   role,
   compact = false,
   onBilling,
+  onAccess,
   onLogout,
 }: {
   business?: { id: string; name: string };
@@ -69,6 +70,8 @@ export function ProfileMenu({
   /** Phone: the avatar only. */
   compact?: boolean;
   onBilling?: () => void;
+  /** Agency inside a business: shortcut to "Acesso do responsável" (create/reset the login). */
+  onAccess?: () => void;
   onLogout: () => void;
 }) {
   const me = useMe();
@@ -122,6 +125,11 @@ export function ProfileMenu({
               {onBilling && (
                 <DropdownMenuItem onSelect={onBilling}>
                   <CreditCard /> Cobrança
+                </DropdownMenuItem>
+              )}
+              {role === "admin" && onAccess && (
+                <DropdownMenuItem onSelect={onAccess}>
+                  <Users /> Acesso do responsável
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />

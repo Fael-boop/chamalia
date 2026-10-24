@@ -257,7 +257,14 @@ function BusinessWorkspace({
     setPage("agenda");
   };
   const profile = (compact: boolean) => (
-    <ProfileMenu business={{ id: t.id, name: t.name }} role={role} compact={compact} onBilling={() => setPage("billing")} onLogout={onLogout} />
+    <ProfileMenu
+      business={{ id: t.id, name: t.name }}
+      role={role}
+      compact={compact}
+      onBilling={() => setPage("billing")}
+      onAccess={() => setPage("access")}
+      onLogout={onLogout}
+    />
   );
 
   return (
