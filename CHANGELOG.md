@@ -8,6 +8,11 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.6.1 · 2026-10-24
+
+- Menu lateral recolhido por padrão: só a faixa de ícones, e o menu aparece ao chegar com o mouse na borda. Quem quiser manter o menu aberto clica no botão ao lado da logo (a escolha fica salva; quem já tinha escolhido mantém).
+- Aviso de nova versão: o painel confere também ao voltar para a aba, sem esperar o minuto.
+
 ## 1.6.0 · 2026-10-24
 
 - **Início:** nova tela inicial com saudação (Bom dia, Fulano), nome e logo do negócio, data, resumo do dia, atalhos para as telas, números da agenda, clientes e valor dos atendimentos concluídos, e o trabalho da atendente. Período: hoje, semana, mês ou mês passado.
