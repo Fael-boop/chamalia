@@ -8,6 +8,12 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.1.0 · 2026-10-24
+
+- Página de pagamento refeita no padrão de checkout: passos numerados, bandeiras dos cartões e símbolo do Pix, resumo do pedido sempre visível com descontos e total, bloco de segurança (Mercado Pago, 7 dias de garantia, LGPD).
+- Botão de assinatura próprio ("Assinar"), na cor da marca, no lugar do botão do Mercado Pago.
+- Configurações > Cobrança usa o mesmo checkout; troca de cartão com "Salvar cartão".
+
 ## 1.0.0 · 2026-10-24
 
 Primeira versão em produção (VPS + Easypanel, `app.chamalia.com.br`).
