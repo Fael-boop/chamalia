@@ -13,6 +13,7 @@ A versão em produção aparece em `https://app.chamalia.com.br/health` e no rod
 - Barra superior no painel: o negócio (com a logo) à esquerda e, à direita, avisos (sininho com os agendamentos pendentes), ajuda, tema e o menu do perfil. A agência vê "Todos os negócios / <negócio>".
 - O menu lateral ficou só com as telas, e o cartão do negócio saiu dele. O menu do perfil (Perfil e logo, Trocar senha, Cobrança, Sair) fica na barra, no canto direito.
 - Itens do menu são links de verdade: dá para abrir uma tela em outra aba (clique com o botão do meio ou Ctrl+clique).
+- Menu lateral: Treinar a Lia, Testar a Lia, WhatsApp e, por último, Configurações.
 - Agência dentro de um negócio: "Acesso do responsável" também aparece no menu do perfil (canto direito), para criar ou trocar o login sem procurar no menu lateral.
 - Acessibilidade: "Pular para o conteúdo" no primeiro Tab e foco visível no menu.
 - Página de pagamento: "Dúvidas? Fale com a gente" abre o e-mail contato@chamalia.com.br.
