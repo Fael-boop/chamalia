@@ -6,6 +6,7 @@ import {
   CreditCard,
   GraduationCap,
   Ellipsis,
+  House,
   KeyRound,
   MessagesSquare,
   Scissors,
@@ -20,9 +21,24 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api, ApiError, setExpiredHandler, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
+import {
+  api,
+  ApiError,
+  setExpiredHandler,
+  setToken,
+  setUnauthorizedHandler,
+  type SessionInfo,
+} from "./api";
 import { useSubscription } from "./lib/billing";
-import { AGENCY_PATHS, BUSINESS_PATHS, businessPrefix, normalizeAddress, pathFor, tenantFromPath, usePathPage } from "./lib/routes";
+import {
+  AGENCY_PATHS,
+  BUSINESS_PATHS,
+  businessPrefix,
+  normalizeAddress,
+  pathFor,
+  tenantFromPath,
+  usePathPage,
+} from "./lib/routes";
 import { AppShell, ThemeToggle, type NavItem } from "./components/app-shell";
 import { LogoMark } from "./components/logo";
 import { Skeleton } from "./components/ui/skeleton";
@@ -37,12 +53,17 @@ import { FaqPage } from "./pages/FaqPage";
 import { HandoffPage } from "./pages/HandoffPage";
 import { HoursPage } from "./pages/HoursPage";
 import { LoginPage } from "./pages/LoginPage";
+import { HomePage } from "./pages/HomePage";
 import { MorePage } from "./pages/MorePage";
 import { NichesPage } from "./pages/NichesPage";
 import { PaymentPage } from "./pages/PaymentPage";
 import { PlansPage } from "./pages/PlansPage";
 import { BillingSettings } from "./components/billing-settings";
-import { AccountCard, BusinessBadge, ProfileMenu } from "./components/account-menu";
+import {
+  AccountCard,
+  BusinessBadge,
+  ProfileMenu,
+} from "./components/account-menu";
 import { HelpButton, NotificationsButton } from "./components/topbar-actions";
 import { Button } from "./components/ui/button";
 import { PriceTablePage } from "./pages/PriceTablePage";
@@ -58,12 +79,21 @@ const BRAND = "Chama Lia";
 normalizeAddress();
 
 /** Screens of the WhatsApp assistant, hidden on the "Agenda Online" plan. */
-const ASSISTANT_PAGES = new Set(["faq", "prices", "handoff", "train", "whatsapp", "test-chat"]);
+const ASSISTANT_PAGES = new Set([
+  "faq",
+  "prices",
+  "handoff",
+  "train",
+  "whatsapp",
+  "test-chat",
+]);
 
 export function App() {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<SessionInfo | null>(null);
-  const [authState, setAuthState] = useState<"checking" | "login" | "ok">("checking");
+  const [authState, setAuthState] = useState<"checking" | "login" | "ok">(
+    "checking",
+  );
 
   const checkSession = useCallback(async () => {
     try {
@@ -78,7 +108,9 @@ export function App() {
   useEffect(() => {
     setUnauthorizedHandler(() => setAuthState("login"));
     // Expired while the panel is open: re-reading the subscription shows the payment page.
-    setExpiredHandler(() => void queryClient.invalidateQueries({ queryKey: ["subscription"] }));
+    setExpiredHandler(
+      () => void queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+    );
     void checkSession();
   }, [checkSession, queryClient]);
 
@@ -104,7 +136,11 @@ export function App() {
   if (authState === "checking" || !session) return <SplashSkeleton />;
 
   return session.role === "owner" ? (
-    <BusinessWorkspace tenantId={session.tenantId} role="owner" onLogout={logout} />
+    <BusinessWorkspace
+      tenantId={session.tenantId}
+      role="owner"
+      onLogout={logout}
+    />
   ) : (
     <AgencyApp onLogout={logout} />
   );
@@ -114,7 +150,12 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
   // A business opened by the agency lives at /negocio/<id>/..., so it survives reloads and links.
   const [tenantId, setTenantId] = useState<string | null>(tenantFromPath);
   const mobile = useIsMobile();
-  const [page, setPage] = usePathPage(AGENCY_PATHS, "businesses", "", !tenantId);
+  const [page, setPage] = usePathPage(
+    AGENCY_PATHS,
+    "businesses",
+    "",
+    !tenantId,
+  );
 
   useEffect(() => {
     document.title = BRAND;
@@ -138,7 +179,15 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
   };
 
   if (tenantId) {
-    return <BusinessWorkspace key={tenantId} tenantId={tenantId} role="admin" onLogout={onLogout} onBackToBusinesses={backToList} />;
+    return (
+      <BusinessWorkspace
+        key={tenantId}
+        tenantId={tenantId}
+        role="admin"
+        onLogout={onLogout}
+        onBackToBusinesses={backToList}
+      />
+    );
   }
 
   const items: NavItem[] = [
@@ -151,10 +200,20 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
       brand={BRAND}
       context="Agência"
       items={items}
-      mobileItems={[...items, { id: "more", label: "Mais", icon: Ellipsis, href: pathFor(AGENCY_PATHS, "more") }]}
+      mobileItems={[
+        ...items,
+        {
+          id: "more",
+          label: "Mais",
+          icon: Ellipsis,
+          href: pathFor(AGENCY_PATHS, "more"),
+        },
+      ]}
       current={page}
       onNavigate={setPage}
-      headerStart={<span className="text-sm font-semibold">Painel da agência</span>}
+      headerStart={
+        <span className="text-sm font-semibold">Painel da agência</span>
+      }
       headerEnd={
         <>
           <HelpButton />
@@ -194,38 +253,57 @@ function BusinessWorkspace({
   const blocked = role === "owner" && subscription.data?.expired === true;
   const tenant = useTenant(tenantId, !blocked);
   // Each screen has its address: /clientes, /pagamento... (the agency's under /negocio/<id>).
-  const [page, setPage] = usePathPage(BUSINESS_PATHS, "agenda", role === "admin" ? businessPrefix(tenantId) : "");
+  const [page, setPage] = usePathPage(
+    BUSINESS_PATHS,
+    "home",
+    role === "admin" ? businessPrefix(tenantId) : "",
+  );
   // "Agenda Online" (no Lia): her screens are not offered; a link to one of them lands on the agenda.
   const assistant = subscription.data?.plan.includesAssistant ?? true;
   useEffect(() => {
-    if (subscription.data && !assistant && ASSISTANT_PAGES.has(page)) setPage("agenda", true);
+    if (subscription.data && !assistant && ASSISTANT_PAGES.has(page))
+      setPage("agenda", true);
   }, [subscription.data, assistant, page, setPage]);
   // The agency-only screen, reached by an owner through a link: back to the agenda.
   useEffect(() => {
     if (role === "owner" && page === "access") setPage("agenda", true);
   }, [role, page, setPage]);
   // Set by an agenda alert's "Ver": the agenda opens on that day.
-  const [agendaFocus, setAgendaFocus] = useState<{ date: string; key: number } | null>(null);
+  const [agendaFocus, setAgendaFocus] = useState<{
+    date: string;
+    key: number;
+  } | null>(null);
 
   useEffect(() => {
-    if (tenant.data) document.title = role === "owner" ? tenant.data.name : `${tenant.data.name} · ${BRAND}`;
+    if (tenant.data)
+      document.title =
+        role === "owner" ? tenant.data.name : `${tenant.data.name} · ${BRAND}`;
   }, [tenant.data, role]);
 
   // Unblocked while looking at the payment page: say it, the panel opens right after.
   const wasBlocked = useRef(blocked);
   useEffect(() => {
-    if (wasBlocked.current && !blocked) toast.success("Pagamento confirmado. Bem-vindo de volta!");
+    if (wasBlocked.current && !blocked)
+      toast.success("Pagamento confirmado. Bem-vindo de volta!");
     wasBlocked.current = blocked;
   }, [blocked]);
 
   if (subscription.isLoading) return <SplashSkeleton />;
   // Expired: the business only gets the payment page (the agency still opens everything).
-  if (blocked) return <PaymentPage tenantId={tenantId} subscription={subscription.data!} onLogout={onLogout} />;
+  if (blocked)
+    return (
+      <PaymentPage
+        tenantId={tenantId}
+        subscription={subscription.data!}
+        onLogout={onLogout}
+      />
+    );
   if (tenant.isLoading || !tenant.data) return <SplashSkeleton />;
   const t = tenant.data;
   const shown = !assistant && ASSISTANT_PAGES.has(page) ? "agenda" : page;
 
   const main: NavItem[] = [
+    { id: "home", label: "Início", icon: House },
     { id: "agenda", label: "Agenda", icon: CalendarDays },
     { id: "customers", label: "Clientes", icon: Users },
     { id: "services", label: "Serviços", icon: Scissors },
@@ -237,12 +315,20 @@ function BusinessWorkspace({
     { id: "prices", label: "Tabela de preços", icon: Receipt },
     { id: "handoff", label: "Passar para a equipe", icon: UserRoundCheck },
     { id: "train", label: `Treinar a ${t.assistantName}`, icon: GraduationCap },
-    { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
+    {
+      id: "test-chat",
+      label: `Testar a ${t.assistantName}`,
+      icon: MessagesSquare,
+    },
     { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
-    ...(role === "admin" ? [{ id: "access", label: "Acesso do responsável", icon: KeyRound }] : []),
+    ...(role === "admin"
+      ? [{ id: "access", label: "Acesso do responsável", icon: KeyRound }]
+      : []),
     { id: "settings", label: "Configurações", icon: Settings },
   ].filter((item) => assistant || !ASSISTANT_PAGES.has(item.id));
-  const back: NavItem[] = onBackToBusinesses ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }] : [];
+  const back: NavItem[] = onBackToBusinesses
+    ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }]
+    : [];
   const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };
 
   const navigate = (id: string) => {
@@ -250,7 +336,11 @@ function BusinessWorkspace({
     else setPage(id);
   };
   const prefix = role === "admin" ? businessPrefix(tenantId) : "";
-  const withHref = (item: NavItem): NavItem => ({ ...item, href: item.id === "businesses" ? "/" : pathFor(BUSINESS_PATHS, item.id, prefix) });
+  const withHref = (item: NavItem): NavItem => ({
+    ...item,
+    href:
+      item.id === "businesses" ? "/" : pathFor(BUSINESS_PATHS, item.id, prefix),
+  });
   // From the bell or an agenda alert: the agenda opens on that day.
   const openDay = (date: string) => {
     setAgendaFocus({ date, key: Date.now() });
@@ -272,12 +362,18 @@ function BusinessWorkspace({
       brand={BRAND}
       context={t.name}
       items={[...main, ...secondary].map(withHref)}
-      mobileItems={[...main, more].map(withHref)}
+      mobileItems={[main[0]!, main[1]!, main[2]!, more].map(withHref)}
       current={shown === "billing" ? "settings" : shown}
       wide={shown === "agenda"}
       onNavigate={navigate}
       onBack={onBackToBusinesses && (() => navigate("businesses"))}
-      headerStart={<BusinessBadge id={t.id} name={t.name} onBack={onBackToBusinesses && (() => navigate("businesses"))} />}
+      headerStart={
+        <BusinessBadge
+          id={t.id}
+          name={t.name}
+          onBack={onBackToBusinesses && (() => navigate("businesses"))}
+        />
+      }
       headerEnd={
         <>
           <NotificationsButton tenant={t} onOpenDay={openDay} />
@@ -288,18 +384,30 @@ function BusinessWorkspace({
       }
       mobileHeaderEnd={
         <>
-          <NotificationsButton tenant={t} onOpenDay={openDay} className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white" />
+          <NotificationsButton
+            tenant={t}
+            onOpenDay={openDay}
+            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+          />
           {profile(true)}
         </>
       }
     >
-      <AgendaAlerts
-        key={t.id}
-        tenant={t}
-        onOpen={openDay}
-      />
+      <AgendaAlerts key={t.id} tenant={t} onOpen={openDay} />
       {subscription.data?.renewSoon && shown !== "billing" && (
-        <RenewSoonBanner daysLeft={subscription.data.daysLeft ?? 0} card={subscription.data.cardAvailable} onRenew={() => setPage("billing")} />
+        <RenewSoonBanner
+          daysLeft={subscription.data.daysLeft ?? 0}
+          card={subscription.data.cardAvailable}
+          onRenew={() => setPage("billing")}
+        />
+      )}
+      {shown === "home" && (
+        <HomePage
+          tenant={t}
+          assistant={assistant}
+          onNavigate={navigate}
+          onOpenDay={openDay}
+        />
       )}
       {shown === "agenda" && <AgendaPage tenant={t} focus={agendaFocus} />}
       {shown === "customers" && <CustomersPage tenant={t} />}
@@ -316,7 +424,14 @@ function BusinessWorkspace({
           assistant={assistant}
           tab={shown === "billing" ? "billing" : "business"}
           onTab={(tab) => setPage(tab === "billing" ? "billing" : "settings")}
-          billing={subscription.data && <BillingSettings tenantId={t.id} subscription={subscription.data} />}
+          billing={
+            subscription.data && (
+              <BillingSettings
+                tenantId={t.id}
+                subscription={subscription.data}
+              />
+            )
+          }
         />
       )}
       {shown === "train" && <TrainPage tenant={t} onNavigate={navigate} />}
@@ -325,10 +440,12 @@ function BusinessWorkspace({
       {shown === "access" && role === "admin" && <AccessPage tenant={t} />}
       {shown === "more" && (
         <MorePage
-          items={mobile ? [...secondary, ...back] : secondary}
+          items={mobile ? [main[3]!, ...secondary, ...back] : secondary}
           onNavigate={navigate}
           onLogout={onLogout}
-          header={<AccountCard tenantId={t.id} tenantName={t.name} role={role} />}
+          header={
+            <AccountCard tenantId={t.id} tenantName={t.name} role={role} />
+          }
         />
       )}
     </AppShell>
@@ -336,14 +453,27 @@ function BusinessWorkspace({
 }
 
 /** A few days before a Pix-paid subscription ends: renew now (and the nudge to automatic debit). */
-function RenewSoonBanner({ daysLeft, card, onRenew }: { daysLeft: number; card: boolean; onRenew: () => void }) {
+function RenewSoonBanner({
+  daysLeft,
+  card,
+  onRenew,
+}: {
+  daysLeft: number;
+  card: boolean;
+  onRenew: () => void;
+}) {
   const when = daysLeft <= 1 ? "amanhã" : `em ${daysLeft} dias`;
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-l-[3px] border-l-amber-500 bg-card px-4 py-3 text-sm" role="status">
+    <div
+      className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-l-[3px] border-l-amber-500 bg-card px-4 py-3 text-sm"
+      role="status"
+    >
       <span>
         <span className="font-medium">Sua assinatura vence {when}.</span>{" "}
         <span className="text-muted-foreground">
-          {card ? "Renove agora pelo Pix, ou ative a renovação automática no cartão e não se preocupe mais com isso." : "Renove agora para não ficar sem acesso."}
+          {card
+            ? "Renove agora pelo Pix, ou ative a renovação automática no cartão e não se preocupe mais com isso."
+            : "Renove agora para não ficar sem acesso."}
         </span>
       </span>
       <Button size="sm" onClick={onRenew}>

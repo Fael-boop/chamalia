@@ -147,6 +147,21 @@ export function AppShell({
     </AnimatePresence>
   );
 
+  // The logo leads to the first screen of the menu (Início).
+  const home = items[0];
+  const homeLink = (content: ReactNode, label: string) =>
+    home ? (
+      <a
+        href={home.href ?? "#"}
+        onClick={(event) => followLink(event, () => onNavigate(home.id))}
+        aria-label={label}
+        className="rounded-md focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
+      >
+        {content}
+      </a>
+    ) : (
+      content
+    );
   const skipLink = (
     <a
       href="#conteudo"
@@ -175,7 +190,7 @@ export function AppShell({
               <ChevronLeft className="size-6" />
             </button>
           )}
-          <LogoMark size={30} />
+          {homeLink(<LogoMark size={30} />, "Ir para o início")}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-semibold">
               {currentLabel}
@@ -248,7 +263,10 @@ export function AppShell({
         )}
       >
         <div className="flex h-14 items-center px-5">
-          <Logo size={28} onDark textClassName="text-[15px]" />
+          {homeLink(
+            <Logo size={28} onDark textClassName="text-[15px]" />,
+            "Chama Lia, ir para o início",
+          )}
         </div>
         <nav
           className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-3"

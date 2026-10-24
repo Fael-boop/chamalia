@@ -8,7 +8,8 @@ import { useCallback, useEffect, useState } from "react";
 
 /** A business's screens. The owner sees them at the root; the agency under /negocio/<id>. */
 export const BUSINESS_PATHS: Record<string, string> = {
-  agenda: "/",
+  home: "/",
+  agenda: "/agenda",
   customers: "/clientes",
   services: "/servicos",
   professionals: "/profissionais",
@@ -48,8 +49,8 @@ export function tenantFromPath(): string | null {
 
 /** Names people may type for an existing screen. */
 const ALIASES: Record<string, string> = {
-  "/agenda": "/",
   "/inicio": "/",
+  "/home": "/",
   "/pagamentos": "/pagamento",
   "/cobranca": "/pagamento",
   "/assinatura": "/pagamento",

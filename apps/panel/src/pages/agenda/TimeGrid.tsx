@@ -148,7 +148,7 @@ export function TimeGrid(props: {
       .filter((r) => r.end > r.start);
 
   const hoursList = Array.from(
-    { length: (dayEnd - dayStart) / 60 },
+    { length: (dayEnd - dayStart) / 60 + 1 },
     (_, i) => dayStart + i * 60,
   );
   const gridColumns = `56px repeat(${props.columns.length}, minmax(${props.columns.length > 8 ? 120 : 0}px, 1fr))`;
@@ -202,7 +202,7 @@ export function TimeGrid(props: {
                   key={m}
                   className={cn(
                     "absolute right-2 text-[11px] text-muted-foreground tabular-nums",
-                    m === dayStart ? "translate-y-0.5" : "-translate-y-1/2",
+                    m === dayStart ? "translate-y-0.5" : m === dayEnd ? "-translate-y-full" : "-translate-y-1/2",
                   )}
                   style={{ top: y(m) }}
                 >
