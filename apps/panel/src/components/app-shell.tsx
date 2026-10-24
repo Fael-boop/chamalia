@@ -145,6 +145,36 @@ export function AppShell({
   const [autoHide, setAutoHide] = useAutoHideNav();
   const currentGroup = items.find((item) => item.id === current)?.group ?? null;
   const [openGroup, toggleGroup] = useOpenGroup(currentGroup);
+  // The folded rail shows what the open menu shows at the top level: loose screens and modules.
+  // A module's icon leads to its first screen and is lit while one of its screens is open.
+  const railEntries = items.flatMap((item, index) => {
+    const group = item.group
+      ? groups.find((g) => g.id === item.group)
+      : undefined;
+    if (!group)
+      return [
+        {
+          id: item.id,
+          label: item.label,
+          icon: item.icon,
+          href: item.href,
+          target: item.id,
+          active: item.id === current,
+        },
+      ];
+    if (items.findIndex((other) => other.group === group.id) !== index)
+      return [];
+    return [
+      {
+        id: group.id,
+        label: group.label,
+        icon: group.icon,
+        href: item.href,
+        target: item.id,
+        active: currentGroup === group.id,
+      },
+    ];
+  });
   const navLink = (item: NavItem, sub = false) => {
     const active = item.id === current;
     return (
@@ -327,24 +357,25 @@ export function AppShell({
         >
           {homeLink(<LogoMark size={28} />, "Ir para o início")}
           <div className="mt-3 flex flex-1 flex-col items-center gap-1 overflow-y-auto">
-            {items.map((item) => (
+            {/* Only the top level, like the open menu: the loose screens and one icon per module. */}
+            {railEntries.map((entry) => (
               <a
-                key={item.id}
-                href={item.href ?? "#"}
+                key={entry.id}
+                href={entry.href ?? "#"}
                 onClick={(event) =>
-                  followLink(event, () => onNavigate(item.id))
+                  followLink(event, () => onNavigate(entry.target))
                 }
-                aria-label={item.label}
-                aria-current={item.id === current ? "page" : undefined}
-                title={item.label}
+                aria-label={entry.label}
+                aria-current={entry.active ? "page" : undefined}
+                title={entry.label}
                 className={cn(
                   "flex size-9 items-center justify-center rounded-md text-sidebar-foreground transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
-                  item.id === current
+                  entry.active
                     ? "bg-sidebar-accent text-sidebar-primary"
                     : "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
                 )}
               >
-                <item.icon className="size-[18px]" />
+                <entry.icon className="size-[18px]" />
               </a>
             ))}
           </div>
