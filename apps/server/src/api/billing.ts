@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { confirmPayment, getSubscription, isExpired, PLAN_COLUMNS, quote } from "../billing/billing.js";
-import { pixCopyPaste, type PixReceiver } from "../billing/pix.js";
+import { pixCopyPaste, readPixCode, type PixReceiver } from "../billing/pix.js";
 import type { Sql } from "../db/client.js";
 
 const uuid = z.string().uuid();
@@ -19,8 +19,16 @@ type Payment = { id: string; amountCents: number; status: string };
  * Agency: plan prices, each business's plan/cycle/paid-until, payments to confirm.
  * Business: its subscription and the payment page (also reachable when expired).
  */
-export function registerBillingRoutes(app: FastifyInstance, sql: Sql, pix?: PixReceiver) {
-  const withPix = <T extends Payment>(payment: T) => ({
+export function registerBillingRoutes(app: FastifyInstance, sql: Sql) {
+  /** The agency's Pix, read from its bank's QR code in Planos. undefined = not set up yet. */
+  async function receiver(): Promise<PixReceiver | undefined> {
+    const [row] = await sql<{ pixKey: string | null; pixReceiverName: string | null; pixCity: string | null }[]>`
+      select pix_key, pix_receiver_name, pix_city from agency_settings
+    `;
+    return row?.pixKey ? { key: row.pixKey, name: row.pixReceiverName || "Chama Lia", city: row.pixCity || "Brasil" } : undefined;
+  }
+
+  const withPix = <T extends Payment>(payment: T, pix: PixReceiver | undefined) => ({
     ...payment,
     pixCode:
       pix && payment.status === "pending" && payment.amountCents > 0
@@ -87,7 +95,33 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, pix?: PixR
     const rows = await sql<Payment[]>`
       select ${sql(PAYMENT_COLUMNS)} from payments where tenant_id = ${tenantId} order by created_at desc limit 50
     `;
-    return rows.map(withPix);
+    const pix = await receiver();
+    return rows.map((row) => withPix(row, pix));
+  });
+
+  // Pix that receives the subscriptions, set up from the QR code (or copy-and-paste) of the bank app.
+  app.get("/api/billing/pix", { config: { adminOnly: true } }, async () => {
+    const pix = await receiver();
+    return { configured: Boolean(pix), key: pix?.key ?? null, name: pix?.name ?? null, city: pix?.city ?? null };
+  });
+
+  app.put("/api/billing/pix", { config: { adminOnly: true } }, async (request, reply) => {
+    const { code } = z.object({ code: z.string().trim().min(10).max(1000) }).parse(request.body);
+    const read = readPixCode(code);
+    if (typeof read === "string") {
+      const message = {
+        not_pix: "Isso não é um QR code de Pix. Use o QR de receber do app do seu banco.",
+        bad_checksum: "O código veio incompleto. Copie de novo ou envie outra foto.",
+        no_key: "Esse QR é de uma cobrança só e não serve para outras. No app do banco, use 'Receber' sem valor.",
+      }[read];
+      return reply.code(400).send({ error: read, message });
+    }
+    await sql`
+      update agency_settings
+      set pix_key = ${read.key}, pix_receiver_name = ${read.name.slice(0, 25) || null}, pix_city = ${read.city.slice(0, 15) || null},
+          updated_at = now()
+    `;
+    return { configured: true, key: read.key, name: read.name || null, city: read.city || null };
   });
 
   // Payment received outside the payment page (cash, transfer): recorded as paid right away.
@@ -133,6 +167,7 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, pix?: PixR
       where tenant_id = ${tenantId} and status = 'pending' order by created_at desc limit 1
     `;
     const { plan } = subscription;
+    const pix = await receiver();
     return {
       tenantName: subscription.tenantName,
       plan: {
@@ -145,7 +180,7 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, pix?: PixR
       billingCycle: subscription.billingCycle,
       paidUntil: subscription.paidUntil,
       expired: isExpired(subscription),
-      pending: pending ? withPix(pending) : null,
+      pending: pending ? withPix(pending, pix) : null,
       pixAvailable: Boolean(pix),
     };
   }

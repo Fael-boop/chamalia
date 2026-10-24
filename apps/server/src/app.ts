@@ -54,11 +54,7 @@ export async function buildApp(config: Config, sql?: Sql) {
 
   if (sql) {
     registerUserRoutes(app, sql);
-    registerBillingRoutes(
-      app,
-      sql,
-      config.PIX_KEY ? { key: config.PIX_KEY, name: config.PIX_RECEIVER_NAME, city: config.PIX_CITY } : undefined,
-    );
+    registerBillingRoutes(app, sql);
     registerAgendaRoutes(app, sql);
     registerNicheRoutes(app, sql);
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;

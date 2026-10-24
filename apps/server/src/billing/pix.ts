@@ -26,6 +26,36 @@ export function crc16(text: string): string {
   return crc.toString(16).toUpperCase().padStart(4, "0");
 }
 
+/** Top-level fields of an EMV code: id -> value. undefined when the text is not one. */
+function readFields(text: string): Map<string, string> | undefined {
+  const fields = new Map<string, string>();
+  for (let i = 0; i < text.length; ) {
+    const id = text.slice(i, i + 2);
+    const length = Number(text.slice(i + 2, i + 4));
+    if (!/^\d{2}$/.test(id) || !Number.isInteger(length) || i + 4 + length > text.length) return undefined;
+    fields.set(id, text.slice(i + 4, i + 4 + length));
+    i += 4 + length;
+  }
+  return fields;
+}
+
+export type PixReadError = "not_pix" | "bad_checksum" | "no_key";
+
+/**
+ * Reads the receiver out of a Pix code copied (or scanned) from a bank app.
+ * Codes with a single-use charge (a URL instead of a key) have no key to reuse: "no_key".
+ */
+export function readPixCode(input: string): PixReceiver | PixReadError {
+  const code = input.trim();
+  const fields = readFields(code);
+  if (!fields || fields.get("00") !== "01") return "not_pix";
+  if (crc16(code.slice(0, -4)) !== code.slice(-4).toUpperCase()) return "bad_checksum";
+  const account = [...fields].find(([id, value]) => Number(id) >= 26 && Number(id) <= 51 && /br\.gov\.bcb\.pix/i.test(value));
+  const key = account && readFields(account[1])?.get("01");
+  if (!key) return "no_key";
+  return { key, name: fields.get("59") ?? "", city: fields.get("60") ?? "" };
+}
+
 /** `reference` shows up in the bank statement (letters and digits, up to 25). */
 export function pixCopyPaste(receiver: PixReceiver, amountCents: number, reference: string): string {
   const txid = reference.replace(/[^A-Za-z0-9]/g, "").slice(0, 25) || "***";

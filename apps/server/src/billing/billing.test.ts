@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extendPaidUntil, isExpired, quote } from "./billing.js";
-import { crc16, pixCopyPaste } from "./pix.js";
+import { crc16, pixCopyPaste, readPixCode } from "./pix.js";
 
 describe("isExpired", () => {
   const now = new Date("2026-10-23T12:00:00Z");
@@ -60,5 +60,19 @@ describe("pix", () => {
     expect(code).toContain("62110507pag1234");
     expect(code.slice(-8, -4)).toBe("6304");
     expect(code.slice(-4)).toBe(crc16(code.slice(0, -4)));
+  });
+
+  it("reads the receiver back from a bank's code", () => {
+    const code = pixCopyPaste({ key: "+5562999990000", name: "Joao Silva", city: "Goiania" }, 0, "");
+    expect(readPixCode(code)).toEqual({ key: "+5562999990000", name: "JOAO SILVA", city: "GOIANIA" });
+  });
+
+  it("refuses text that is not a Pix code, a broken checksum and single-use charges", () => {
+    expect(readPixCode("minha chave é 123")).toBe("not_pix");
+    const code = pixCopyPaste({ key: "a@b.com", name: "A", city: "B" }, 100, "x");
+    expect(readPixCode(`${code.slice(0, -4)}0000`)).toBe("bad_checksum");
+    // Dynamic charge: field 25 (URL) instead of 01 (key).
+    const payload = "000201" + "2635" + "0014br.gov.bcb.pix" + "2513pix.banco/abc" + "5303986" + "5802BR" + "5901A" + "6001B" + "6304";
+    expect(readPixCode(payload + crc16(payload))).toBe("no_key");
   });
 });

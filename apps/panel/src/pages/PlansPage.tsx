@@ -5,6 +5,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api, type BillingCycle, type BillingTenant, type Payment, type Plan } from "@/api";
 import { Hint, PageHeader } from "@/components/page-header";
+import { PixSettings } from "@/components/pix-settings";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +123,8 @@ export function PlansPage({ onOpenBusiness }: { onOpenBusiness: (tenantId: strin
           </div>
         ))}
       </div>
+
+      <PixSettings />
 
       {waiting.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3 text-sm">

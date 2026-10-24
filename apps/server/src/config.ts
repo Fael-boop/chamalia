@@ -40,11 +40,6 @@ const envSchema = z
     ADMIN_PASSWORD: optionalString,
     // Assina os logins do painel. Trocar desconecta todo mundo.
     SESSION_SECRET: optionalString,
-
-    // Pix que recebe as assinaturas (página de pagamento). Sem a chave, a página mostra só o contato.
-    PIX_KEY: optionalString,
-    PIX_RECEIVER_NAME: z.string().default("Chama Lia"),
-    PIX_CITY: z.string().default("Goiania"),
   })
   .refine((env) => env.NODE_ENV !== "production" || (env.ADMIN_PASSWORD?.length ?? 0) >= 12, {
     path: ["ADMIN_PASSWORD"],
