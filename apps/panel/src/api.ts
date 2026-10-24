@@ -12,6 +12,20 @@ export function getToken(): string {
  * "Lembrar de mim" keeps the session in localStorage (survives closing the browser);
  * otherwise it lives in sessionStorage and ends with the tab. An empty token logs out of both.
  */
+/** New token for the same session (after a password change), kept where the old one was. */
+export function replaceToken(token: string) {
+  let remembered = true;
+  try {
+    remembered = localStorage.getItem(TOKEN_KEY) !== null;
+  } catch {
+    // Storage blocked: keep the default.
+  }
+  setToken(token, remembered);
+}
+
+/** The person logged in, for the profile menu. */
+export type Me = { role: "admin" | "owner"; name: string; login: string; email: string | null };
+
 export function setToken(token: string, remember = true) {
   try {
     localStorage.removeItem(TOKEN_KEY);

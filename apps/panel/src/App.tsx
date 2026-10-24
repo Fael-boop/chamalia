@@ -42,6 +42,7 @@ import { NichesPage } from "./pages/NichesPage";
 import { PaymentPage } from "./pages/PaymentPage";
 import { PlansPage } from "./pages/PlansPage";
 import { BillingSettings } from "./components/billing-settings";
+import { AccountCard, AccountMenu } from "./components/account-menu";
 import { Button } from "./components/ui/button";
 import { PriceTablePage } from "./pages/PriceTablePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
@@ -251,6 +252,7 @@ function BusinessWorkspace({
       onNavigate={navigate}
       onLogout={onLogout}
       onBack={onBackToBusinesses && (() => navigate("businesses"))}
+      account={<AccountMenu tenantId={t.id} tenantName={t.name} role={role} onBilling={() => setPage("billing")} onLogout={onLogout} />}
     >
       <AgendaAlerts
         key={t.id}
@@ -285,7 +287,14 @@ function BusinessWorkspace({
       {shown === "test-chat" && <TestChatPage tenant={t} />}
       {shown === "whatsapp" && <WhatsAppPage tenant={t} />}
       {shown === "access" && role === "admin" && <AccessPage tenant={t} />}
-      {shown === "more" && <MorePage items={mobile ? [...secondary, ...back] : secondary} onNavigate={navigate} onLogout={onLogout} />}
+      {shown === "more" && (
+        <MorePage
+          items={mobile ? [...secondary, ...back] : secondary}
+          onNavigate={navigate}
+          onLogout={onLogout}
+          header={<AccountCard tenantId={t.id} tenantName={t.name} role={role} />}
+        />
+      )}
     </AppShell>
   );
 }

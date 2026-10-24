@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { verifyPassword } from "../auth/passwords.js";
+import { hashPassword, verifyPassword } from "../auth/passwords.js";
 import { SHORT_SESSION_MS, signSession, verifySession, type Session } from "../auth/tokens.js";
 import { getSubscription, isExpired } from "../billing/billing.js";
 import type { Sql } from "../db/client.js";
@@ -171,5 +171,56 @@ export function registerAuth(
     if (session.role === "admin") return { role: "admin" };
     const [user] = await sql!`select name from tenant_users where id = ${session.userId}`;
     return { role: "owner", tenantId: session.tenantId, name: user?.name ?? "" };
+  });
+
+  // --- The person logged in: profile menu and "Minha conta" ---
+
+  const agencyOnly = (reply: FastifyReply) =>
+    reply.code(403).send({ error: "agency_account", message: "A conta da agência é configurada no servidor." });
+
+  app.get("/api/me", async (request) => {
+    const session = request.session!;
+    if (session.role === "admin" || !sql) return { role: "admin", name: "Agência", login: ADMIN_LOGIN, email: null };
+    const [user] = await sql<{ name: string; login: string; email: string | null }[]>`
+      select name, login, email from tenant_users where id = ${session.userId}
+    `;
+    return { role: "owner", name: user?.name ?? "", login: user?.login ?? "", email: user?.email ?? null };
+  });
+
+  app.patch("/api/me", async (request, reply) => {
+    const session = request.session!;
+    if (session.role !== "owner" || !sql) return agencyOnly(reply);
+    const changes = z
+      .object({
+        name: z.string().trim().min(1, "Informe o nome").max(80),
+        email: z.string().trim().toLowerCase().email("E-mail inválido").max(254).nullable(),
+      })
+      .partial()
+      .parse(request.body);
+    if (Object.keys(changes).length === 0) return reply.code(400).send({ error: "empty_update" });
+    const [user] = await sql`
+      update tenant_users set ${sql(changes)} where id = ${session.userId} returning name, login, email
+    `;
+    return { role: "owner", ...user };
+  });
+
+  // Changing the password ends every other session of this person; this one gets a fresh token.
+  app.post("/api/me/password", async (request, reply) => {
+    const session = request.session!;
+    if (session.role !== "owner" || !sql) return agencyOnly(reply);
+    const body = z
+      .object({ currentPassword: z.string().min(1), newPassword: z.string().min(8, "A nova senha precisa ter pelo menos 8 caracteres.").max(200) })
+      .parse(request.body);
+    const [user] = await sql<{ passwordHash: string }[]>`select password_hash from tenant_users where id = ${session.userId}`;
+    if (!user || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
+      return reply.code(400).send({ error: "wrong_password", message: "A senha atual não confere." });
+    }
+    const changedAt = new Date();
+    await sql`
+      update tenant_users set password_hash = ${await hashPassword(body.newPassword)}, password_changed_at = ${changedAt}
+      where id = ${session.userId}
+    `;
+    const token = signSession({ role: "owner", tenantId: session.tenantId, userId: session.userId }, sessionSecret, changedAt.getTime() + 1);
+    return { token };
   });
 }

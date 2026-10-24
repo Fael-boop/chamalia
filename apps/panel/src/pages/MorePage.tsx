@@ -1,4 +1,5 @@
 import { APP_VERSION } from "@/version";
+import type { ReactNode } from "react";
 import { ChevronRight, LogOut, Moon, Sun } from "lucide-react";
 import type { NavItem } from "@/components/app-shell";
 import { Logo } from "@/components/logo";
@@ -6,10 +7,22 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/lib/theme";
 
 /** Phone only: the sections that don't fit in the bottom bar, plus theme and logout. */
-export function MorePage({ items, onNavigate, onLogout }: { items: NavItem[]; onNavigate: (id: string) => void; onLogout: () => void }) {
+export function MorePage({
+  items,
+  onNavigate,
+  onLogout,
+  header,
+}: {
+  items: NavItem[];
+  onNavigate: (id: string) => void;
+  onLogout: () => void;
+  /** Profile card at the top (inside a business). */
+  header?: ReactNode;
+}) {
   const { resolved, toggle } = useTheme();
   return (
     <div className="space-y-4">
+      {header}
       <ul className="divide-y overflow-hidden rounded-lg border bg-card">
         {items.map((item) => (
           <li key={item.id}>

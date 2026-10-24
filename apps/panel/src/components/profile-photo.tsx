@@ -21,6 +21,11 @@ function readAsDataUrl(file: Blob): Promise<string> {
 
 /** Phone photos are huge: crop to a centered square and shrink, like a WhatsApp profile photo. */
 async function toSquareJpeg(file: File): Promise<string> {
+  return toSquareImage(file, "image/jpeg", MAX_SIDE);
+}
+
+/** Centered square, at most `maxSide` pixels. PNG keeps a logo's transparent background. */
+export async function toSquareImage(file: File, type: "image/jpeg" | "image/png", maxSide: number): Promise<string> {
   const source = await readAsDataUrl(file);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
@@ -28,7 +33,7 @@ async function toSquareJpeg(file: File): Promise<string> {
     img.onerror = () => reject(new Error("Não consegui abrir a imagem."));
     img.src = source;
   });
-  const side = Math.min(image.width, image.height, MAX_SIDE);
+  const side = Math.min(image.width, image.height, maxSide);
   const canvas = document.createElement("canvas");
   canvas.width = side;
   canvas.height = side;
@@ -36,7 +41,7 @@ async function toSquareJpeg(file: File): Promise<string> {
   const sx = (image.width - Math.min(image.width, image.height)) / 2;
   const sy = (image.height - Math.min(image.width, image.height)) / 2;
   context.drawImage(image, sx, sy, Math.min(image.width, image.height), Math.min(image.width, image.height), 0, 0, side, side);
-  return canvas.toDataURL("image/jpeg", 0.88);
+  return canvas.toDataURL(type, 0.88);
 }
 
 /** The photo that appears as the assistant's WhatsApp profile picture. */

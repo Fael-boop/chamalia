@@ -13,6 +13,7 @@ A versão em produção aparece em `https://app.chamalia.com.br/health` e no rod
 - Cada tela do painel tem o próprio endereço (/clientes, /servicos, /configuracoes, /pagamento...): dá para mandar link, abrir em outra aba, e o F5 e o voltar do navegador funcionam.
 - Agência: o negócio aberto fica no endereço (/negocio/<id>/...).
 - Endereço digitado errado é corrigido sozinho: /termos e /privacidade levam ao site, nomes parecidos viram a tela certa e o resto volta para o início.
+- Perfil: clicar no cartão do negócio (menu) mostra quem está conectado e abre Perfil e logo, Trocar senha, Cobrança e Sair. Logo do negócio só para o painel (a foto do WhatsApp continua separada, na tela WhatsApp). No celular, o perfil fica no topo de Mais.
 
 ## 1.2.0 · 2026-10-24
 

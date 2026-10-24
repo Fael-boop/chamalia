@@ -32,6 +32,8 @@ type Props = {
   onLogout: () => void;
   /** Agency inside one business: goes back to the list of businesses. */
   onBack?: () => void;
+  /** Replaces the business card in the sidebar (the profile menu). */
+  account?: ReactNode;
   children: ReactNode;
 };
 
@@ -51,7 +53,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
-export function AppShell({ brand, context, contextLabel = "Negócio", items, mobileItems, current, onNavigate, onLogout, onBack, children }: Props) {
+export function AppShell({ brand, context, contextLabel = "Negócio", items, mobileItems, current, onNavigate, onLogout, onBack, account, children }: Props) {
   const mobile = useIsMobile();
   const reduceMotion = useReducedMotion();
 
@@ -132,16 +134,18 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
       <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
         <div className="px-5 pt-5 pb-4">
           <Logo size={30} onDark textClassName="text-[15px]" />
-          {/* The business being managed, in evidence right under the brand. */}
-          <div className="mt-4 flex items-center gap-3 rounded-lg border border-sidebar-border bg-white/[0.04] px-3 py-2.5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-white">
-              {initialsOf(String(context ?? brand))}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[11px] tracking-wide text-sidebar-foreground/70 uppercase">{contextLabel}</span>
-              <span className="line-clamp-2 block text-sm leading-snug font-semibold break-words text-white">{context ?? brand}</span>
-            </span>
-          </div>
+          {/* The business being managed, in evidence right under the brand (a profile menu when given). */}
+          {account ?? (
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-sidebar-border bg-white/[0.04] px-3 py-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-white">
+                {initialsOf(String(context ?? brand))}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[11px] tracking-wide text-sidebar-foreground/70 uppercase">{contextLabel}</span>
+                <span className="line-clamp-2 block text-sm leading-snug font-semibold break-words text-white">{context ?? brand}</span>
+              </span>
+            </div>
+          )}
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Menu principal">
           {items.map((item) => {

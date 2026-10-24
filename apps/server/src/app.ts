@@ -7,6 +7,7 @@ import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
 import { registerAgendaRoutes } from "./api/agenda.js";
 import { registerBillingRoutes, type MercadoPagoSetup } from "./api/billing.js";
+import { registerBusinessLogoRoutes } from "./api/business-logo.js";
 import { registerNicheRoutes } from "./api/niches.js";
 import { registerRuleRoutes } from "./api/rules.js";
 import { registerAuth } from "./api/auth.js";
@@ -82,6 +83,7 @@ export async function buildApp(config: Config, sql?: Sql) {
         : undefined;
     registerPanelRoutes(app, sql, whatsapp);
     registerProfilePhotoRoutes(app, sql, whatsapp);
+    registerBusinessLogoRoutes(app, sql);
     registerTestChatRoutes(app, { sql, anthropic, model: config.ANTHROPIC_MODEL, log: app.log });
 
     if (anthropic && whatsapp) {
