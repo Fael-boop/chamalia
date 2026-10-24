@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import Fastify, { type FastifyBaseLogger } from "fastify";
@@ -26,6 +26,9 @@ import { loggerOptions } from "./lib/logger.js";
 import { startRetentionJob } from "./maintenance/retention.js";
 import { startReminderJob } from "./reminders/reminders.js";
 
+/** Version of the system (package.json; same in every workspace), shown in /health and logged at start. */
+export const APP_VERSION: string = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")).version;
+
 // Built panel (apps/panel/dist). Served by the bot in production so the VPS
 // runs a single Node container.
 const panelDist = fileURLToPath(new URL("../../panel/dist", import.meta.url));
@@ -49,6 +52,7 @@ export async function buildApp(config: Config, sql?: Sql) {
 
   app.get("/health", async () => ({
     status: "ok",
+    version: APP_VERSION,
     whatsappProvider: config.WHATSAPP_PROVIDER,
     database: sql ? await checkDatabase(sql, app.log) : "not_configured",
     ai: config.ANTHROPIC_API_KEY ? "configured" : "not_configured",

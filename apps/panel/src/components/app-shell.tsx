@@ -1,3 +1,4 @@
+import { APP_VERSION } from "@/version";
 import { ChevronLeft, LogOut, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ComponentType, ReactNode } from "react";
@@ -177,6 +178,9 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
           >
             <LogOut /> Sair
           </Button>
+          <span className="pr-2 text-[11px] text-sidebar-foreground/50 tabular-nums" title="Versão do sistema">
+            v{APP_VERSION}
+          </span>
         </div>
       </aside>
       <main className="min-w-0 flex-1">

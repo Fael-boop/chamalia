@@ -1,3 +1,4 @@
+import { APP_VERSION } from "@/version";
 import { ChevronRight, LogOut, Moon, Sun } from "lucide-react";
 import type { NavItem } from "@/components/app-shell";
 import { Logo } from "@/components/logo";
@@ -37,7 +38,7 @@ export function MorePage({ items, onNavigate, onLogout }: { items: NavItem[]; on
       </ul>
       <div className="flex flex-col items-center gap-1.5 pt-4 pb-2 text-center">
         <Logo size={24} textClassName="text-sm" />
-        <p className="text-[11px] text-muted-foreground">Atendimento no WhatsApp · chamalia.com.br</p>
+        <p className="text-[11px] text-muted-foreground">Atendimento no WhatsApp · chamalia.com.br · v{APP_VERSION}</p>
       </div>
     </div>
   );
