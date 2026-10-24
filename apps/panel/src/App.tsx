@@ -236,11 +236,11 @@ function BusinessWorkspace({
     { id: "faq", label: "Respostas prontas", icon: MessageSquareText },
     { id: "prices", label: "Tabela de preços", icon: Receipt },
     { id: "handoff", label: "Passar para a equipe", icon: UserRoundCheck },
-    { id: "settings", label: "Configurações", icon: Settings },
     { id: "train", label: `Treinar a ${t.assistantName}`, icon: GraduationCap },
-    { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
+    { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
     ...(role === "admin" ? [{ id: "access", label: "Acesso do responsável", icon: KeyRound }] : []),
+    { id: "settings", label: "Configurações", icon: Settings },
   ].filter((item) => assistant || !ASSISTANT_PAGES.has(item.id));
   const back: NavItem[] = onBackToBusinesses ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }] : [];
   const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };
