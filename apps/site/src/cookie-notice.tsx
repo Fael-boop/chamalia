@@ -1,48 +1,67 @@
 import { useState } from "react";
-import { Button } from "./ui";
 
-const KEY = "chamalia.cookieNotice";
+const KEY = "chamalia.cookieChoice";
 
-function seen(): boolean {
+type Choice = "accepted" | "declined";
+
+function stored(): Choice | null {
   try {
-    return localStorage.getItem(KEY) === "1";
+    const value = localStorage.getItem(KEY);
+    return value === "accepted" || value === "declined" ? value : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
 /**
- * Transparency notice (LGPD). The site sets no advertising or tracking cookies; the only thing
- * stored is this choice, in the browser, so the notice does not come back every visit.
- * If analytics or ads are ever added, this must become a real opt-in with a "recusar" button.
+ * Optional cookies (measurement, ads) are allowed only after "Aceitar". Today the site sets none,
+ * so both choices only change what is remembered; any future analytics script must check this first.
  */
-export function CookieNotice() {
-  const [hidden, setHidden] = useState(seen);
-  if (hidden) return null;
+export function optionalCookiesAllowed(): boolean {
+  return stored() === "accepted";
+}
 
-  const accept = () => {
+/** Small corner notice (LGPD): essential storage only, optional cookies need a yes. */
+export function CookieNotice() {
+  const [choice, setChoice] = useState<Choice | null>(stored);
+  if (choice) return null;
+
+  const decide = (value: Choice) => {
     try {
-      localStorage.setItem(KEY, "1");
+      localStorage.setItem(KEY, value);
     } catch {
       // Private mode: the notice just returns next visit.
     }
-    setHidden(true);
+    setChoice(value);
   };
 
   return (
-    <div role="region" aria-label="Aviso de cookies" className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-5">
-      <div className="mx-auto flex max-w-4xl flex-col gap-4 rounded-2xl border border-graphite-700 bg-surface p-5 shadow-2xl sm:flex-row sm:items-center sm:gap-6">
-        <p className="text-[14px] leading-relaxed text-muted">
-          Este site não usa cookies de publicidade nem rastreamento. Guardamos no seu navegador só o necessário para funcionar, como lembrar que
-          você viu este aviso. Saiba mais na{" "}
-          <a href="/privacidade/" className="text-accent-text underline underline-offset-2 hover:text-ink">
-            Política de privacidade
-          </a>
-          .
-        </p>
-        <Button onClick={accept} className="h-11 shrink-0 px-6 text-[14px]">
-          Ok, entendi
-        </Button>
+    <div
+      role="region"
+      aria-label="Aviso de cookies"
+      className="fixed bottom-3 left-3 z-50 w-[calc(100%-1.5rem)] max-w-[340px] rounded-xl border border-graphite-700 bg-surface p-4 shadow-xl"
+    >
+      <p className="text-[13px] leading-relaxed text-muted">
+        Usamos só o necessário para o site funcionar. Cookies de medição ou anúncios, se um dia existirem, só com o seu aceite.{" "}
+        <a href="/privacidade/" className="text-accent-text underline underline-offset-2 hover:text-ink">
+          Privacidade
+        </a>
+      </p>
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => decide("accepted")}
+          className="press h-9 flex-1 rounded-lg bg-accent px-3 text-[13px] font-medium text-white hover:bg-accent-hover"
+        >
+          Aceitar
+        </button>
+        <button
+          type="button"
+          onClick={() => decide("declined")}
+          className="press h-9 flex-1 rounded-lg bg-surface-2 px-3 text-[13px] font-medium text-ink hover:bg-graphite-700"
+        >
+          Recusar
+        </button>
       </div>
     </div>
   );
