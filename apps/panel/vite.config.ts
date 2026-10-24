@@ -14,7 +14,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      // A new version waits for the "Atualizar" click (components/update-prompt.tsx), registered there.
+      registerType: "prompt",
+      injectRegister: false,
       includeAssets: ["favicon.ico", "favicon.svg", "apple-touch-icon-180x180.png"],
       manifest: {
         name: "Chama Lia",

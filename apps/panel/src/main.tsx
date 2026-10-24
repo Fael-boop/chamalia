@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { UpdatePrompt } from "./components/update-prompt";
 import { queryClient } from "./lib/queries";
 import { ThemeProvider } from "./lib/theme";
 
@@ -19,6 +20,7 @@ createRoot(document.getElementById("root")!).render(
           <TooltipProvider delayDuration={300}>
             <App />
             <Toaster />
+            <UpdatePrompt />
           </TooltipProvider>
         </MotionConfig>
       </QueryClientProvider>
