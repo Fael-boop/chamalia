@@ -60,6 +60,9 @@ Abra `http://IP-DA-VPS:3000`, crie o usuário administrador (senha forte) e um p
    EVOLUTION_API_KEY=<a mesma da Evolution>
    EVOLUTION_PUBLIC_URL=http://<servico-evolution>:8080
    EVOLUTION_WEBHOOK_BASE_URL=http://<servico-app>:3000
+   PIX_KEY=<sua chave Pix, para a página de pagamento das assinaturas>
+   PIX_RECEIVER_NAME=<nome de quem recebe, como no banco>
+   PIX_CITY=<cidade de quem recebe>
    ```
    Senha do banco com símbolos precisa ser codificada na URL (`#` vira `%23`, `@` vira `%40`).
 3. **Domínio**: `app.chamalia.com.br`, porta `3000`, HTTPS automático ligado.

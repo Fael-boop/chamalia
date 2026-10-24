@@ -19,8 +19,8 @@ export const keys = {
   hours: (tenantId: string, professionalId?: string) => ["hours", tenantId, professionalId ?? "business"] as const,
 };
 
-export const useTenant = (tenantId: string) =>
-  useQuery({ queryKey: keys.tenant(tenantId), queryFn: () => api<Tenant>(`/tenants/${tenantId}`) });
+export const useTenant = (tenantId: string, enabled = true) =>
+  useQuery({ queryKey: keys.tenant(tenantId), queryFn: () => api<Tenant>(`/tenants/${tenantId}`), enabled });
 
 /** Agenda for a date range; refreshes every 10 s so new WhatsApp bookings show up. */
 export const useAppointments = (tenantId: string, from: string, to: string) =>

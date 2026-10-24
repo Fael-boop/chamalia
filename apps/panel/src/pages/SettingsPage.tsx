@@ -68,7 +68,7 @@ function Section({ title, description, children }: { title: string; description:
   );
 }
 
-export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" | "owner" }) {
+export function SettingsPage({ tenant, role, assistant = true }: { tenant: Tenant; role: "admin" | "owner"; assistant?: boolean }) {
   const mobile = useIsMobile();
   const queryClient = useQueryClient();
   const niches = useQuery({ queryKey: ["niches"], queryFn: () => api<Niche[]>("/niches") });
@@ -164,6 +164,7 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
             {text("ownerPhone", "WhatsApp do responsável", { placeholder: "5511999999999", help: "Recebe avisos de agendamento e conversas passadas para ele." })}
           </Section>
 
+          {assistant && (
           <Section title="Atendente virtual" description="Como ela fala e o que pode responder.">
             {text("assistantName", "Nome")}
             <FormField
@@ -212,6 +213,7 @@ export function SettingsPage({ tenant, role }: { tenant: Tenant; role: "admin" |
               )}
             />
           </Section>
+          )}
 
           <Section title="Agendamento" description="Regras que a atendente segue ao oferecer horários.">
             <FormField

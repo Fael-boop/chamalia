@@ -3,6 +3,7 @@ import {
   Building2,
   CalendarDays,
   Clock,
+  CreditCard,
   GraduationCap,
   Ellipsis,
   KeyRound,
@@ -18,7 +19,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
+import { api, ApiError, setExpiredHandler, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
+import { useSubscription } from "./lib/billing";
 import { AppShell, type NavItem } from "./components/app-shell";
 import { LogoMark } from "./components/logo";
 import { Skeleton } from "./components/ui/skeleton";
@@ -35,6 +37,8 @@ import { HoursPage } from "./pages/HoursPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MorePage } from "./pages/MorePage";
 import { NichesPage } from "./pages/NichesPage";
+import { PaymentPage } from "./pages/PaymentPage";
+import { PlansPage } from "./pages/PlansPage";
 import { PriceTablePage } from "./pages/PriceTablePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
 import { ServicesPage } from "./pages/ServicesPage";
@@ -44,6 +48,8 @@ import { TrainPage } from "./pages/TrainPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 
 const BRAND = "Chama Lia";
+/** Screens of the WhatsApp assistant, hidden on the "Agenda Online" plan. */
+const ASSISTANT_PAGES = new Set(["faq", "prices", "handoff", "train", "whatsapp", "test-chat"]);
 
 export function App() {
   const queryClient = useQueryClient();
@@ -62,8 +68,10 @@ export function App() {
 
   useEffect(() => {
     setUnauthorizedHandler(() => setAuthState("login"));
+    // Expired while the panel is open: re-reading the subscription shows the payment page.
+    setExpiredHandler(() => void queryClient.invalidateQueries({ queryKey: ["subscription"] }));
     void checkSession();
-  }, [checkSession]);
+  }, [checkSession, queryClient]);
 
   const logout = () => {
     setToken("");
@@ -107,6 +115,7 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
 
   const items: NavItem[] = [
     { id: "businesses", label: "Negócios", icon: Building2 },
+    { id: "plans", label: "Planos", icon: CreditCard },
     { id: "niches", label: "Nichos", icon: Tags },
   ];
   return (
@@ -124,6 +133,8 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
         <MorePage items={items} onNavigate={setPage} onLogout={onLogout} />
       ) : page === "niches" ? (
         <NichesPage />
+      ) : page === "plans" ? (
+        <PlansPage onOpenBusiness={setTenantId} />
       ) : (
         <BusinessesPage onOpen={setTenantId} />
       )}
@@ -144,7 +155,9 @@ function BusinessWorkspace({
   onBackToBusinesses?: () => void;
 }) {
   const mobile = useIsMobile();
-  const tenant = useTenant(tenantId);
+  const subscription = useSubscription(tenantId);
+  const blocked = role === "owner" && subscription.data?.expired === true;
+  const tenant = useTenant(tenantId, !blocked);
   const [page, setPage] = useState("agenda");
   // Set by an agenda alert's "Ver": the agenda opens on that day.
   const [agendaFocus, setAgendaFocus] = useState<{ date: string; key: number } | null>(null);
@@ -153,8 +166,14 @@ function BusinessWorkspace({
     if (tenant.data) document.title = role === "owner" ? tenant.data.name : `${tenant.data.name} · ${BRAND}`;
   }, [tenant.data, role]);
 
+  if (subscription.isLoading) return <SplashSkeleton />;
+  // Expired: the business only gets the payment page (the agency still opens everything).
+  if (blocked) return <PaymentPage tenantId={tenantId} subscription={subscription.data!} onLogout={onLogout} />;
   if (tenant.isLoading || !tenant.data) return <SplashSkeleton />;
   const t = tenant.data;
+  // "Agenda Online" (no Lia): her screens are not offered.
+  const assistant = subscription.data?.plan.includesAssistant ?? true;
+  const shown = !assistant && ASSISTANT_PAGES.has(page) ? "agenda" : page;
 
   const main: NavItem[] = [
     { id: "agenda", label: "Agenda", icon: CalendarDays },
@@ -172,7 +191,7 @@ function BusinessWorkspace({
     { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
     { id: "test-chat", label: `Testar a ${t.assistantName}`, icon: MessagesSquare },
     ...(role === "admin" ? [{ id: "access", label: "Acesso do responsável", icon: KeyRound }] : []),
-  ];
+  ].filter((item) => assistant || !ASSISTANT_PAGES.has(item.id));
   const back: NavItem[] = onBackToBusinesses ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }] : [];
   const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };
 
@@ -187,7 +206,7 @@ function BusinessWorkspace({
       context={t.name}
       items={[...back, ...main, ...secondary]}
       mobileItems={[...main, more]}
-      current={page}
+      current={shown}
       onNavigate={navigate}
       onLogout={onLogout}
       onBack={onBackToBusinesses}
@@ -200,20 +219,20 @@ function BusinessWorkspace({
           setPage("agenda");
         }}
       />
-      {page === "agenda" && <AgendaPage tenant={t} focus={agendaFocus} />}
-      {page === "customers" && <CustomersPage tenant={t} />}
-      {page === "services" && <ServicesPage tenant={t} />}
-      {page === "professionals" && <ProfessionalsPage tenant={t} />}
-      {page === "hours" && <HoursPage tenant={t} />}
-      {page === "faq" && <FaqPage tenant={t} />}
-      {page === "prices" && <PriceTablePage tenant={t} />}
-      {page === "handoff" && <HandoffPage tenant={t} />}
-      {page === "settings" && <SettingsPage tenant={t} role={role} />}
-      {page === "train" && <TrainPage tenant={t} onNavigate={navigate} />}
-      {page === "test-chat" && <TestChatPage tenant={t} />}
-      {page === "whatsapp" && <WhatsAppPage tenant={t} />}
-      {page === "access" && role === "admin" && <AccessPage tenant={t} />}
-      {page === "more" && <MorePage items={mobile ? [...secondary, ...back] : secondary} onNavigate={navigate} onLogout={onLogout} />}
+      {shown === "agenda" && <AgendaPage tenant={t} focus={agendaFocus} />}
+      {shown === "customers" && <CustomersPage tenant={t} />}
+      {shown === "services" && <ServicesPage tenant={t} />}
+      {shown === "professionals" && <ProfessionalsPage tenant={t} />}
+      {shown === "hours" && <HoursPage tenant={t} />}
+      {shown === "faq" && <FaqPage tenant={t} />}
+      {shown === "prices" && <PriceTablePage tenant={t} />}
+      {shown === "handoff" && <HandoffPage tenant={t} />}
+      {shown === "settings" && <SettingsPage tenant={t} role={role} assistant={assistant} />}
+      {shown === "train" && <TrainPage tenant={t} onNavigate={navigate} />}
+      {shown === "test-chat" && <TestChatPage tenant={t} />}
+      {shown === "whatsapp" && <WhatsAppPage tenant={t} />}
+      {shown === "access" && role === "admin" && <AccessPage tenant={t} />}
+      {shown === "more" && <MorePage items={mobile ? [...secondary, ...back] : secondary} onNavigate={navigate} onLogout={onLogout} />}
     </AppShell>
   );
 }

@@ -36,6 +36,12 @@ export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }
 
+/** 402: the business's subscription expired while the panel was open. */
+let onExpired: () => void = () => {};
+export function setExpiredHandler(handler: () => void) {
+  onExpired = handler;
+}
+
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method: options.method ?? "GET",
@@ -47,9 +53,63 @@ export async function api<T>(path: string, options: { method?: string; body?: un
   });
   const data = (await response.json().catch(() => ({}))) as { message?: string };
   if (response.status === 401) onUnauthorized();
+  if (response.status === 402) onExpired();
   if (!response.ok) throw new ApiError(response.status, data.message ?? `Erro ${response.status}`);
   return data as T;
 }
+
+export type BillingCycle = "monthly" | "annual" | "lifetime";
+
+export type Plan = {
+  id: string;
+  slug: string;
+  name: string;
+  /** "Agenda Online + Lia": the WhatsApp assistant and its screens. */
+  includesAssistant: boolean;
+  priceCentsMonthly: number | null;
+  /** Price of 12 months paid at once; null = 12 × monthly. */
+  priceCentsYearly: number | null;
+  active: boolean;
+  tenants: number;
+};
+
+export type Payment = {
+  id: string;
+  planId: string;
+  months: number;
+  amountCents: number;
+  status: "pending" | "paid" | "cancelled";
+  method: "pix" | "manual";
+  /** The business pressed "Já paguei". */
+  reportedAt: string | null;
+  paidAt: string | null;
+  note: string | null;
+  createdAt: string;
+  /** Pix copy-and-paste with the amount, when the agency set a Pix key. */
+  pixCode: string | null;
+};
+
+export type BillingTenant = {
+  id: string;
+  name: string;
+  active: boolean;
+  planId: string;
+  billingCycle: BillingCycle;
+  paidUntil: string | null;
+  pendingPayments: number;
+  reportedPayments: number;
+  lastPaidAt: string | null;
+};
+
+export type Subscription = {
+  tenantName: string;
+  plan: Pick<Plan, "id" | "name" | "includesAssistant" | "priceCentsMonthly" | "priceCentsYearly">;
+  billingCycle: BillingCycle;
+  paidUntil: string | null;
+  expired: boolean;
+  pending: Payment | null;
+  pixAvailable: boolean;
+};
 
 export type Tenant = {
   id: string;
