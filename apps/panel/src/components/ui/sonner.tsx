@@ -19,7 +19,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={resolved}
       // Phones: above the bottom menu, no close button (swipe to dismiss), at most two stacked.
-      position={mobile ? "bottom-center" : "top-center"}
+      // Computer: bottom-right corner, out of the way of the page header.
+      position={mobile ? "bottom-center" : "bottom-right"}
       closeButton={!mobile}
       visibleToasts={mobile ? 2 : 3}
       mobileOffset={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom))", left: 12, right: 12 }}
