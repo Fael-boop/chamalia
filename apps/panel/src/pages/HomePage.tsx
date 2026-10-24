@@ -7,6 +7,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   ArrowRight,
   CalendarDays,
@@ -26,7 +27,11 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type AppointmentStatus, type Tenant } from "@/api";
-import { PageHeader } from "@/components/page-header";
+import {
+  BusinessAvatar,
+  useBusinessLogo,
+  useMe,
+} from "@/components/account-menu";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -130,6 +135,8 @@ export function HomePage({
     [todays.data],
   );
   const upcoming = (todays.data ?? []).filter((a) => a.status !== "cancelled");
+  const nowIso = new Date().toISOString();
+  const next = upcoming.find((a) => a.startsAt > nowIso) ?? null;
   const data = overview.data;
 
   const picker = (
@@ -257,20 +264,13 @@ export function HomePage({
 
   return (
     <div className="space-y-5">
-      {!mobile ? (
-        <PageHeader
-          title="Início"
-          description={`Visão geral do negócio · ${range.label}`}
-          actions={picker}
-        />
-      ) : (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Visão geral · {range.label}
-          </p>
-          <div className="-mx-4 overflow-x-auto px-4">{picker}</div>
-        </div>
-      )}
+      <Welcome
+        tenant={tenant}
+        today={today}
+        todayCount={upcoming.length}
+        pending={data?.pending ?? 0}
+        next={next}
+      />
 
       {!data ? (
         <div className="grid gap-4 md:grid-cols-2">
@@ -281,6 +281,20 @@ export function HomePage({
       ) : (
         <>
           <Shortcuts cards={shortcuts} onNavigate={onNavigate} />
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">Resumo</h2>
+              <p className="text-xs text-muted-foreground">{range.label}</p>
+            </div>
+            <div
+              className={
+                mobile ? "-mx-4 max-w-[100vw] overflow-x-auto px-4" : undefined
+              }
+            >
+              {picker}
+            </div>
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Panel
@@ -441,6 +455,100 @@ const SHORTCUT_ICONS: Record<string, LucideIcon> = {
   "test-chat": MessagesSquare,
   whatsapp: Smartphone,
 };
+
+function greetingFor(hour: number): string {
+  if (hour < 5) return "Boa madrugada";
+  if (hour < 12) return "Bom dia";
+  if (hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+/** Top of the Início: who is using which business, today's date and what needs attention now. */
+function Welcome({
+  tenant,
+  today,
+  todayCount,
+  pending,
+  next,
+}: {
+  tenant: Tenant;
+  today: string;
+  todayCount: number;
+  pending: number;
+  next: {
+    startsAt: string;
+    customerName: string | null;
+    serviceName: string;
+  } | null;
+}) {
+  const me = useMe();
+  const logo = useBusinessLogo(tenant.id);
+  const hour = Number(
+    zoned(new Date().toISOString(), tenant.timezone).time.slice(0, 2),
+  );
+  // The agency looks at many businesses, so it is greeted without a name; the owner by first name.
+  const first =
+    me.data?.role === "owner" ? me.data.name.trim().split(/s+/)[0] : null;
+  const date = format(parseISO(today), "EEEE, d 'de' MMMM 'de' yyyy", {
+    locale: ptBR,
+  });
+  const chips = [
+    {
+      label: `${todayCount} ${todayCount === 1 ? "atendimento hoje" : "atendimentos hoje"}`,
+    },
+    ...(pending > 0
+      ? [
+          {
+            label: `${pending} ${pending === 1 ? "aguardando aprovação" : "aguardando aprovação"}`,
+            warn: true,
+          },
+        ]
+      : []),
+    ...(next
+      ? [
+          {
+            label: `Próximo às ${zoned(next.startsAt, tenant.timezone).time} · ${next.customerName ?? "Sem nome"}`,
+          },
+        ]
+      : []),
+  ];
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <div className="flex min-w-0 items-center gap-4">
+        <BusinessAvatar
+          name={tenant.name}
+          logo={logo.data?.dataUrl}
+          className="size-14 text-lg"
+        />
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-semibold">
+            {first ? `${greetingFor(hour)}, ${first}` : greetingFor(hour)}
+          </h1>
+          <p className="truncate text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{tenant.name}</span>
+            <span aria-hidden> · </span>
+            <span className="first-letter:uppercase">{date}</span>
+          </p>
+        </div>
+      </div>
+      <ul className="flex flex-wrap gap-2" aria-label="Agora">
+        {chips.map((chip) => (
+          <li
+            key={chip.label}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs",
+              chip.warn
+                ? "border-status-pending-border bg-status-pending-bg text-status-pending"
+                : "bg-card text-muted-foreground",
+            )}
+          >
+            {chip.label}
+          </li>
+        ))}
+      </ul>
+    </header>
+  );
+}
 
 type Shortcut = { id: string; title: string; text: string; pending?: boolean };
 

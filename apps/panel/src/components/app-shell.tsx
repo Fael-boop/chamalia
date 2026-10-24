@@ -129,6 +129,19 @@ export function AppShell({
     closeTimer.current = setTimeout(() => setPeek(false), 250);
   };
   useEffect(() => () => clearTimeout(closeTimer.current), []);
+  // Changing between "fixed" and "folded" moves the menu, the rail and the page at once: no
+  // animation for that switch (they would drift apart for a moment). Opening/closing on hover animates.
+  const [animate, setAnimate] = useState(true);
+  const switchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(switchTimer.current), []);
+  const toggleAutoHide = () => {
+    clearTimeout(closeTimer.current);
+    clearTimeout(switchTimer.current);
+    setAnimate(false);
+    setPeek(false);
+    setAutoHide(!autoHide);
+    switchTimer.current = setTimeout(() => setAnimate(true), 300);
+  };
 
   const mobile = useIsMobile();
   const reduceMotion = useReducedMotion();
@@ -273,6 +286,15 @@ export function AppShell({
               </a>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={toggleAutoHide}
+            className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
+            aria-label="Fixar o menu na tela"
+            title="Fixar o menu"
+          >
+            <PanelLeftOpen className="size-[18px]" />
+          </button>
         </nav>
       )}
       <aside
@@ -281,7 +303,10 @@ export function AppShell({
         className={cn(
           "top-0 flex h-dvh w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground",
           autoHide
-            ? "fixed left-0 z-50 shadow-2xl transition-transform duration-200 has-[:focus-visible]:translate-x-0 motion-reduce:transition-none " +
+            ? "fixed left-0 z-50 shadow-2xl has-[:focus-visible]:translate-x-0 " +
+                (animate
+                  ? "transition-transform duration-200 motion-reduce:transition-none "
+                  : "") +
                 (peek ? "translate-x-0" : "-translate-x-full")
             : "sticky",
         )}
@@ -293,10 +318,7 @@ export function AppShell({
           )}
           <button
             type="button"
-            onClick={() => {
-              setAutoHide(!autoHide);
-              setPeek(false);
-            }}
+            onClick={toggleAutoHide}
             className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
             aria-label={
               autoHide
@@ -360,7 +382,11 @@ export function AppShell({
         </div>
       </aside>
       <div
-        className="flex min-w-0 flex-1 flex-col transition-[padding-left] duration-200 motion-reduce:transition-none"
+        className={cn(
+          "flex min-w-0 flex-1 flex-col",
+          animate &&
+            "transition-[padding-left] duration-200 motion-reduce:transition-none",
+        )}
         // The menu opening pushes the page instead of covering it.
         style={{ paddingLeft: autoHide ? (peek ? 240 : 56) : 0 }}
       >
