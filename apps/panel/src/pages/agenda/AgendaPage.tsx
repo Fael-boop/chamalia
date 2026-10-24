@@ -41,7 +41,7 @@ import { professionalColors } from "@/lib/professional-color";
 import { cn } from "@/lib/utils";
 import { AgendaSidebar, type AgendaView } from "./AgendaSidebar";
 import { AppointmentSheet } from "./AppointmentSheet";
-import { TimeGrid, type Density } from "./TimeGrid";
+import { TimeGrid } from "./TimeGrid";
 import { NewAppointmentSheet } from "./NewAppointmentSheet";
 
 const HIGHLIGHT_MS = 4000;
@@ -117,10 +117,6 @@ export function AgendaPage({
   );
   const [search, setSearch] = useState("");
   const [view, setView] = usePref<AgendaView>("chamalia.agendaView", "grid");
-  const [density, setDensity] = usePref<Density>(
-    "chamalia.agendaDensity2",
-    "fit",
-  );
   const [sidebarOpen, setSidebarOpen] = usePref("chamalia.agendaSidebar", true);
   const [hiddenList, setHiddenList] = usePref<string[]>(
     `chamalia.agendaHidden.${tenant.id}`,
@@ -337,8 +333,6 @@ export function AgendaPage({
             statusCounts={statusCounts}
             view={view}
             onView={setView}
-            density={density}
-            onDensity={setDensity}
           />
         )}
         <div className={cn("min-w-0", !mobile && "flex h-full flex-col")}>
@@ -426,7 +420,6 @@ export function AgendaPage({
                 hours={businessHours.data ?? []}
                 ownHours={ownHours}
                 blocks={dayBlocks}
-                density={density}
                 fresh={fresh}
                 onOpen={open}
                 onSlot={(professionalId, time) => {

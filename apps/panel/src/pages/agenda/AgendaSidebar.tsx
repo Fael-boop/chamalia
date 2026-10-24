@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { STATUS_LABELS } from "@/format";
 import { cn } from "@/lib/utils";
-import type { Density } from "./TimeGrid";
 
 export type AgendaView = "grid" | "list";
 
@@ -38,8 +37,6 @@ export function AgendaSidebar(props: {
   statusCounts: Record<AppointmentStatus, number>;
   view: AgendaView;
   onView: (view: AgendaView) => void;
-  density: Density;
-  onDensity: (density: Density) => void;
 }) {
   // The month shown can move without changing the selected day.
   const [month, setMonth] = useState(() => parseISO(props.date));
@@ -126,17 +123,6 @@ export function AgendaSidebar(props: {
             { value: "list", label: "Só marcados" },
           ]}
         />
-        {props.view === "grid" && (
-          <Segmented
-            value={props.density}
-            onChange={props.onDensity}
-            options={[
-              { value: "fit", label: "Ajustar" },
-              { value: "normal", label: "Normal" },
-              { value: "compact", label: "Compacta" },
-            ]}
-          />
-        )}
       </Group>
     </aside>
   );

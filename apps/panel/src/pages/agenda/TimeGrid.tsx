@@ -6,10 +6,7 @@ import { parseISO } from "date-fns";
 import { minutesOf, zoned } from "@/format";
 import { cn } from "@/lib/utils";
 
-/** fit = the whole day fits the screen height; normal/compact = fixed size, scrolls. */
-export type Density = "fit" | "normal" | "compact";
-
-const PX_PER_MIN = { normal: 1.6, compact: 1 };
+/** The day always fits the screen height: minutes are scaled between these limits. */
 const FIT_MIN = 0.55;
 const FIT_MAX = 1.6;
 const HEADER_PX = 52;
@@ -70,7 +67,6 @@ export function TimeGrid(props: {
   hours: BusinessHour[];
   ownHours: Map<string, BusinessHour[]>;
   blocks: TimeOff[];
-  density: Density;
   fresh: Set<string>;
   onOpen: (a: Appointment) => void;
   onSlot: (professionalId: string, time: string) => void;
@@ -120,32 +116,16 @@ export function TimeGrid(props: {
     24 * 60,
   );
   const range = Math.max(dayEnd - dayStart, 60);
-  const px =
-    props.density === "fit"
-      ? Math.min(
-          FIT_MAX,
-          Math.max(FIT_MIN, (viewHeight - HEADER_PX) / range || FIT_MIN),
-        )
-      : PX_PER_MIN[props.density];
+  const px = Math.min(
+    FIT_MAX,
+    Math.max(FIT_MIN, (viewHeight - HEADER_PX) / range || FIT_MIN),
+  );
   const height = (dayEnd - dayStart) * px;
   const y = (minutes: number) => (minutes - dayStart) * px;
 
   const nowMinutes = minutesOf(zoned(new Date().toISOString(), timeZone).time);
   const showNow =
     date === props.today && nowMinutes >= dayStart && nowMinutes <= dayEnd;
-
-  // Open on the current time (today) or on the first booking.
-  useEffect(() => {
-    const target = showNow
-      ? nowMinutes - 60
-      : items.length
-        ? Math.min(...items.map((i) => i.start)) - 30
-        : dayStart;
-    scroller.current?.scrollTo({
-      top: props.density === "fit" ? 0 : Math.max(0, y(target)),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, props.density]);
 
   const blockRanges = (columnId: string) =>
     props.blocks
