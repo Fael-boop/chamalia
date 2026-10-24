@@ -1,6 +1,6 @@
 {
   "name": "chamalia",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "ChamaLia: atendente virtual no WhatsApp para clínicas, estética e barbearias",
   "engines": {
