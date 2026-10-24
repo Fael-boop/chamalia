@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { formatPhone } from "@/format";
+import { APP_VERSION } from "@/version";
 import { cn } from "@/lib/utils";
 
 const initialsOf = (name: string) =>
@@ -231,6 +232,10 @@ export function ProfileMenu({
           <DropdownMenuItem variant="destructive" onSelect={onLogout}>
             <LogOut /> Sair
           </DropdownMenuItem>
+          {/* Always visible here, also with the side menu folded: tells which version this tab runs. */}
+          <p className="px-2 pt-1.5 pb-1 text-[11px] text-muted-foreground tabular-nums">
+            Chama Lia v{APP_VERSION}
+          </p>
         </DropdownMenuContent>
       </DropdownMenu>
       {business && (
