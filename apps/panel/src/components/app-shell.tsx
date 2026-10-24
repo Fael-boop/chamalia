@@ -1,39 +1,38 @@
 import { APP_VERSION } from "@/version";
-import { ChevronLeft, LogOut, Moon, Sun } from "lucide-react";
+import { ChevronLeft, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, MouseEvent, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { Logo, LogoMark } from "@/components/logo";
 
-/** "Luciana Beauty Center" -> "LB". */
-const initialsOf = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter((word) => /^[\p{L}\d]/u.test(word))
-    .slice(0, 2)
-    .map((word) => word[0]!.toUpperCase())
-    .join("");
-
-export type NavItem = { id: string; label: string; icon: ComponentType<{ className?: string }> };
+export type NavItem = {
+  id: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  /** Address of the screen: the menu entry is a real link (new tab, middle click). */
+  href?: string;
+};
 
 type Props = {
   brand: string;
+  /** Business (or "Agência") shown under the page title on phones. */
   context?: ReactNode;
-  /** Small label above the context in the sidebar (default "Negócio"). */
-  contextLabel?: string;
   items: NavItem[];
   /** Up to 4 items for the phone's bottom bar (the last one is usually "Mais"). */
   mobileItems: NavItem[];
   current: string;
   onNavigate: (id: string) => void;
-  onLogout: () => void;
-  /** Agency inside one business: goes back to the list of businesses. */
+  /** Agency inside one business: goes back to the list of businesses (phone header arrow). */
   onBack?: () => void;
-  /** Replaces the business card in the sidebar (the profile menu). */
-  account?: ReactNode;
+  /** Top bar, left: the business being managed. */
+  headerStart?: ReactNode;
+  /** Top bar, right: notices, help, theme and the profile menu. */
+  headerEnd?: ReactNode;
+  /** Phone header, right: the compact version of headerEnd. */
+  mobileHeaderEnd?: ReactNode;
   children: ReactNode;
 };
 
@@ -53,7 +52,14 @@ export function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
-export function AppShell({ brand, context, contextLabel = "Negócio", items, mobileItems, current, onNavigate, onLogout, onBack, account, children }: Props) {
+/** A plain left click stays in the app; ctrl/cmd/shift/middle click open the address in a new tab. */
+function followLink(event: MouseEvent<HTMLAnchorElement>, go: () => void) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  go();
+}
+
+export function AppShell({ brand, context, items, mobileItems, current, onNavigate, onBack, headerStart, headerEnd, mobileHeaderEnd, children }: Props) {
   const mobile = useIsMobile();
   const reduceMotion = useReducedMotion();
 
@@ -71,10 +77,20 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
     </AnimatePresence>
   );
 
+  const skipLink = (
+    <a
+      href="#conteudo"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:shadow"
+    >
+      Pular para o conteúdo
+    </a>
+  );
+
   if (mobile) {
     const currentLabel = current === "more" ? "Mais" : (items.find((item) => item.id === current)?.label ?? brand);
     return (
       <div className="min-h-dvh pb-[calc(4rem+env(safe-area-inset-bottom))]">
+        {skipLink}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-sidebar px-4 text-white">
           {onBack && (
             <button
@@ -86,22 +102,16 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
               <ChevronLeft className="size-6" />
             </button>
           )}
-          {/* Tapping the logo or the title opens "Mais", like the bottom menu item. */}
-          <button
-            type="button"
-            onClick={() => onNavigate("more")}
-            className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity active:opacity-70"
-            aria-label="Abrir o menu Mais"
-          >
-            <LogoMark size={30} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-semibold">{currentLabel}</span>
-              <span className="block truncate text-[11px] text-sidebar-foreground">{context ?? brand}</span>
-            </span>
-          </button>
-          <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white" />
+          <LogoMark size={30} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15px] font-semibold">{currentLabel}</span>
+            <span className="block truncate text-[11px] text-sidebar-foreground">{context ?? brand}</span>
+          </span>
+          <div className="flex items-center gap-0.5">{mobileHeaderEnd}</div>
         </header>
-        <main className="px-4 py-4">{content}</main>
+        <main id="conteudo" className="px-4 py-4">
+          {content}
+        </main>
         <nav
           className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-card pb-[env(safe-area-inset-bottom)]"
           style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))` }}
@@ -110,9 +120,10 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
           {mobileItems.map((item) => {
             const active = item.id === current || (item.id === "more" && !mobileItems.some((m) => m.id === current));
             return (
-              <button
+              <a
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
+                href={item.href ?? "#"}
+                onClick={(event) => followLink(event, () => onNavigate(item.id))}
                 className={cn(
                   "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-150 active:scale-95",
                   active ? "text-primary" : "text-muted-foreground",
@@ -121,7 +132,7 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
               >
                 <item.icon className="size-5" />
                 {item.label}
-              </button>
+              </a>
             );
           })}
         </nav>
@@ -131,32 +142,22 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
 
   return (
     <div className="flex min-h-dvh">
+      {skipLink}
       <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
-        <div className="px-5 pt-5 pb-4">
-          <Logo size={30} onDark textClassName="text-[15px]" />
-          {/* The business being managed, in evidence right under the brand (a profile menu when given). */}
-          {account ?? (
-            <div className="mt-4 flex items-center gap-3 rounded-lg border border-sidebar-border bg-white/[0.04] px-3 py-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-white">
-                {initialsOf(String(context ?? brand))}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[11px] tracking-wide text-sidebar-foreground/70 uppercase">{contextLabel}</span>
-                <span className="line-clamp-2 block text-sm leading-snug font-semibold break-words text-white">{context ?? brand}</span>
-              </span>
-            </div>
-          )}
+        <div className="flex h-14 items-center px-5">
+          <Logo size={28} onDark textClassName="text-[15px]" />
         </div>
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Menu principal">
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-3" aria-label="Menu principal">
           {items.map((item) => {
             const active = item.id === current;
             return (
-              <button
+              <a
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
+                href={item.href ?? "#"}
+                onClick={(event) => followLink(event, () => onNavigate(item.id))}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150",
+                  "relative flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
                   active ? "bg-sidebar-accent text-white" : "hover:bg-sidebar-accent/60 hover:text-white",
                 )}
               >
@@ -169,27 +170,23 @@ export function AppShell({ brand, context, contextLabel = "Negócio", items, mob
                 )}
                 <item.icon className={cn("size-4", active && "text-sidebar-primary")} />
                 {item.label}
-              </button>
+              </a>
             );
           })}
         </nav>
-        <div className="flex items-center gap-1 border-t border-sidebar-border p-3">
-          <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white" />
-          <Button
-            variant="ghost"
-            className="flex-1 justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
-            onClick={onLogout}
-          >
-            <LogOut /> Sair
-          </Button>
-          <span className="pr-2 text-[11px] text-sidebar-foreground/50 tabular-nums" title="Versão do sistema">
-            v{APP_VERSION}
-          </span>
-        </div>
+        <p className="px-5 py-3 text-[11px] text-sidebar-foreground/50 tabular-nums" title="Versão do sistema">
+          Chama Lia v{APP_VERSION}
+        </p>
       </aside>
-      <main className="min-w-0 flex-1">
-        <div className="mx-auto max-w-6xl px-8 py-8">{content}</div>
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/85 px-8 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+          <div className="min-w-0 flex-1">{headerStart}</div>
+          <div className="flex items-center gap-1">{headerEnd}</div>
+        </header>
+        <main id="conteudo" className="min-w-0 flex-1">
+          <div className="mx-auto max-w-6xl px-8 py-8">{content}</div>
+        </main>
+      </div>
     </div>
   );
 }

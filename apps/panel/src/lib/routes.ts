@@ -35,6 +35,12 @@ export const AGENCY_PATHS: Record<string, string> = {
 
 export const businessPrefix = (tenantId: string) => `/negocio/${tenantId}`;
 
+/** Address of a screen (for real links in the menu: open in a new tab, middle click...). */
+export function pathFor(paths: Record<string, string>, id: string, prefix = ""): string {
+  const rel = paths[id] ?? "/";
+  return prefix ? (rel === "/" ? prefix : prefix + rel) : rel;
+}
+
 /** Business open in the agency's address (/negocio/<id>/...), if any. */
 export function tenantFromPath(): string | null {
   return /^\/negocio\/([0-9a-f-]{36})(\/|$)/i.exec(window.location.pathname)?.[1] ?? null;
@@ -85,13 +91,7 @@ export function normalizeAddress() {
  * Unknown paths fall back to `fallback` and the address is corrected.
  */
 export function usePathPage(paths: Record<string, string>, fallback: string, prefix = "", active = true) {
-  const toPath = useCallback(
-    (id: string) => {
-      const rel = paths[id] ?? "/";
-      return prefix ? (rel === "/" ? prefix : prefix + rel) : rel;
-    },
-    [paths, prefix],
-  );
+  const toPath = useCallback((id: string) => pathFor(paths, id, prefix), [paths, prefix]);
   const read = useCallback((): string | undefined => {
     const path = window.location.pathname.replace(/\/+$/, "") || "/";
     if (prefix && path !== prefix && !path.startsWith(`${prefix}/`)) return undefined;

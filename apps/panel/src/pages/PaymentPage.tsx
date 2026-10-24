@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react";
 import type { Subscription } from "@/api";
 import { Logo } from "@/components/logo";
-import { RenewPanel, whatsappLink } from "@/components/renew-panel";
+import { RenewPanel } from "@/components/renew-panel";
 import { Button } from "@/components/ui/button";
 import { formatDate, PRIVACY_URL, TERMS_URL } from "@/lib/billing";
 
@@ -36,7 +36,10 @@ export function PaymentPage({ tenantId, subscription, onLogout }: { tenantId: st
           </Button>
           <p className="mt-4">
             Dúvidas?{" "}
-            <a className="font-medium text-foreground underline-offset-4 hover:underline" href={whatsappLink("Oi! Tenho uma dúvida sobre a minha assinatura da Chama Lia.")} target="_blank" rel="noreferrer">
+            <a
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+              href={`mailto:contato@chamalia.com.br?subject=${encodeURIComponent(`Dúvida sobre a assinatura · ${subscription.tenantName}`)}`}
+            >
               Fale com a gente
             </a>
           </p>

@@ -22,8 +22,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, ApiError, setExpiredHandler, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
 import { useSubscription } from "./lib/billing";
-import { AGENCY_PATHS, BUSINESS_PATHS, businessPrefix, normalizeAddress, tenantFromPath, usePathPage } from "./lib/routes";
-import { AppShell, type NavItem } from "./components/app-shell";
+import { AGENCY_PATHS, BUSINESS_PATHS, businessPrefix, normalizeAddress, pathFor, tenantFromPath, usePathPage } from "./lib/routes";
+import { AppShell, ThemeToggle, type NavItem } from "./components/app-shell";
 import { LogoMark } from "./components/logo";
 import { Skeleton } from "./components/ui/skeleton";
 import { useIsMobile } from "./hooks/use-mobile";
@@ -42,7 +42,8 @@ import { NichesPage } from "./pages/NichesPage";
 import { PaymentPage } from "./pages/PaymentPage";
 import { PlansPage } from "./pages/PlansPage";
 import { BillingSettings } from "./components/billing-settings";
-import { AccountCard, AccountMenu } from "./components/account-menu";
+import { AccountCard, BusinessBadge, ProfileMenu } from "./components/account-menu";
+import { HelpButton, NotificationsButton } from "./components/topbar-actions";
 import { Button } from "./components/ui/button";
 import { PriceTablePage } from "./pages/PriceTablePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
@@ -144,17 +145,24 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
     { id: "businesses", label: "Negócios", icon: Building2 },
     { id: "plans", label: "Planos", icon: CreditCard },
     { id: "niches", label: "Nichos", icon: Tags },
-  ];
+  ].map((item) => ({ ...item, href: pathFor(AGENCY_PATHS, item.id) }));
   return (
     <AppShell
       brand={BRAND}
       context="Agência"
-      contextLabel="Painel"
       items={items}
-      mobileItems={[...items, { id: "more", label: "Mais", icon: Ellipsis }]}
+      mobileItems={[...items, { id: "more", label: "Mais", icon: Ellipsis, href: pathFor(AGENCY_PATHS, "more") }]}
       current={page}
       onNavigate={setPage}
-      onLogout={onLogout}
+      headerStart={<span className="text-sm font-semibold">Painel da agência</span>}
+      headerEnd={
+        <>
+          <HelpButton />
+          <ThemeToggle />
+          <ProfileMenu role="admin" onLogout={onLogout} />
+        </>
+      }
+      mobileHeaderEnd={<ProfileMenu role="admin" compact onLogout={onLogout} />}
     >
       {page === "more" && mobile ? (
         <MorePage items={items} onNavigate={setPage} onLogout={onLogout} />
@@ -241,26 +249,46 @@ function BusinessWorkspace({
     if (id === "businesses") onBackToBusinesses?.();
     else setPage(id);
   };
+  const prefix = role === "admin" ? businessPrefix(tenantId) : "";
+  const withHref = (item: NavItem): NavItem => ({ ...item, href: item.id === "businesses" ? "/" : pathFor(BUSINESS_PATHS, item.id, prefix) });
+  // From the bell or an agenda alert: the agenda opens on that day.
+  const openDay = (date: string) => {
+    setAgendaFocus({ date, key: Date.now() });
+    setPage("agenda");
+  };
+  const profile = (compact: boolean) => (
+    <ProfileMenu business={{ id: t.id, name: t.name }} role={role} compact={compact} onBilling={() => setPage("billing")} onLogout={onLogout} />
+  );
 
   return (
     <AppShell
       brand={BRAND}
       context={t.name}
-      items={[...back, ...main, ...secondary]}
-      mobileItems={[...main, more]}
+      items={[...main, ...secondary].map(withHref)}
+      mobileItems={[...main, more].map(withHref)}
       current={shown === "billing" ? "settings" : shown}
       onNavigate={navigate}
-      onLogout={onLogout}
       onBack={onBackToBusinesses && (() => navigate("businesses"))}
-      account={<AccountMenu tenantId={t.id} tenantName={t.name} role={role} onBilling={() => setPage("billing")} onLogout={onLogout} />}
+      headerStart={<BusinessBadge id={t.id} name={t.name} onBack={onBackToBusinesses && (() => navigate("businesses"))} />}
+      headerEnd={
+        <>
+          <NotificationsButton tenant={t} onOpenDay={openDay} />
+          <HelpButton />
+          <ThemeToggle />
+          {profile(false)}
+        </>
+      }
+      mobileHeaderEnd={
+        <>
+          <NotificationsButton tenant={t} onOpenDay={openDay} className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white" />
+          {profile(true)}
+        </>
+      }
     >
       <AgendaAlerts
         key={t.id}
         tenant={t}
-        onOpen={(date) => {
-          setAgendaFocus({ date, key: Date.now() });
-          setPage("agenda");
-        }}
+        onOpen={openDay}
       />
       {subscription.data?.renewSoon && shown !== "billing" && (
         <RenewSoonBanner daysLeft={subscription.data.daysLeft ?? 0} card={subscription.data.cardAvailable} onRenew={() => setPage("billing")} />

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronsUpDown, CreditCard, ImageUp, KeyRound, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, CreditCard, ImageUp, KeyRound, LogOut, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, replaceToken, type Me } from "@/api";
@@ -43,29 +43,38 @@ export function BusinessAvatar({ name, logo, className }: { name: string; logo?:
 
 type Sheet = "profile" | "password" | null;
 
+/** The person's initials in a circle (the business has its logo; people have this). */
+function PersonAvatar({ name, className }: { name: string; className?: string }) {
+  return (
+    <span className={cn("flex shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary", className)}>
+      {initialsOf(name) || "?"}
+    </span>
+  );
+}
+
 /**
- * The business card at the top of the menu, as a button: shows who is logged in and opens the
- * profile (logo, own name and e-mail), password, billing and logout. The WhatsApp photo is not here:
- * it belongs to the assistant and lives in WhatsApp.
+ * Top bar, right: who is logged in, opening profile (logo, own name and e-mail), password,
+ * billing and logout. Without a business (agency list) only logout. The WhatsApp photo is not
+ * here: it belongs to the assistant and lives in WhatsApp.
  */
-export function AccountMenu({
-  tenantId,
-  tenantName,
+export function ProfileMenu({
+  business,
   role,
+  compact = false,
   onBilling,
   onLogout,
 }: {
-  tenantId: string;
-  tenantName: string;
+  business?: { id: string; name: string };
   role: "admin" | "owner";
-  onBilling: () => void;
+  /** Phone: the avatar only. */
+  compact?: boolean;
+  onBilling?: () => void;
   onLogout: () => void;
 }) {
   const me = useMe();
-  const logo = useBusinessLogo(tenantId);
   const [sheet, setSheet] = useState<Sheet>(null);
   const who = me.data?.role === "owner" ? me.data.name : "Agência";
-  const contact = me.data?.role === "owner" ? (me.data.email ?? me.data.login) : "acesso da agência";
+  const contact = me.data?.role === "owner" ? (me.data.email ?? me.data.login) : "Acesso da agência";
 
   return (
     <>
@@ -73,45 +82,79 @@ export function AccountMenu({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="mt-4 flex w-full items-center gap-3 rounded-lg border border-sidebar-border bg-white/[0.04] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
-            aria-label="Abrir o perfil"
+            className={cn(
+              "flex items-center gap-2.5 rounded-full text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+              compact ? "p-1" : "py-1 pr-2 pl-1 hover:bg-accent",
+            )}
+            aria-label={`Perfil de ${who}`}
           >
-            <BusinessAvatar name={tenantName} logo={logo.data?.dataUrl} className="size-8" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[11px] tracking-wide text-sidebar-foreground/70 uppercase">Negócio</span>
-              <span className="line-clamp-2 block text-sm leading-snug font-semibold break-words text-white">{tenantName}</span>
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-sidebar-foreground/60" aria-hidden />
+            <PersonAvatar name={who} className={compact ? "size-8" : "size-8"} />
+            {!compact && (
+              <>
+                <span className="hidden min-w-0 lg:block">
+                  <span className="block max-w-40 truncate text-sm leading-tight font-medium">{who}</span>
+                  <span className="block max-w-40 truncate text-xs leading-tight text-muted-foreground">{role === "owner" ? "Responsável" : "Equipe Chama Lia"}</span>
+                </span>
+                <ChevronDown className="size-4 text-muted-foreground" aria-hidden />
+              </>
+            )}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="bottom" className="w-64">
+        <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel className="flex items-center gap-3 py-2 font-normal">
-            <BusinessAvatar name={tenantName} logo={logo.data?.dataUrl} className="size-9" />
+            <PersonAvatar name={who} className="size-9" />
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">{who}</span>
               <span className="block truncate text-xs text-muted-foreground">{contact}</span>
             </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setSheet("profile")}>
-            <UserRound /> Perfil e logo
-          </DropdownMenuItem>
-          {role === "owner" && (
-            <DropdownMenuItem onSelect={() => setSheet("password")}>
-              <KeyRound /> Trocar senha
-            </DropdownMenuItem>
+          {business && (
+            <>
+              <DropdownMenuItem onSelect={() => setSheet("profile")}>
+                <UserRound /> Perfil e logo
+              </DropdownMenuItem>
+              {role === "owner" && (
+                <DropdownMenuItem onSelect={() => setSheet("password")}>
+                  <KeyRound /> Trocar senha
+                </DropdownMenuItem>
+              )}
+              {onBilling && (
+                <DropdownMenuItem onSelect={onBilling}>
+                  <CreditCard /> Cobrança
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+            </>
           )}
-          <DropdownMenuItem onSelect={onBilling}>
-            <CreditCard /> Cobrança
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={onLogout}>
             <LogOut /> Sair
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <ProfileSheet tenantId={tenantId} tenantName={tenantName} role={role} open={sheet} onOpenChange={(value) => setSheet(value)} />
+      {business && <ProfileSheet tenantId={business.id} tenantName={business.name} role={role} open={sheet} onOpenChange={setSheet} />}
     </>
+  );
+}
+
+/** Top bar, left: the business being managed, with its logo. The agency also gets "Todos os negócios". */
+export function BusinessBadge({ id, name, onBack }: { id: string; name: string; onBack?: () => void }) {
+  const logo = useBusinessLogo(id);
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      {onBack && (
+        <>
+          <button type="button" onClick={onBack} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+            Todos os negócios
+          </button>
+          <span className="text-muted-foreground/60" aria-hidden>
+            /
+          </span>
+        </>
+      )}
+      <BusinessAvatar name={name} logo={logo.data?.dataUrl} className="size-7" />
+      <span className="truncate text-sm font-semibold">{name}</span>
+    </div>
   );
 }
 
