@@ -96,6 +96,16 @@ describe("MercadoPagoSubscriptions", () => {
     expect((await charge("rejected").invoice("9")).paid).toBe(false);
   });
 
+  it("swaps the card, reactivating a debit paused by a refused card", async () => {
+    const { impl, calls } = fakeFetch(() => ({ body: { id: "pre-1", status: "authorized" } }));
+    const subs = new MercadoPagoSubscriptions(new MercadoPagoClient("T", impl));
+    await subs.updateCard("pre-1", "tok-new", true);
+    await subs.updateCard("pre-1", "tok-2", false);
+    expect(calls[0]!.init.method).toBe("PUT");
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ card_token_id: "tok-new", status: "authorized" });
+    expect(JSON.parse(String(calls[1]!.init.body))).toEqual({ card_token_id: "tok-2" });
+  });
+
   it("cancels, retrying with the other spelling if the API refuses the first", async () => {
     const { impl, calls } = fakeFetch((_url, init) =>
       String(init.body).includes('"cancelled"') ? { status: 400, body: { message: "invalid status" } } : { body: { id: "pre-1", status: "cancelled" } },

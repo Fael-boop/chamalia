@@ -152,6 +152,15 @@ export class MercadoPagoSubscriptions {
     return { id: data.id, status: data.status, externalReference: data.external_reference ?? null };
   }
 
+  /** New card for the next charges; a debit paused by a refused card is switched back on. */
+  async updateCard(id: string, cardToken: string, reactivate: boolean): Promise<CardSubscription> {
+    const data = await this.client.call<{ id: string; status: string; external_reference?: string }>(`/preapproval/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ card_token_id: cardToken, ...(reactivate ? { status: "authorized" } : {}) }),
+    });
+    return { id: data.id, status: data.status, externalReference: data.external_reference ?? null };
+  }
+
   /** Stops future charges. Access already paid is kept until it ends. */
   async cancel(id: string): Promise<void> {
     const path = `/preapproval/${encodeURIComponent(id)}`;

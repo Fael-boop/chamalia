@@ -102,16 +102,53 @@ export type BillingTenant = {
   pendingPayments: number;
   reportedPayments: number;
   lastPaidAt: string | null;
+  /** Automatic card debit status, when there is one. */
+  autoDebit: AutoDebit["status"] | null;
+};
+
+export type AutoDebit = {
+  status: "pending" | "authorized" | "paused" | "cancelled";
+  frequencyMonths: 1 | 12;
+  amountCents: number;
+  payerEmail: string;
+  since: string;
+  /** "visa", "master"…, and the last 4 digits: all we know about the card. */
+  cardBrand: string | null;
+  cardLastFour: string | null;
+};
+
+/** A payment as the business sees it in Configurações > Cobrança. */
+export type OwnerPayment = {
+  id: string;
+  months: number;
+  amountCents: number;
+  status: "pending" | "paid" | "cancelled";
+  method: "pix" | "manual" | "card";
+  createdAt: string;
+  paidAt: string | null;
+  planName: string;
 };
 
 export type Subscription = {
   tenantName: string;
   plan: Pick<Plan, "id" | "name" | "includesAssistant" | "priceCentsMonthly" | "priceCentsYearly">;
+  /** Totals right now (null = no price): 12 months = 10; card = 5% off. */
+  prices: { pix: Record<1 | 3 | 6 | 12, number | null>; card: Record<1 | 12, number | null> };
   billingCycle: BillingCycle;
   paidUntil: string | null;
   expired: boolean;
+  daysLeft: number | null;
+  /** Pays by Pix and ends in 3 days or less: offer to renew. */
+  renewSoon: boolean;
   pending: Payment | null;
   pixAvailable: boolean;
+  /** Automatic card debit, when active. */
+  autoDebit: AutoDebit | null;
+  cardAvailable: boolean;
+  mercadoPagoPublicKey: string | null;
+  billingEmail: string | null;
+  termsVersion: string;
+  termsAccepted: boolean;
 };
 
 export type Tenant = {

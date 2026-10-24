@@ -229,7 +229,11 @@ export function PlansPage({ onOpenBusiness }: { onOpenBusiness: (tenantId: strin
                       <StatusPill tone={status.tone} label={status.label} />
                     </TableCell>
                     <TableCell className="text-xs">
-                      {t.reportedPayments > 0 ? (
+                      {t.autoDebit === "authorized" ? (
+                        <span className="text-status-confirmed">Débito automático</span>
+                      ) : t.autoDebit === "paused" ? (
+                        <span className="font-medium text-status-cancelled">Cartão recusado</span>
+                      ) : t.reportedPayments > 0 ? (
                         <span className="font-medium text-status-pending">Avisou que pagou</span>
                       ) : t.pendingPayments > 0 ? (
                         <span className="text-muted-foreground">Gerou um Pix</span>
@@ -589,12 +593,12 @@ function PlanEditor({ plan, onClose }: { plan: Plan | null; onClose: () => void 
         </label>
         <label className="block space-y-1.5 text-sm">
           <span className="font-medium">Preço de 12 meses (R$, opcional)</span>
-          <Input inputMode="decimal" value={yearly} onChange={(e) => setYearly(e.target.value)} placeholder="Vazio = 12 × o preço do mês" />
-          {monthlyCents !== null && yearlyCents !== null && !Number.isNaN(monthlyCents) && yearlyCents < monthlyCents * 12 && (
-            <span className="block text-xs text-muted-foreground">
-              Desconto de {formatPrice(monthlyCents * 12 - yearlyCents)} em relação a 12 × {formatPrice(monthlyCents)}.
-            </span>
-          )}
+          <Input inputMode="decimal" value={yearly} onChange={(e) => setYearly(e.target.value)} placeholder="Vazio = 10 × o preço do mês" />
+          <span className="block text-xs text-muted-foreground">
+            {monthlyCents !== null && !Number.isNaN(monthlyCents) && yearly.trim() === ""
+              ? `Automático: ${formatPrice(monthlyCents * 10)} por ano (2 meses grátis). No débito automático, 5% a menos.`
+              : "Vazio: o ano custa 10 mensalidades (2 meses grátis). No débito automático, 5% a menos."}
+          </span>
         </label>
         <label className="flex items-center gap-3 text-sm">
           <Switch checked={active} onCheckedChange={setActive} />

@@ -13,9 +13,23 @@ export type CardSubscriptionRow = {
   payerEmail: string;
   createdAt: Date;
   cancelledAt: Date | null;
+  cardBrand: string | null;
+  cardLastFour: string | null;
 };
 
-export const CARD_COLUMNS = ["id", "tenant_id", "provider_id", "status", "frequency_months", "amount_cents", "payer_email", "created_at", "cancelled_at"];
+export const CARD_COLUMNS = [
+  "id",
+  "tenant_id",
+  "provider_id",
+  "status",
+  "frequency_months",
+  "amount_cents",
+  "payer_email",
+  "created_at",
+  "cancelled_at",
+  "card_brand",
+  "card_last_four",
+];
 const LIVE = ["pending", "authorized", "paused"];
 /** Mercado Pago is asked at most this often per subscription when the page polls. */
 const CHECK_EVERY_MS = 15_000;

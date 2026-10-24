@@ -40,6 +40,8 @@ import { MorePage } from "./pages/MorePage";
 import { NichesPage } from "./pages/NichesPage";
 import { PaymentPage } from "./pages/PaymentPage";
 import { PlansPage } from "./pages/PlansPage";
+import { BillingSettings } from "./components/billing-settings";
+import { Button } from "./components/ui/button";
 import { PriceTablePage } from "./pages/PriceTablePage";
 import { ProfessionalsPage } from "./pages/ProfessionalsPage";
 import { ServicesPage } from "./pages/ServicesPage";
@@ -214,7 +216,7 @@ function BusinessWorkspace({
       context={t.name}
       items={[...back, ...main, ...secondary]}
       mobileItems={[...main, more]}
-      current={shown}
+      current={shown === "billing" ? "settings" : shown}
       onNavigate={navigate}
       onLogout={onLogout}
       onBack={onBackToBusinesses}
@@ -227,6 +229,9 @@ function BusinessWorkspace({
           setPage("agenda");
         }}
       />
+      {subscription.data?.renewSoon && shown !== "billing" && (
+        <RenewSoonBanner daysLeft={subscription.data.daysLeft ?? 0} card={subscription.data.cardAvailable} onRenew={() => setPage("billing")} />
+      )}
       {shown === "agenda" && <AgendaPage tenant={t} focus={agendaFocus} />}
       {shown === "customers" && <CustomersPage tenant={t} />}
       {shown === "services" && <ServicesPage tenant={t} />}
@@ -235,13 +240,40 @@ function BusinessWorkspace({
       {shown === "faq" && <FaqPage tenant={t} />}
       {shown === "prices" && <PriceTablePage tenant={t} />}
       {shown === "handoff" && <HandoffPage tenant={t} />}
-      {shown === "settings" && <SettingsPage tenant={t} role={role} assistant={assistant} />}
+      {(shown === "settings" || shown === "billing") && (
+        <SettingsPage
+          tenant={t}
+          role={role}
+          assistant={assistant}
+          tab={shown === "billing" ? "billing" : "business"}
+          onTab={(tab) => setPage(tab === "billing" ? "billing" : "settings")}
+          billing={subscription.data && <BillingSettings tenantId={t.id} subscription={subscription.data} />}
+        />
+      )}
       {shown === "train" && <TrainPage tenant={t} onNavigate={navigate} />}
       {shown === "test-chat" && <TestChatPage tenant={t} />}
       {shown === "whatsapp" && <WhatsAppPage tenant={t} />}
       {shown === "access" && role === "admin" && <AccessPage tenant={t} />}
       {shown === "more" && <MorePage items={mobile ? [...secondary, ...back] : secondary} onNavigate={navigate} onLogout={onLogout} />}
     </AppShell>
+  );
+}
+
+/** A few days before a Pix-paid subscription ends: renew now (and the nudge to automatic debit). */
+function RenewSoonBanner({ daysLeft, card, onRenew }: { daysLeft: number; card: boolean; onRenew: () => void }) {
+  const when = daysLeft <= 1 ? "amanhã" : `em ${daysLeft} dias`;
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-l-[3px] border-l-amber-500 bg-card px-4 py-3 text-sm" role="status">
+      <span>
+        <span className="font-medium">Sua assinatura vence {when}.</span>{" "}
+        <span className="text-muted-foreground">
+          {card ? "Renove agora pelo Pix, ou ative o débito automático e ganhe 5% de desconto." : "Renove agora para não ficar sem acesso."}
+        </span>
+      </span>
+      <Button size="sm" onClick={onRenew}>
+        Renovar agora
+      </Button>
+    </div>
   );
 }
 

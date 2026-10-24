@@ -226,6 +226,15 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: (token: string, remember
               Fale com a gente no WhatsApp
             </a>
           </p>
+          <p className="text-center text-xs text-muted-foreground">
+            <a href="https://chamalia.com.br/termos/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
+              Termos de Uso
+            </a>
+            {" · "}
+            <a href="https://chamalia.com.br/privacidade/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
+              Política de Privacidade
+            </a>
+          </p>
         </form>
       </main>
     </div>

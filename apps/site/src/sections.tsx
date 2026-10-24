@@ -393,6 +393,8 @@ export function Closing({ appUrl, whatsappLabel }: { appUrl: string; whatsappLab
             <a href="#perguntas" className="press hover:text-accent-text">Perguntas</a>
             <a href={whatsappUrl()} className="press hover:text-accent-text">{whatsappLabel}</a>
             <a href={appUrl} className="press hover:text-accent-text">Entrar</a>
+            <a href="/termos/" className="press hover:text-accent-text">Termos</a>
+            <a href="/privacidade/" className="press hover:text-accent-text">Privacidade</a>
           </nav>
           <p className="text-right text-muted">© {new Date().getFullYear()} Chama Lia · chamalia.com.br</p>
         </Band>

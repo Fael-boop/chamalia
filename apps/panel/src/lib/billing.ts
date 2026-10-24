@@ -8,12 +8,16 @@ export const CYCLE_LABELS: Record<BillingCycle, string> = {
   lifetime: "Definitivo",
 };
 
-/** Same rule as the server: 12 months use the yearly price when there is one. */
+/** Same rule as the server: 12 months = the yearly price, or 10 × the monthly one (two months free). */
 export function quote(plan: Pick<Plan, "priceCentsMonthly" | "priceCentsYearly">, months: number): number | null {
   if (months === 12 && plan.priceCentsYearly !== null) return plan.priceCentsYearly;
   if (plan.priceCentsMonthly === null) return null;
-  return plan.priceCentsMonthly * months;
+  return plan.priceCentsMonthly * (months === 12 ? 10 : months);
 }
+
+/** Public pages (site): Terms of Use and Privacy Policy. */
+export const TERMS_URL = "https://chamalia.com.br/termos/";
+export const PRIVACY_URL = "https://chamalia.com.br/privacidade/";
 
 /** End of access after paying `months` now: from the current end when still paid, else from today. */
 export function paidUntilAfter(paidUntil: string | null, months: number, now = new Date()): Date {
@@ -59,6 +63,6 @@ export const useSubscription = (tenantId: string) =>
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data?.expired) return 5 * 60_000;
-      return data.pending?.automatic ? 4_000 : 15_000;
+      return data.pending?.automatic || data.autoDebit ? 4_000 : 15_000;
     },
   });

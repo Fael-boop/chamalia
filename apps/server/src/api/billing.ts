@@ -48,6 +48,12 @@ const CHECK_EVERY_MS = 8_000;
 /** The renewal reminder shows up this many days before access ends (Pix payers only). */
 const REMIND_DAYS = 3;
 
+/** Shown in Configurações > Cobrança ("Visa final 1234"); sent by the card form, never the card number. */
+const cardDisplay = {
+  cardBrand: z.string().trim().max(30).regex(/^[a-z_]+$/).optional(),
+  lastFour: z.string().regex(/^\d{4}$/).optional(),
+};
+
 export type MercadoPagoSetup = {
   client: MercadoPagoClient;
   webhookSecret?: string;
@@ -310,7 +316,15 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
       pending: pending ? withPix(pending, pix) : null,
       pixAvailable: Boolean(pix) || Boolean(mercadoPago),
       autoDebit: auto
-        ? { status: auto.status, frequencyMonths: auto.frequencyMonths, amountCents: auto.amountCents, payerEmail: auto.payerEmail, since: auto.createdAt }
+        ? {
+            status: auto.status,
+            frequencyMonths: auto.frequencyMonths,
+            amountCents: auto.amountCents,
+            payerEmail: auto.payerEmail,
+            since: auto.createdAt,
+            cardBrand: auto.cardBrand,
+            cardLastFour: auto.cardLastFour,
+          }
         : null,
       cardAvailable: Boolean(card),
       mercadoPagoPublicKey: card ? mercadoPago!.publicKey! : null,
@@ -381,6 +395,7 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
         email: z.string().trim().toLowerCase().email("E-mail inválido").max(254),
         frequencyMonths: z.union([z.literal(1), z.literal(12)]),
         acceptTerms: z.literal(true, { message: "Aceite os Termos de Uso e a Política de Privacidade." }),
+        ...cardDisplay,
       })
       .parse(request.body);
     if (!card || !mercadoPago?.subscriptions) {
@@ -416,15 +431,64 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
     }
     await acceptTerms(tenantId);
     await sql`
-      insert into card_subscriptions (id, tenant_id, provider_id, status, frequency_months, amount_cents, payer_email)
+      insert into card_subscriptions (id, tenant_id, provider_id, status, frequency_months, amount_cents, payer_email, card_brand, card_last_four)
       values (${id}, ${tenantId}, ${created.id}, ${created.status === "authorized" ? "authorized" : "pending"},
-              ${body.frequencyMonths}, ${amount}, ${body.email})
+              ${body.frequencyMonths}, ${amount}, ${body.email}, ${body.cardBrand ?? null}, ${body.lastFour ?? null})
     `;
     await sql`update tenants set billing_email = ${body.email} where id = ${tenantId}`;
     // The first charge usually happens right away.
     const sub = await liveCardSubscription(sql, tenantId);
     if (sub) await card.sync(sub, true);
     return reply.code(201).send(await subscriptionView(tenantId));
+  });
+
+  // New card for the automatic debit (expired card, another card...). Also revives a debit paused
+  // by refused charges.
+  app.post("/api/tenants/:tenantId/subscription/card/update", { config: { allowExpired: true } }, async (request, reply) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    const body = z.object({ cardToken: z.string().trim().min(8).max(200), ...cardDisplay }).parse(request.body);
+    const sub = await liveCardSubscription(sql, tenantId);
+    if (!sub || !mercadoPago?.subscriptions || !card) {
+      return reply.code(409).send({ error: "not_active", message: "Não há débito automático ativo." });
+    }
+    let updated;
+    try {
+      updated = await mercadoPago.subscriptions.updateCard(sub.providerId, body.cardToken, sub.status === "paused");
+    } catch (error) {
+      log.warn({ err: error, tenantId }, "card update refused");
+      return reply.code(400).send({ error: "card_refused", message: "O cartão foi recusado. Confira os dados ou use outro cartão." });
+    }
+    await sql`
+      update card_subscriptions
+      set card_brand = ${body.cardBrand ?? null}, card_last_four = ${body.lastFour ?? null},
+          status = ${updated.status === "authorized" ? "authorized" : sub.status}
+      where id = ${sub.id}
+    `;
+    log.info({ tenantId }, "automatic debit card replaced");
+    // A paused debit retries with the new card; check whether that charge already went through.
+    const fresh = await liveCardSubscription(sql, tenantId);
+    if (fresh) await card.sync(fresh, true);
+    return subscriptionView(tenantId);
+  });
+
+  // E-mail that receives Mercado Pago's receipts and our notices about the subscription.
+  app.patch("/api/tenants/:tenantId/subscription/billing-email", { config: { allowExpired: true } }, async (request) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    const { email } = z.object({ email: z.string().trim().toLowerCase().email("E-mail inválido").max(254) }).parse(request.body);
+    await sql`update tenants set billing_email = ${email} where id = ${tenantId}`;
+    return subscriptionView(tenantId);
+  });
+
+  // The business's own payment history (Configurações > Cobrança).
+  app.get("/api/tenants/:tenantId/subscription/payments", { config: { allowExpired: true } }, async (request) => {
+    const { tenantId } = tenantParams.parse(request.params);
+    return sql`
+      select p.id, p.months, p.amount_cents, p.status, p.method, p.created_at, p.paid_at, pl.name as plan_name
+      from payments p join plans pl on pl.id = p.plan_id
+      where p.tenant_id = ${tenantId} and (p.status = 'paid' or (p.status = 'pending' and p.created_at > now() - interval '2 days'))
+      order by coalesce(p.paid_at, p.created_at) desc
+      limit 36
+    `;
   });
 
   // Cancelling is one click, as easy as subscribing: no fee, access already paid stays until it ends.

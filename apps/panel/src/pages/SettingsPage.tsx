@@ -15,6 +15,7 @@ import { setAgendaAlerts, useAgendaAlertsEnabled } from "@/lib/agenda-alerts";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { keys } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Informe o nome"),
@@ -68,7 +69,22 @@ function Section({ title, description, children }: { title: string; description:
   );
 }
 
-export function SettingsPage({ tenant, role, assistant = true }: { tenant: Tenant; role: "admin" | "owner"; assistant?: boolean }) {
+export function SettingsPage({
+  tenant,
+  role,
+  assistant = true,
+  tab = "business",
+  onTab,
+  billing,
+}: {
+  tenant: Tenant;
+  role: "admin" | "owner";
+  assistant?: boolean;
+  /** "Cobrança" tab: the business's subscription and payments. */
+  tab?: "business" | "billing";
+  onTab?: (tab: "business" | "billing") => void;
+  billing?: ReactNode;
+}) {
   const mobile = useIsMobile();
   const queryClient = useQueryClient();
   const niches = useQuery({ queryKey: ["niches"], queryFn: () => api<Niche[]>("/niches") });
@@ -124,7 +140,34 @@ export function SettingsPage({ tenant, role, assistant = true }: { tenant: Tenan
 
   return (
     <>
-      {!mobile && <PageHeader title="Configurações" description="Dados do negócio e o jeito de a atendente conversar." />}
+      {!mobile && <PageHeader title="Configurações" description="Dados do negócio, avisos e cobrança." />}
+      {billing && (
+        <div className="mb-4 flex gap-1.5" role="tablist" aria-label="Configurações">
+          {(
+            [
+              ["business", "Negócio"],
+              ["billing", "Cobrança"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => onTab?.(id)}
+              className={cn(
+                "h-9 rounded-md border px-4 text-sm transition-colors duration-150",
+                tab === id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/40",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === "billing" && billing ? (
+        billing
+      ) : (
+      <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit((v) => save.mutate(v))} className="rounded-lg border bg-card p-4 md:p-6">
           <Section title="Negócio" description="Aparece para as clientes e nos avisos.">
@@ -267,6 +310,8 @@ export function SettingsPage({ tenant, role, assistant = true }: { tenant: Tenan
       </Form>
 
       <AgendaAlertsSetting />
+      </>
+      )}
     </>
   );
 }
