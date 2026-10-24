@@ -18,12 +18,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={resolved}
-      // Phones: above the bottom menu, no close button (swipe to dismiss), at most two stacked.
+      // Phones: at the top like a system notification, no close button (swipe to dismiss), at most two stacked.
       // Computer: bottom-right corner, out of the way of the page header.
-      position={mobile ? "bottom-center" : "bottom-right"}
+      position={mobile ? "top-center" : "bottom-right"}
       closeButton={!mobile}
       visibleToasts={mobile ? 2 : 3}
-      mobileOffset={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom))", left: 12, right: 12 }}
+      mobileOffset={{ top: "calc(0.5rem + env(safe-area-inset-top))", left: 12, right: 12 }}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
