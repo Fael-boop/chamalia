@@ -364,7 +364,7 @@ function BusinessWorkspace({
       items={[...main, ...secondary].map(withHref)}
       mobileItems={[main[0]!, main[1]!, main[2]!, more].map(withHref)}
       current={shown === "billing" ? "settings" : shown}
-      wide={shown === "agenda"}
+      wide={shown === "agenda" || shown === "home"}
       onNavigate={navigate}
       onBack={onBackToBusinesses && (() => navigate("businesses"))}
       headerStart={

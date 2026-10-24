@@ -335,8 +335,17 @@ export function AppShell({
           </p>
         </div>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/85 px-8 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div
+        className="flex min-w-0 flex-1 flex-col transition-[padding-left] duration-200 motion-reduce:transition-none"
+        // The menu opening pushes the page instead of covering it.
+        style={{ paddingLeft: autoHide && peek ? 240 : 0 }}
+      >
+        <header
+          className={cn(
+            "sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70",
+            wide ? "px-5" : "px-8",
+          )}
+        >
           <div className="min-w-0 flex-1">{headerStart}</div>
           <div className="flex items-center gap-1">{headerEnd}</div>
         </header>
@@ -344,7 +353,7 @@ export function AppShell({
           <div
             className={cn(
               "mx-auto",
-              wide ? "max-w-none px-5 py-5" : "max-w-6xl px-8 py-8",
+              wide ? "max-w-none px-5 py-5" : "max-w-[1400px] px-8 py-8",
             )}
           >
             {content}
