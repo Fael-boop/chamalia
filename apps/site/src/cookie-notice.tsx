@@ -39,7 +39,7 @@ export function CookieNotice() {
     <div
       role="region"
       aria-label="Aviso de cookies"
-      className="fixed bottom-3 left-3 z-50 w-[calc(100%-1.5rem)] max-w-[340px] rounded-xl border border-graphite-700 bg-surface p-4 shadow-xl"
+      className="fixed right-3 bottom-3 z-50 w-[calc(100%-1.5rem)] max-w-[340px] rounded-xl border border-graphite-700 bg-surface p-4 shadow-xl"
     >
       <p className="text-[13px] leading-relaxed text-muted">
         Usamos só o necessário para o site funcionar. Cookies de medição ou anúncios, se um dia existirem, só com o seu aceite.{" "}
