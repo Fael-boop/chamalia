@@ -243,13 +243,37 @@ export function AppShell({
     <div className="flex min-h-dvh">
       {skipLink}
       {autoHide && (
-        // Thin strip on the left edge: moving the mouse there brings the menu back.
-        <div
-          aria-hidden
+        // Slim rail while the menu is folded: icons only; reaching it brings the full menu back.
+        <nav
+          aria-label="Menu recolhido"
           onMouseEnter={openPeek}
           onMouseLeave={closePeek}
-          className="fixed top-0 left-0 z-40 h-dvh w-2 bg-sidebar/70 hover:bg-sidebar"
-        />
+          className="fixed top-0 left-0 z-40 flex h-dvh w-14 flex-col items-center gap-1 bg-sidebar py-3"
+        >
+          {homeLink(<LogoMark size={28} />, "Ir para o início")}
+          <div className="mt-3 flex flex-1 flex-col items-center gap-1 overflow-y-auto">
+            {items.map((item) => (
+              <a
+                key={item.id}
+                href={item.href ?? "#"}
+                onClick={(event) =>
+                  followLink(event, () => onNavigate(item.id))
+                }
+                aria-label={item.label}
+                aria-current={item.id === current ? "page" : undefined}
+                title={item.label}
+                className={cn(
+                  "flex size-9 items-center justify-center rounded-md text-sidebar-foreground transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
+                  item.id === current
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "hover:bg-sidebar-accent/60 hover:text-white",
+                )}
+              >
+                <item.icon className="size-[18px]" />
+              </a>
+            ))}
+          </div>
+        </nav>
       )}
       <aside
         onMouseEnter={autoHide ? openPeek : undefined}
@@ -338,7 +362,7 @@ export function AppShell({
       <div
         className="flex min-w-0 flex-1 flex-col transition-[padding-left] duration-200 motion-reduce:transition-none"
         // The menu opening pushes the page instead of covering it.
-        style={{ paddingLeft: autoHide && peek ? 240 : 0 }}
+        style={{ paddingLeft: autoHide ? (peek ? 240 : 56) : 0 }}
       >
         <header
           className={cn(
@@ -353,8 +377,9 @@ export function AppShell({
           <div
             className={cn(
               "mx-auto",
-              wide ? "max-w-none px-5 py-5" : "max-w-[1400px] px-8 py-8",
+              wide ? "px-5 py-5" : "max-w-[1400px] px-8 py-8",
             )}
+            style={wide ? { width: "max(85%, min(100%, 1200px))" } : undefined}
           >
             {content}
           </div>
