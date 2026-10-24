@@ -488,7 +488,9 @@ function Welcome({
   );
   // The agency looks at many businesses, so it is greeted without a name; the owner by first name.
   const first =
-    me.data?.role === "owner" ? me.data.name.trim().split(/s+/)[0] : null;
+    me.data?.role === "owner"
+      ? me.data.nickname?.trim() || me.data.name.trim().split(/\s+/)[0]
+      : null;
   const date = format(parseISO(today), "EEEE, d 'de' MMMM 'de' yyyy", {
     locale: ptBR,
   });

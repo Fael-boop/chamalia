@@ -2,7 +2,9 @@ const TOKEN_KEY = "chamalia.adminToken";
 
 export function getToken(): string {
   try {
-    return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY) ?? "";
+    return (
+      localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY) ?? ""
+    );
   } catch {
     return "";
   }
@@ -24,13 +26,22 @@ export function replaceToken(token: string) {
 }
 
 /** The person logged in, for the profile menu. */
-export type Me = { role: "admin" | "owner"; name: string; login: string; email: string | null };
+export type Me = {
+  role: "admin" | "owner";
+  name: string;
+  login: string;
+  email: string | null;
+  /** How the person likes to be called (the greeting uses it). */
+  nickname: string | null;
+  phone: string | null;
+};
 
 export function setToken(token: string, remember = true) {
   try {
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
-    if (token) (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
+    if (token)
+      (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
   } catch {
     // Storage blocked: the user will need to log in again on reload.
   }
@@ -56,19 +67,30 @@ export function setExpiredHandler(handler: () => void) {
   onExpired = handler;
 }
 
-export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  options: { method?: string; body?: unknown } = {},
+): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method: options.method ?? "GET",
     headers: {
-      ...(options.body !== undefined ? { "content-type": "application/json" } : {}),
+      ...(options.body !== undefined
+        ? { "content-type": "application/json" }
+        : {}),
       ...(getToken() ? { authorization: `Bearer ${getToken()}` } : {}),
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
-  const data = (await response.json().catch(() => ({}))) as { message?: string };
+  const data = (await response.json().catch(() => ({}))) as {
+    message?: string;
+  };
   if (response.status === 401) onUnauthorized();
   if (response.status === 402) onExpired();
-  if (!response.ok) throw new ApiError(response.status, data.message ?? `Erro ${response.status}`);
+  if (!response.ok)
+    throw new ApiError(
+      response.status,
+      data.message ?? `Erro ${response.status}`,
+    );
   return data as T;
 }
 
@@ -145,9 +167,19 @@ export type OwnerPayment = {
 
 export type Subscription = {
   tenantName: string;
-  plan: Pick<Plan, "id" | "name" | "includesAssistant" | "priceCentsMonthly" | "priceCentsYearly">;
+  plan: Pick<
+    Plan,
+    | "id"
+    | "name"
+    | "includesAssistant"
+    | "priceCentsMonthly"
+    | "priceCentsYearly"
+  >;
   /** Totals right now (null = no price): 12 months = 10 (two free); card = same as Pix. */
-  prices: { pix: Record<1 | 3 | 6 | 12, number | null>; card: Record<1 | 12, number | null> };
+  prices: {
+    pix: Record<1 | 3 | 6 | 12, number | null>;
+    card: Record<1 | 12, number | null>;
+  };
   billingCycle: BillingCycle;
   paidUntil: string | null;
   expired: boolean;
@@ -204,8 +236,16 @@ export type TenantSummary = {
   upcoming: number;
 };
 
-export type NicheStarterService = { name: string; durationMinutes: number; priceCents: number | null };
-export type NicheStarterHour = { weekday: number; opensAt: string; closesAt: string };
+export type NicheStarterService = {
+  name: string;
+  durationMinutes: number;
+  priceCents: number | null;
+};
+export type NicheStarterHour = {
+  weekday: number;
+  opensAt: string;
+  closesAt: string;
+};
 
 export type Niche = {
   id: string;
@@ -218,7 +258,8 @@ export type Niche = {
   starterHours: NicheStarterHour[];
 };
 
-export type SessionInfo = { role: "admin" } | { role: "owner"; tenantId: string; name: string };
+export type SessionInfo =
+  { role: "admin" } | { role: "owner"; tenantId: string; name: string };
 
 export type TenantUser = {
   id: string;
@@ -266,7 +307,12 @@ export type Service = {
 
 export type PriceTable = {
   body: string | null;
-  file: { name: string | null; mime: string | null; size: number; dataUrl: string | null } | null;
+  file: {
+    name: string | null;
+    mime: string | null;
+    size: number;
+    dataUrl: string | null;
+  } | null;
 };
 
 export type TeamConversation = {
@@ -281,11 +327,20 @@ export type TeamConversation = {
   lastMessage: string | null;
 };
 
-export type AssistantRule = { id: string; kind: "always" | "never"; text: string };
+export type AssistantRule = {
+  id: string;
+  kind: "always" | "never";
+  text: string;
+};
 
 export type FaqEntry = { id: string; question: string; answer: string };
 
-export type HandoffTopic = { id: string; topic: string; reason: string | null; professionalId: string | null };
+export type HandoffTopic = {
+  id: string;
+  topic: string;
+  reason: string | null;
+  professionalId: string | null;
+};
 
 export type Appointment = {
   id: string;
@@ -307,7 +362,11 @@ export type Appointment = {
   professionalName: string;
 };
 
-export type Slot = { time: string; startsAt: string; professionals: { id: string; name: string }[] };
+export type Slot = {
+  time: string;
+  startsAt: string;
+  professionals: { id: string; name: string }[];
+};
 
 export type Customer = {
   id: string;
@@ -336,9 +395,14 @@ export type CustomerDetail = {
   }[];
 };
 
-export type AppointmentStatus = "scheduled" | "confirmed" | "cancelled" | "completed" | "no_show";
+export type AppointmentStatus =
+  "scheduled" | "confirmed" | "cancelled" | "completed" | "no_show";
 
-export type BusinessHour = { weekday: number; opensAt: string; closesAt: string };
+export type BusinessHour = {
+  weekday: number;
+  opensAt: string;
+  closesAt: string;
+};
 
 export type ChatMessage = {
   id: string;
@@ -348,7 +412,11 @@ export type ChatMessage = {
   attachment: { kind: "price_table"; name: string; mime: string } | null;
 };
 
-export type TestChatState = { withOwner: boolean; handoffReason: string | null; messages: ChatMessage[] };
+export type TestChatState = {
+  withOwner: boolean;
+  handoffReason: string | null;
+  messages: ChatMessage[];
+};
 
 export type TestChatReply = {
   reply: string | null;

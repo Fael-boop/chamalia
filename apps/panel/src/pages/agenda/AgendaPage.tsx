@@ -519,8 +519,11 @@ function WeekStrip(props: {
                 : undefined
             }
             className={cn(
-              "relative flex flex-col items-center rounded-lg border transition-colors duration-150 active:scale-[0.97]",
-              props.dense ? "py-1" : "py-2",
+              "relative flex items-center rounded-lg border transition-colors duration-150 active:scale-[0.97]",
+              // Desktop: one line ("Sáb 24 · 6"), to leave the height to the day.
+              props.dense
+                ? "h-10 flex-row justify-center gap-1.5"
+                : "flex-col py-2",
               selected
                 ? "border-primary bg-primary text-primary-foreground"
                 : "bg-card hover:border-primary/40",
@@ -547,6 +550,7 @@ function WeekStrip(props: {
             <span
               className={cn(
                 "text-[10px] tabular-nums",
+                props.dense && "ml-1 text-[11px]",
                 selected
                   ? "text-primary-foreground/80"
                   : "text-muted-foreground",
