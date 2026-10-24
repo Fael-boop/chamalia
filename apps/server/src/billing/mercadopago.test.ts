@@ -13,38 +13,48 @@ function fakeFetch(handler: (url: string, init: RequestInit) => { status?: numbe
 }
 
 describe("MercadoPagoClient", () => {
-  it("creates a Pix charge with amount in reais, reference and idempotency key", async () => {
+  it("creates a Pix order with the amount as text, reference, expiry and idempotency key", async () => {
     const { impl, calls } = fakeFetch(() => ({
       status: 201,
-      body: { id: 123, date_of_expiration: "2026-10-25T12:00:00.000-03:00", point_of_interaction: { transaction_data: { qr_code: "000201PIX" } } },
+      body: { id: "ORD01ABC", status: "action_required", transactions: { payments: [{ payment_method: { qr_code: "000201PIX" } }] } },
     }));
-    const client = new MercadoPagoClient("TEST-TOKEN", impl);
-    const charge = await client.createPixCharge({
+    const charge = await new MercadoPagoClient("TEST-TOKEN", impl).createPixCharge({
       amountCents: 89100,
-      description: "Chama Lia · 3 meses",
       externalReference: "pay-1",
       payerEmail: "a@b.com",
-      notificationUrl: "https://app.example/webhooks/mercadopago",
-      expiresAt: new Date("2026-10-25T15:00:00Z"),
+      hours: 24,
     });
-    expect(charge).toEqual({ id: "123", qrCode: "000201PIX", expiresAt: new Date("2026-10-25T15:00:00Z") });
-    const sent = JSON.parse(String(calls[0]!.init.body));
-    expect(calls[0]!.url).toBe("https://api.mercadopago.com/v1/payments");
-    expect(sent).toMatchObject({ transaction_amount: 891, payment_method_id: "pix", external_reference: "pay-1", payer: { email: "a@b.com" } });
-    expect(sent.notification_url).toBe("https://app.example/webhooks/mercadopago");
+    expect(charge).toEqual({ id: "ORD01ABC", qrCode: "000201PIX" });
+    expect(calls[0]!.url).toBe("https://api.mercadopago.com/v1/orders");
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({
+      type: "online",
+      processing_mode: "automatic",
+      total_amount: "891.00",
+      external_reference: "pay-1",
+      payer: { email: "a@b.com" },
+      transactions: { payments: [{ amount: "891.00", payment_method: { id: "pix", type: "bank_transfer" }, expiration_time: "PT24H" }] },
+    });
     const headers = calls[0]!.init.headers as Record<string, string>;
     expect(headers["X-Idempotency-Key"]).toBe("pay-1");
     expect(headers.authorization).toBe("Bearer TEST-TOKEN");
   });
 
-  it("reads a payment back in cents", async () => {
-    const { impl } = fakeFetch(() => ({ body: { id: 5, status: "approved", external_reference: "pay-1", transaction_amount: 297 } }));
-    expect(await new MercadoPagoClient("T", impl).getPayment("5")).toEqual({ id: "5", status: "approved", externalReference: "pay-1", amountCents: 29700 });
+  it("reads an order back: paid only when processed and accredited", async () => {
+    const order = (status: string, detail: string) =>
+      fakeFetch(() => ({ body: { id: "ORD01ABC", status, status_detail: detail, external_reference: "pay-1", total_amount: "297.00" } })).impl;
+    expect(await new MercadoPagoClient("T", order("processed", "accredited")).getOrder("ORD01ABC")).toEqual({
+      id: "ORD01ABC",
+      paid: true,
+      externalReference: "pay-1",
+      amountCents: 29700,
+    });
+    expect((await new MercadoPagoClient("T", order("action_required", "waiting_transfer")).getOrder("ORD01ABC")).paid).toBe(false);
+    expect((await new MercadoPagoClient("T", order("expired", "expired")).getOrder("ORD01ABC")).paid).toBe(false);
   });
 
   it("turns API errors into a short message without the token", async () => {
-    const { impl } = fakeFetch(() => ({ status: 401, body: { message: "invalid access token" } }));
-    const error = await new MercadoPagoClient("SECRET-TOKEN", impl).getPayment("5").catch((e) => e);
+    const { impl } = fakeFetch(() => ({ status: 401, body: { errors: [{ message: "invalid access token" }] } }));
+    const error = await new MercadoPagoClient("SECRET-TOKEN", impl).getOrder("ORD1").catch((e) => e);
     expect(error).toBeInstanceOf(MercadoPagoError);
     expect(error.message).toBe("Mercado Pago 401: invalid access token");
     expect(error.message).not.toContain("SECRET-TOKEN");
@@ -56,15 +66,15 @@ describe("validWebhookSignature", () => {
   const sign = (dataId: string, requestId: string, ts: string) =>
     createHmac("sha256", secret).update(`id:${dataId};request-id:${requestId};ts:${ts};`).digest("hex");
 
-  it("accepts the signature Mercado Pago computes", () => {
-    const v1 = sign("999", "req-1", "1704908010");
-    expect(validWebhookSignature({ signature: `ts=1704908010,v1=${v1}`, requestId: "req-1", dataId: "999", secret })).toBe(true);
+  it("accepts the signature Mercado Pago computes (order ids in lower case)", () => {
+    const v1 = sign("ord01abc", "req-1", "1704908010");
+    expect(validWebhookSignature({ signature: `ts=1704908010,v1=${v1}`, requestId: "req-1", dataId: "ORD01ABC", secret })).toBe(true);
   });
 
-  it("refuses a wrong secret, another payment id or a missing part", () => {
-    const v1 = sign("999", "req-1", "1704908010");
-    expect(validWebhookSignature({ signature: `ts=1704908010,v1=${v1}`, requestId: "req-1", dataId: "998", secret })).toBe(false);
-    expect(validWebhookSignature({ signature: `ts=1704908010,v1=${v1}`, requestId: "req-1", dataId: "999", secret: "outro" })).toBe(false);
-    expect(validWebhookSignature({ signature: "ts=1704908010", requestId: "req-1", dataId: "999", secret })).toBe(false);
+  it("refuses a wrong secret, another order or a missing part", () => {
+    const v1 = sign("ord01abc", "req-1", "1704908010");
+    expect(validWebhookSignature({ signature: `ts=1704908010,v1=${v1}`, requestId: "req-1", dataId: "ORD01ABD", secret })).toBe(false);
+    expect(validWebhookSignature({ signature: `ts=1704908010,v1=${v1}`, requestId: "req-1", dataId: "ORD01ABC", secret: "outro" })).toBe(false);
+    expect(validWebhookSignature({ signature: "ts=1704908010", requestId: "req-1", dataId: "ORD01ABC", secret })).toBe(false);
   });
 });

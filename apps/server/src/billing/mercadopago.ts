@@ -1,17 +1,19 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * Mercado Pago Pix (Checkout Transparente, /v1/payments). We create one charge per payment
- * request and confirm it only after reading it back from Mercado Pago: a notification alone
- * never releases access.
+ * Mercado Pago Pix through the Orders API (Checkout Transparente, /v1/orders; the older
+ * /v1/payments is being retired). One order per payment request, confirmed only after we
+ * read it back from Mercado Pago: a notification alone never releases access.
  */
 const API = "https://api.mercadopago.com";
 const TIMEOUT_MS = 15_000;
 
-export type MercadoPagoCharge = { id: string; qrCode: string; expiresAt: Date | null };
-export type MercadoPagoPayment = { id: string; status: string; externalReference: string | null; amountCents: number };
+export type MercadoPagoCharge = { id: string; qrCode: string };
+export type MercadoPagoOrder = { id: string; paid: boolean; externalReference: string | null; amountCents: number };
 
 export class MercadoPagoError extends Error {}
+
+const toCents = (amount: string | number | undefined) => Math.round(Number(amount ?? 0) * 100);
 
 export class MercadoPagoClient {
   constructor(
@@ -28,52 +30,57 @@ export class MercadoPagoClient {
     });
     if (!response.ok) {
       // The body may echo request data; keep only what helps to debug.
-      const body = (await response.json().catch(() => ({}))) as { message?: string; error?: string };
-      throw new MercadoPagoError(`Mercado Pago ${response.status}: ${body.message ?? body.error ?? "erro"}`);
+      const body = (await response.json().catch(() => ({}))) as { message?: string; error?: string; errors?: { message?: string }[] };
+      throw new MercadoPagoError(`Mercado Pago ${response.status}: ${body.errors?.[0]?.message ?? body.message ?? body.error ?? "erro"}`);
     }
     return (await response.json()) as T;
   }
 
+  /** `hours` = how long the Pix stays payable (Mercado Pago accepts 30 min to 30 days). */
   async createPixCharge(input: {
     amountCents: number;
-    description: string;
-    /** Our payment id: comes back on the charge, and makes retries safe (idempotency). */
+    /** Our payment id: comes back on the order, and makes retries safe (idempotency). */
     externalReference: string;
     payerEmail: string;
-    notificationUrl?: string;
-    expiresAt: Date;
+    hours: number;
   }): Promise<MercadoPagoCharge> {
+    const amount = (input.amountCents / 100).toFixed(2);
     const data = await this.request<{
-      id: number;
-      date_of_expiration?: string | null;
-      point_of_interaction?: { transaction_data?: { qr_code?: string } };
-    }>("/v1/payments", {
+      id: string;
+      transactions?: { payments?: { payment_method?: { qr_code?: string } }[] };
+    }>("/v1/orders", {
       method: "POST",
       headers: { "X-Idempotency-Key": input.externalReference },
       body: JSON.stringify({
-        transaction_amount: input.amountCents / 100,
-        description: input.description,
-        payment_method_id: "pix",
+        type: "online",
+        processing_mode: "automatic",
+        total_amount: amount,
         external_reference: input.externalReference,
         payer: { email: input.payerEmail },
-        date_of_expiration: input.expiresAt.toISOString(),
-        ...(input.notificationUrl ? { notification_url: input.notificationUrl } : {}),
+        transactions: {
+          payments: [{ amount, payment_method: { id: "pix", type: "bank_transfer" }, expiration_time: `PT${input.hours}H` }],
+        },
       }),
     });
-    const qrCode = data.point_of_interaction?.transaction_data?.qr_code;
+    const qrCode = data.transactions?.payments?.[0]?.payment_method?.qr_code;
     if (!qrCode) throw new MercadoPagoError("Mercado Pago não devolveu o código Pix");
-    return { id: String(data.id), qrCode, expiresAt: data.date_of_expiration ? new Date(data.date_of_expiration) : null };
+    return { id: data.id, qrCode };
   }
 
-  async getPayment(id: string): Promise<MercadoPagoPayment> {
-    const data = await this.request<{ id: number; status: string; external_reference?: string | null; transaction_amount: number }>(
-      `/v1/payments/${encodeURIComponent(id)}`,
-    );
+  async getOrder(id: string): Promise<MercadoPagoOrder> {
+    const data = await this.request<{
+      id: string;
+      status: string;
+      status_detail?: string;
+      external_reference?: string | null;
+      total_amount?: string;
+    }>(`/v1/orders/${encodeURIComponent(id)}`);
     return {
-      id: String(data.id),
-      status: data.status,
+      id: data.id,
+      // Orders API: a paid order is "processed" with detail "accredited".
+      paid: data.status === "processed" && data.status_detail === "accredited",
       externalReference: data.external_reference ?? null,
-      amountCents: Math.round(data.transaction_amount * 100),
+      amountCents: toCents(data.total_amount),
     };
   }
 }
@@ -90,7 +97,7 @@ export function validWebhookSignature(input: { signature: string; requestId: str
     }),
   );
   if (!parts.ts || !parts.v1) return false;
-  // Mercado Pago signs alphanumeric ids in lower case.
+  // Mercado Pago signs alphanumeric ids (order ids like ORD01…) in lower case.
   const manifest = `id:${input.dataId.toLowerCase()};request-id:${input.requestId};ts:${parts.ts};`;
   const expected = createHmac("sha256", input.secret).update(manifest).digest("hex");
   return expected.length === parts.v1.length && timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1));

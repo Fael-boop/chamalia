@@ -62,7 +62,7 @@ Abra `http://IP-DA-VPS:3000`, crie o usuário administrador (senha forte) e um p
    EVOLUTION_WEBHOOK_BASE_URL=http://<servico-app>:3000
    ```
    Assinaturas: com `MERCADOPAGO_ACCESS_TOKEN` (e, opcional, `MERCADOPAGO_WEBHOOK_SECRET`) o Pix é do Mercado Pago e
-   libera sozinho quando pago (aviso em `https://app.chamalia.com.br/webhooks/mercadopago`, sempre conferido na API).
+   libera sozinho quando pago. No painel da aplicação do Mercado Pago (API de Orders), em Webhooks, cadastre a URL `https://app.chamalia.com.br/webhooks/mercadopago` com o evento Order; o pagamento é sempre conferido na API.
    Sem o token, vale o Pix configurado no painel em Planos → Recebimento por Pix (QR code do banco), confirmado à mão.
    Senha do banco com símbolos precisa ser codificada na URL (`#` vira `%23`, `@` vira `%40`).
 3. **Domínio**: `app.chamalia.com.br`, porta `3000`, HTTPS automático ligado.

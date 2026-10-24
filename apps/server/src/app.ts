@@ -61,7 +61,6 @@ export async function buildApp(config: Config, sql?: Sql) {
         ? {
             client: new MercadoPagoClient(config.MERCADOPAGO_ACCESS_TOKEN),
             webhookSecret: config.MERCADOPAGO_WEBHOOK_SECRET,
-            publicUrl: config.PUBLIC_URL.replace(/\/$/, ""),
           }
         : undefined,
     });

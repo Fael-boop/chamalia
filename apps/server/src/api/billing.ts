@@ -42,7 +42,7 @@ const CHARGE_HOURS = 24;
 /** The payment page asks every few seconds; Mercado Pago is checked at most this often per payment. */
 const CHECK_EVERY_MS = 8_000;
 
-export type MercadoPagoSetup = { client: MercadoPagoClient; webhookSecret?: string; publicUrl: string };
+export type MercadoPagoSetup = { client: MercadoPagoClient; webhookSecret?: string };
 
 /**
  * Plans and subscriptions.
@@ -95,8 +95,8 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
     `;
     if (!local || local.status === "paid") return;
     try {
-      const remote = await mercadoPago.client.getPayment(providerPaymentId);
-      if (remote.status !== "approved") return;
+      const remote = await mercadoPago.client.getOrder(providerPaymentId);
+      if (!remote.paid) return;
       if (remote.externalReference !== local.id || remote.amountCents !== local.amountCents) {
         log.error({ paymentId: local.id }, "mercado pago charge does not match the local payment");
         return;
@@ -300,15 +300,14 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
       try {
         const charge = await mercadoPago.client.createPixCharge({
           amountCents: amount,
-          description: `Chama Lia · ${subscription.plan.name} · ${body.months} ${body.months === 1 ? "mês" : "meses"}`,
           externalReference: payment.id,
           // Mercado Pago asks for a payer e-mail; the business pays from any bank, so ours stands in.
           payerEmail: `assinatura+${payment.id.slice(0, 8)}@chamalia.com.br`,
-          notificationUrl: mercadoPago.publicUrl.startsWith("https://") ? `${mercadoPago.publicUrl}/webhooks/mercadopago` : undefined,
-          expiresAt: new Date(Date.now() + CHARGE_HOURS * 60 * 60 * 1000),
+          hours: CHARGE_HOURS,
         });
+        const expiresAt = new Date(Date.now() + CHARGE_HOURS * 60 * 60 * 1000);
         await sql`
-          update payments set provider_payment_id = ${charge.id}, provider_qr_code = ${charge.qrCode}, expires_at = ${charge.expiresAt}
+          update payments set provider_payment_id = ${charge.id}, provider_qr_code = ${charge.qrCode}, expires_at = ${expiresAt}
           where id = ${payment.id}
         `;
       } catch (error) {
@@ -330,13 +329,14 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
     return payment ? subscriptionView(tenantId) : reply.code(409).send({ error: "not_pending", message: "Esse pagamento não está mais pendente." });
   });
 
-  // Mercado Pago tells us a charge changed. Only the read-back in syncCharge can release access.
+  // Mercado Pago tells us an order changed (topic "order", set up in the app's Webhooks page).
+  // Only the read-back in syncCharge can release access.
   app.post("/webhooks/mercadopago", async (request, reply) => {
     const query = (request.query ?? {}) as Record<string, string | undefined>;
     const body = (request.body ?? {}) as { type?: string; topic?: string; data?: { id?: string | number } };
     const dataId = String(query["data.id"] ?? body.data?.id ?? query.id ?? "");
     const type = query.type ?? query.topic ?? body.type ?? body.topic;
-    if (!mercadoPago || !dataId || (type && type !== "payment")) return { ignored: true };
+    if (!mercadoPago || !dataId || (type && type !== "order")) return { ignored: true };
 
     const signature = request.headers["x-signature"];
     if (mercadoPago.webhookSecret && typeof signature === "string") {
