@@ -8,6 +8,12 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.3.0 · 2026-10-24
+
+- Cada tela do painel tem o próprio endereço (/clientes, /servicos, /configuracoes, /pagamento...): dá para mandar link, abrir em outra aba, e o F5 e o voltar do navegador funcionam.
+- Agência: o negócio aberto fica no endereço (/negocio/<id>/...).
+- Endereço digitado errado é corrigido sozinho: /termos e /privacidade levam ao site, nomes parecidos viram a tela certa e o resto volta para o início.
+
 ## 1.2.0 · 2026-10-24
 
 - Cartão sem desconto: o atrativo é a renovação automática ("você nunca fica sem acesso"). O desconto fica no plano anual (2 meses grátis), no Pix e no cartão, com o equivalente por mês no resumo.

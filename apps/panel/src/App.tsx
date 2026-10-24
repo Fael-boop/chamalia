@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, ApiError, setExpiredHandler, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
 import { useSubscription } from "./lib/billing";
+import { AGENCY_PATHS, BUSINESS_PATHS, businessPrefix, normalizeAddress, tenantFromPath, usePathPage } from "./lib/routes";
 import { AppShell, type NavItem } from "./components/app-shell";
 import { LogoMark } from "./components/logo";
 import { Skeleton } from "./components/ui/skeleton";
@@ -51,8 +52,9 @@ import { TrainPage } from "./pages/TrainPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 
 const BRAND = "Chama Lia";
-/** Address of Configurações > Cobrança, to send as a link ("renove aqui"). */
-const BILLING_PATH = "/pagamento";
+// Tidy whatever was typed in the address bar before the first screen (see lib/routes.ts).
+normalizeAddress();
+
 /** Screens of the WhatsApp assistant, hidden on the "Agenda Online" plan. */
 const ASSISTANT_PAGES = new Set(["faq", "prices", "handoff", "train", "whatsapp", "test-chat"]);
 
@@ -107,16 +109,34 @@ export function App() {
 }
 
 function AgencyApp({ onLogout }: { onLogout: () => void }) {
-  const [tenantId, setTenantId] = useState<string | null>(null);
+  // A business opened by the agency lives at /negocio/<id>/..., so it survives reloads and links.
+  const [tenantId, setTenantId] = useState<string | null>(tenantFromPath);
   const mobile = useIsMobile();
-  const [page, setPage] = useState("businesses");
+  const [page, setPage] = usePathPage(AGENCY_PATHS, "businesses", "", !tenantId);
 
   useEffect(() => {
     document.title = BRAND;
   }, [tenantId]);
 
+  // Back/forward between the list and a business.
+  useEffect(() => {
+    const onBack = () => setTenantId(tenantFromPath());
+    window.addEventListener("popstate", onBack);
+    return () => window.removeEventListener("popstate", onBack);
+  }, []);
+
+  const openBusiness = (id: string) => {
+    window.history.pushState(null, "", businessPrefix(id));
+    setTenantId(id);
+  };
+  const backToList = () => {
+    window.history.pushState(null, "", AGENCY_PATHS.businesses);
+    setTenantId(null);
+    setPage("businesses", true);
+  };
+
   if (tenantId) {
-    return <BusinessWorkspace tenantId={tenantId} role="admin" onLogout={onLogout} onBackToBusinesses={() => setTenantId(null)} />;
+    return <BusinessWorkspace key={tenantId} tenantId={tenantId} role="admin" onLogout={onLogout} onBackToBusinesses={backToList} />;
   }
 
   const items: NavItem[] = [
@@ -140,9 +160,9 @@ function AgencyApp({ onLogout }: { onLogout: () => void }) {
       ) : page === "niches" ? (
         <NichesPage />
       ) : page === "plans" ? (
-        <PlansPage onOpenBusiness={setTenantId} />
+        <PlansPage onOpenBusiness={openBusiness} />
       ) : (
-        <BusinessesPage onOpen={setTenantId} />
+        <BusinessesPage onOpen={openBusiness} />
       )}
     </AppShell>
   );
@@ -164,20 +184,17 @@ function BusinessWorkspace({
   const subscription = useSubscription(tenantId);
   const blocked = role === "owner" && subscription.data?.expired === true;
   const tenant = useTenant(tenantId, !blocked);
-  const [page, setPageState] = useState(() => (window.location.pathname === BILLING_PATH ? "billing" : "agenda"));
-  // Only the payment area has its own address (app.chamalia.com.br/pagamento): it can be sent as a
-  // link, and reload/back keep working there. The other screens stay at "/".
-  const setPage = useCallback((id: string) => {
-    setPageState(id);
-    const path = id === "billing" ? BILLING_PATH : "/";
-    if (window.location.pathname !== path) window.history.pushState(null, "", path);
-  }, []);
+  // Each screen has its address: /clientes, /pagamento... (the agency's under /negocio/<id>).
+  const [page, setPage] = usePathPage(BUSINESS_PATHS, "agenda", role === "admin" ? businessPrefix(tenantId) : "");
+  // "Agenda Online" (no Lia): her screens are not offered; a link to one of them lands on the agenda.
+  const assistant = subscription.data?.plan.includesAssistant ?? true;
   useEffect(() => {
-    const onBack = () =>
-      setPageState((current) => (window.location.pathname === BILLING_PATH ? "billing" : current === "billing" ? "agenda" : current));
-    window.addEventListener("popstate", onBack);
-    return () => window.removeEventListener("popstate", onBack);
-  }, []);
+    if (subscription.data && !assistant && ASSISTANT_PAGES.has(page)) setPage("agenda", true);
+  }, [subscription.data, assistant, page, setPage]);
+  // The agency-only screen, reached by an owner through a link: back to the agenda.
+  useEffect(() => {
+    if (role === "owner" && page === "access") setPage("agenda", true);
+  }, [role, page, setPage]);
   // Set by an agenda alert's "Ver": the agenda opens on that day.
   const [agendaFocus, setAgendaFocus] = useState<{ date: string; key: number } | null>(null);
 
@@ -197,8 +214,6 @@ function BusinessWorkspace({
   if (blocked) return <PaymentPage tenantId={tenantId} subscription={subscription.data!} onLogout={onLogout} />;
   if (tenant.isLoading || !tenant.data) return <SplashSkeleton />;
   const t = tenant.data;
-  // "Agenda Online" (no Lia): her screens are not offered.
-  const assistant = subscription.data?.plan.includesAssistant ?? true;
   const shown = !assistant && ASSISTANT_PAGES.has(page) ? "agenda" : page;
 
   const main: NavItem[] = [
@@ -222,11 +237,8 @@ function BusinessWorkspace({
   const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };
 
   const navigate = (id: string) => {
-    if (id === "businesses") {
-      // Back to the agency's list: /pagamento belongs to the business that was open.
-      window.history.replaceState(null, "", "/");
-      onBackToBusinesses?.();
-    } else setPage(id);
+    if (id === "businesses") onBackToBusinesses?.();
+    else setPage(id);
   };
 
   return (
