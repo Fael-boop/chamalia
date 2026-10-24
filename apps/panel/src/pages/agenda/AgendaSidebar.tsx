@@ -1,6 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AppointmentStatus } from "@/api";
 import { PersonPhoto } from "@/components/person-photo";
@@ -69,7 +69,9 @@ export function AgendaSidebar(props: {
       </div>
 
       <Group
+        id="professionals"
         title="Profissionais"
+        summary={`${props.professionals.length - props.hidden.size} de ${props.professionals.length}`}
         action={
           props.hidden.size > 0
             ? { label: "Todas", onClick: props.onShowAll }
@@ -96,7 +98,12 @@ export function AgendaSidebar(props: {
         ))}
       </Group>
 
-      <Group title="Situação">
+      <Group
+        id="status"
+        title="Situação"
+        defaultOpen={false}
+        summary={`${props.statuses.size} de 5`}
+      >
         {STATUS_ORDER.map((status) => (
           <label
             key={status}
@@ -114,7 +121,7 @@ export function AgendaSidebar(props: {
         ))}
       </Group>
 
-      <Group title="Exibição">
+      <Group id="view" title="Exibição">
         <Segmented
           value={props.view}
           onChange={props.onView}
@@ -128,32 +135,76 @@ export function AgendaSidebar(props: {
   );
 }
 
+/** A titled block of the side panel that can be folded; the choice is remembered on this device. */
 function Group({
+  id,
   title,
+  summary,
+  defaultOpen = true,
   action,
   children,
 }: {
+  id: string;
   title: string;
+  /** Shown beside the title while folded, e.g. "7 de 7". */
+  summary?: string;
+  defaultOpen?: boolean;
   action?: { label: string; onClick: () => void };
   children: React.ReactNode;
 }) {
+  const key = `chamalia.agendaGroup.${id}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved === null ? defaultOpen : saved === "1";
+    } catch {
+      return defaultOpen;
+    }
+  });
+  const toggle = () => {
+    setOpen(!open);
+    try {
+      localStorage.setItem(key, open ? "0" : "1");
+    } catch {
+      // Private mode: the choice lasts until the page closes.
+    }
+  };
   return (
     <section className="space-y-1.5">
-      <div className="flex items-center justify-between px-1.5">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase">
-          {title}
-        </h2>
-        {action && (
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className="flex min-h-7 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left hover:bg-muted"
+        >
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "size-3.5 text-muted-foreground transition-transform duration-150",
+              !open && "-rotate-90",
+            )}
+          />
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase">
+            {title}
+          </h2>
+          {!open && summary && (
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+              {summary}
+            </span>
+          )}
+        </button>
+        {open && action && (
           <button
             type="button"
             onClick={action.onClick}
-            className="text-xs text-primary hover:underline"
+            className="px-1.5 text-xs text-primary hover:underline"
           >
             {action.label}
           </button>
         )}
       </div>
-      <div className="space-y-1.5">{children}</div>
+      {open && <div className="space-y-1.5">{children}</div>}
     </section>
   );
 }
