@@ -1,3 +1,4 @@
+import { Cookie } from "lucide-react";
 import { useState } from "react";
 
 const KEY = "chamalia.cookieChoice";
@@ -39,14 +40,24 @@ export function CookieNotice() {
     <div
       role="region"
       aria-label="Aviso de cookies"
-      className="fixed right-3 bottom-3 z-50 w-[calc(100%-1.5rem)] max-w-[340px] rounded-xl border border-graphite-700 bg-surface p-4 shadow-xl"
+      className="fixed bottom-3 left-3 z-50 w-[calc(100%-1.5rem)] max-w-[340px] rounded-xl border border-graphite-700 bg-surface p-4 shadow-xl"
     >
-      <p className="text-[13px] leading-relaxed text-muted">
-        Usamos só o necessário para o site funcionar. Cookies de medição ou anúncios, se um dia existirem, só com o seu aceite.{" "}
-        <a href="/privacidade/" className="text-accent-text underline underline-offset-2 hover:text-ink">
-          Privacidade
-        </a>
-      </p>
+      <div className="flex gap-3">
+        <Cookie
+          className="mt-0.5 size-5 shrink-0 text-accent-text"
+          aria-hidden
+        />
+        <p className="text-[13px] leading-relaxed text-muted">
+          Usamos só o necessário para o site funcionar. Cookies de medição ou
+          anúncios, se um dia existirem, só com o seu aceite.{" "}
+          <a
+            href="/privacidade/"
+            className="text-accent-text underline underline-offset-2 hover:text-ink"
+          >
+            Privacidade
+          </a>
+        </p>
+      </div>
       <div className="mt-3 flex gap-2">
         <button
           type="button"

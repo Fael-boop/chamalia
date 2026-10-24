@@ -4,7 +4,7 @@ import { ptBR } from "date-fns/locale";
 import { CalendarClock, Check, MessageCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api, type Appointment, type AppointmentStatus, type Slot, type Tenant } from "@/api";
+import { api, type Appointment, type AppointmentStatus, type CustomerDetail, type Slot, type Tenant } from "@/api";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -21,7 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDayLong, formatDuration, formatPhone, formatPrice, minutesOf, todayIn, zoned } from "@/format";
+import { formatDayLong, formatDuration, formatPhone, formatPrice, minutesOf, STATUS_LABELS, todayIn, zoned } from "@/format";
+
 import { keys, useProfessionals } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -130,7 +131,7 @@ export function AppointmentSheet({
 
             <dl className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-3 text-sm">
               <dt className="text-muted-foreground">Data</dt>
-              <dd className="capitalize">{formatDayLong(start.date)}</dd>
+              <dd className="first-letter:uppercase">{formatDayLong(start.date)}</dd>
               <dt className="text-muted-foreground">Horário</dt>
               <dd>
                 {start.time} – {end.time}{" "}
@@ -160,6 +161,8 @@ export function AppointmentSheet({
                 </a>
               </dd>
             </dl>
+
+            <CustomerHistory tenant={tenant} appointment={appointment} />
 
             {appointment.status === "confirmed" && (
               <div className="flex gap-2 border-t pt-4">
@@ -202,6 +205,69 @@ export function AppointmentSheet({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/** What the team wants to know before serving someone: how often she comes, misses, and her last visits. */
+function CustomerHistory({ tenant, appointment }: { tenant: Tenant; appointment: Appointment }) {
+  const customer = useQuery({
+    queryKey: keys.customer(tenant.id, appointment.customerId),
+    queryFn: () => api<CustomerDetail>(`/tenants/${tenant.id}/customers/${appointment.customerId}`),
+  });
+  if (customer.isLoading) return <Skeleton className="h-24" />;
+  if (!customer.data) return null;
+
+  const others = customer.data.appointments.filter((a) => a.id !== appointment.id);
+  const count = (status: AppointmentStatus) => others.filter((a) => a.status === status).length;
+  const past = others.filter((a) => a.startsAt < appointment.startsAt).slice(0, 4);
+  const since = zoned(customer.data.createdAt, tenant.timezone).date;
+  const stats = [
+    { label: "concluídos", value: count("completed") },
+    { label: "faltas", value: count("no_show") },
+    { label: "cancelados", value: count("cancelled") },
+  ];
+
+  return (
+    <section className="space-y-3 border-t pt-4" aria-label="Histórico da cliente">
+      <h3 className="text-sm font-medium">Histórico</h3>
+      {customer.data.notes && (
+        <p className="rounded-md bg-muted/60 px-3 py-2 text-sm whitespace-pre-line">
+          <span className="text-xs text-muted-foreground">Observações da equipe</span>
+          <br />
+          {customer.data.notes}
+        </p>
+      )}
+      {others.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Primeira vez por aqui.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {stats.map((item) => (
+              <div key={item.label} className="rounded-md border px-2 py-1.5">
+                <div className="text-base font-semibold tabular-nums">{item.value}</div>
+                <div className="text-[11px] text-muted-foreground">{item.label}</div>
+              </div>
+            ))}
+          </div>
+          {past.length > 0 && (
+            <ul className="divide-y rounded-md border text-sm">
+              {past.map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block truncate">{a.serviceName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(parseISO(zoned(a.startsAt, tenant.timezone).date), "dd/MM/yyyy")} · {a.professionalName}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{STATUS_LABELS[a.status]}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      <p className="text-xs text-muted-foreground">Cliente desde {format(parseISO(since), "dd/MM/yyyy")}.</p>
+    </section>
   );
 }
 
