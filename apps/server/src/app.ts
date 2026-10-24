@@ -6,7 +6,7 @@ import Fastify, { type FastifyBaseLogger } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
 import { registerAgendaRoutes } from "./api/agenda.js";
-import { registerBillingRoutes } from "./api/billing.js";
+import { registerBillingRoutes, type MercadoPagoSetup } from "./api/billing.js";
 import { registerNicheRoutes } from "./api/niches.js";
 import { registerRuleRoutes } from "./api/rules.js";
 import { registerAuth } from "./api/auth.js";
@@ -17,12 +17,13 @@ import { registerProfilePhotoRoutes } from "./api/profile-photo.js";
 import { registerTestChatRoutes } from "./api/test-chat.js";
 import { registerUserRoutes } from "./api/users.js";
 import { registerWebhookRoutes } from "./api/webhooks.js";
-import { MercadoPagoClient } from "./billing/mercadopago.js";
+import { MercadoPagoClient, MercadoPagoSubscriptions } from "./billing/mercadopago.js";
 import { EvolutionChannel, EvolutionClient } from "./channels/evolution.js";
 import { groqTranscriber } from "./channels/transcribe.js";
 import type { Config } from "./config.js";
 import type { Sql } from "./db/client.js";
 import { loggerOptions } from "./lib/logger.js";
+import { startRetentionJob } from "./maintenance/retention.js";
 import { startReminderJob } from "./reminders/reminders.js";
 
 // Built panel (apps/panel/dist). Served by the bot in production so the VPS
@@ -30,7 +31,9 @@ import { startReminderJob } from "./reminders/reminders.js";
 const panelDist = fileURLToPath(new URL("../../panel/dist", import.meta.url));
 
 export async function buildApp(config: Config, sql?: Sql) {
-  const app = Fastify({ logger: loggerOptions(config.LOG_LEVEL) });
+  // In production the app is only reached through the proxy (Traefik), which tells the visitor's IP:
+  // needed for the login limit and the access records the Marco Civil requires.
+  const app = Fastify({ logger: loggerOptions(config.LOG_LEVEL), trustProxy: config.NODE_ENV === "production" });
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
@@ -57,12 +60,7 @@ export async function buildApp(config: Config, sql?: Sql) {
     registerUserRoutes(app, sql);
     registerBillingRoutes(app, sql, {
       log: app.log,
-      mercadoPago: config.MERCADOPAGO_ACCESS_TOKEN
-        ? {
-            client: new MercadoPagoClient(config.MERCADOPAGO_ACCESS_TOKEN),
-            webhookSecret: config.MERCADOPAGO_WEBHOOK_SECRET,
-          }
-        : undefined,
+      mercadoPago: mercadoPagoSetup(config),
     });
     registerAgendaRoutes(app, sql);
     registerNicheRoutes(app, sql);
@@ -91,6 +89,9 @@ export async function buildApp(config: Config, sql?: Sql) {
       });
       if (!config.GROQ_API_KEY) app.log.warn("Áudios do WhatsApp sem transcrição: falta GROQ_API_KEY");
     }
+    const stopRetention = startRetentionJob({ sql, log: app.log });
+    app.addHook("onClose", async () => stopRetention());
+
     if (whatsapp) {
       // Day-before reminders only make sense where a real WhatsApp is connected.
       const stopReminders = startReminderJob({
@@ -117,6 +118,19 @@ export async function buildApp(config: Config, sql?: Sql) {
   }
 
   return app;
+}
+
+function mercadoPagoSetup(config: Config): MercadoPagoSetup | undefined {
+  if (!config.MERCADOPAGO_ACCESS_TOKEN) return undefined;
+  const client = new MercadoPagoClient(config.MERCADOPAGO_ACCESS_TOKEN);
+  return {
+    client,
+    webhookSecret: config.MERCADOPAGO_WEBHOOK_SECRET,
+    // The card form needs the Public Key; without it only Pix is offered.
+    subscriptions: config.MERCADOPAGO_PUBLIC_KEY ? new MercadoPagoSubscriptions(client) : undefined,
+    publicKey: config.MERCADOPAGO_PUBLIC_KEY,
+    publicUrl: config.PUBLIC_URL.replace(/\/$/, ""),
+  };
 }
 
 function sessionSecret(config: Config, app: { log: FastifyBaseLogger }): string {

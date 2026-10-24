@@ -45,6 +45,8 @@ const envSchema = z
     MERCADOPAGO_ACCESS_TOKEN: optionalString,
     // Assinatura secreta dos webhooks (Suas integrações > Webhooks). Opcional: o pagamento sempre é conferido na API.
     MERCADOPAGO_WEBHOOK_SECRET: optionalString,
+    // Public Key (credenciais de produção): campos seguros do cartão no navegador. Sem ela, só Pix.
+    MERCADOPAGO_PUBLIC_KEY: optionalString,
   })
   .refine((env) => env.NODE_ENV !== "production" || (env.ADMIN_PASSWORD?.length ?? 0) >= 12, {
     path: ["ADMIN_PASSWORD"],

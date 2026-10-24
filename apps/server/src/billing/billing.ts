@@ -28,11 +28,25 @@ export function isExpired(subscription: Pick<Subscription, "billingCycle" | "pai
   return !subscription.paidUntil || subscription.paidUntil.getTime() <= now.getTime();
 }
 
-/** Price of `months` months: 12 months use the yearly price when there is one. null = plan not for sale. */
+/** Paying 12 months at once costs 10: two months free. */
+export const YEARLY_MONTHS_CHARGED = 10;
+/** Automatic card debit gets 5% off, to make it the easy choice. */
+export const AUTO_DEBIT_DISCOUNT = 0.05;
+
+/**
+ * Price of `months` months. 12 months = the plan's yearly price, or 10 × the monthly one
+ * (two months free) when the agency did not set one. null = plan not for sale.
+ */
 export function quote(plan: Pick<Plan, "priceCentsMonthly" | "priceCentsYearly">, months: number): number | null {
   if (months === 12 && plan.priceCentsYearly !== null) return plan.priceCentsYearly;
   if (plan.priceCentsMonthly === null) return null;
-  return plan.priceCentsMonthly * months;
+  return plan.priceCentsMonthly * (months === 12 ? YEARLY_MONTHS_CHARGED : months);
+}
+
+/** Card with automatic renewal, charged every 1 or 12 months: the same price minus 5%. */
+export function cardQuote(plan: Pick<Plan, "priceCentsMonthly" | "priceCentsYearly">, frequencyMonths: 1 | 12): number | null {
+  const base = quote(plan, frequencyMonths);
+  return base === null ? null : Math.round(base * (1 - AUTO_DEBIT_DISCOUNT));
 }
 
 /**

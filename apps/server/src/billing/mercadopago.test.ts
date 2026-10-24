@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { MercadoPagoClient, MercadoPagoError, validWebhookSignature } from "./mercadopago.js";
+import { MercadoPagoClient, MercadoPagoError, MercadoPagoSubscriptions, validWebhookSignature } from "./mercadopago.js";
 
 function fakeFetch(handler: (url: string, init: RequestInit) => { status?: number; body: unknown }) {
   const calls: { url: string; init: RequestInit }[] = [];
@@ -58,6 +58,50 @@ describe("MercadoPagoClient", () => {
     expect(error).toBeInstanceOf(MercadoPagoError);
     expect(error.message).toBe("Mercado Pago 401: invalid access token");
     expect(error.message).not.toContain("SECRET-TOKEN");
+  });
+});
+
+describe("MercadoPagoSubscriptions", () => {
+  it("creates an authorized monthly debit with the card token, never the card", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 201, body: { id: "pre-1", status: "authorized", external_reference: "sub-1" } }));
+    const subs = new MercadoPagoSubscriptions(new MercadoPagoClient("T", impl));
+    const created = await subs.create({
+      cardToken: "tok-123",
+      payerEmail: "dona@salao.com",
+      amountCents: 28215,
+      frequencyMonths: 1,
+      reason: "Chama Lia · plano",
+      externalReference: "sub-1",
+      backUrl: "https://app.example",
+    });
+    expect(created).toEqual({ id: "pre-1", status: "authorized", externalReference: "sub-1" });
+    expect(calls[0]!.url).toBe("https://api.mercadopago.com/preapproval");
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({
+      reason: "Chama Lia · plano",
+      external_reference: "sub-1",
+      payer_email: "dona@salao.com",
+      card_token_id: "tok-123",
+      back_url: "https://app.example",
+      status: "authorized",
+      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: 282.15, currency_id: "BRL" },
+    });
+  });
+
+  it("reads a charge: paid only when its payment was approved", async () => {
+    const charge = (payment: string) =>
+      new MercadoPagoSubscriptions(
+        new MercadoPagoClient("T", fakeFetch(() => ({ body: { id: 9, preapproval_id: "pre-1", status: "processed", transaction_amount: 282.15, payment: { id: 5, status: payment } } })).impl),
+      );
+    expect(await charge("approved").invoice("9")).toEqual({ id: "9", preapprovalId: "pre-1", paid: true, amountCents: 28215 });
+    expect((await charge("rejected").invoice("9")).paid).toBe(false);
+  });
+
+  it("cancels, retrying with the other spelling if the API refuses the first", async () => {
+    const { impl, calls } = fakeFetch((_url, init) =>
+      String(init.body).includes('"cancelled"') ? { status: 400, body: { message: "invalid status" } } : { body: { id: "pre-1", status: "cancelled" } },
+    );
+    await new MercadoPagoSubscriptions(new MercadoPagoClient("T", impl)).cancel("pre-1");
+    expect(calls.map((c) => JSON.parse(String(c.init.body)).status)).toEqual(["cancelled", "canceled"]);
   });
 });
 

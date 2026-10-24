@@ -62,6 +62,16 @@ export function registerAuth(
     else failures.set(key, { count: 1, since: Date.now() });
   }
 
+  // Marco Civil da Internet (art. 15): date, time and IP of each login, kept 6 months (purged after 12).
+  async function recordAccess(role: "admin" | "owner", tenantUserId: string | null, ip: string) {
+    if (!sql) return;
+    try {
+      await sql`insert into access_logs (role, tenant_user_id, ip) values (${role}, ${tenantUserId}, ${ip})`;
+    } catch (error) {
+      app.log.error({ err: error }, "access record failed");
+    }
+  }
+
   app.post("/api/auth/login", async (request, reply) => {
     const body = z
       .object({ login: z.string().trim().toLowerCase(), password: z.string(), remember: z.boolean().optional() })
@@ -80,6 +90,7 @@ export function registerAuth(
     if (body.login === ADMIN_LOGIN) {
       if (adminPassword && !sameText(body.password, adminPassword)) return invalid();
       failures.delete(key);
+      await recordAccess("admin", null, request.ip);
       return { token: signSession({ role: "admin" }, sessionSecret, Date.now(), lifetime), role: "admin" };
     }
 
@@ -93,6 +104,7 @@ export function registerAuth(
 
     failures.delete(key);
     await sql`update tenant_users set last_login_at = now() where id = ${user.id}`;
+    await recordAccess("owner", user.id, request.ip);
     return {
       token: signSession({ role: "owner", tenantId: user.tenantId, userId: user.id }, sessionSecret, Date.now(), lifetime),
       role: "owner",

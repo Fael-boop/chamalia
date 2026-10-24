@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extendPaidUntil, isExpired, quote } from "./billing.js";
+import { cardQuote, extendPaidUntil, isExpired, quote } from "./billing.js";
 import { crc16, pixCopyPaste, readPixCode } from "./pix.js";
 
 describe("isExpired", () => {
@@ -21,8 +21,17 @@ describe("quote", () => {
     expect(quote({ priceCentsMonthly: 29700, priceCentsYearly: null }, 3)).toBe(89100);
   });
   it("uses the yearly price for 12 months when set", () => {
-    expect(quote({ priceCentsMonthly: 29700, priceCentsYearly: 297000 }, 12)).toBe(297000);
-    expect(quote({ priceCentsMonthly: 29700, priceCentsYearly: 297000 }, 6)).toBe(178200);
+    expect(quote({ priceCentsMonthly: 29700, priceCentsYearly: 280000 }, 12)).toBe(280000);
+    expect(quote({ priceCentsMonthly: 29700, priceCentsYearly: 280000 }, 6)).toBe(178200);
+  });
+  it("12 months cost 10 when there is no yearly price (two months free)", () => {
+    expect(quote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 12)).toBe(100000);
+  });
+  it("automatic card debit is 5% off, monthly or yearly", () => {
+    expect(cardQuote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 1)).toBe(9500);
+    expect(cardQuote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 12)).toBe(95000);
+    expect(cardQuote({ priceCentsMonthly: 29700, priceCentsYearly: null }, 1)).toBe(28215);
+    expect(cardQuote({ priceCentsMonthly: null, priceCentsYearly: null }, 1)).toBeNull();
   });
   it("is null when the plan has no price", () => {
     expect(quote({ priceCentsMonthly: null, priceCentsYearly: null }, 1)).toBeNull();
