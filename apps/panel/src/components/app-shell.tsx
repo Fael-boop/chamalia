@@ -1,5 +1,6 @@
 import { APP_VERSION } from "@/version";
 import {
+  ChevronDown,
   ChevronLeft,
   Moon,
   PanelLeftClose,
@@ -27,7 +28,44 @@ export type NavItem = {
   icon: ComponentType<{ className?: string }>;
   /** Address of the screen: the menu entry is a real link (new tab, middle click). */
   href?: string;
+  /** Module it belongs to (NavGroup id); without it the entry stands on its own at the top. */
+  group?: string;
 };
+
+/** A module of the menu (e.g. "Cadastros"), which folds its sub-screens. */
+export type NavGroup = {
+  id: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+};
+
+const GROUP_KEY = "chamalia.navGroups";
+
+/** Which modules are open, remembered on this device. The module of the current screen is always open. */
+function useOpenGroups(): [Set<string>, (id: string) => void] {
+  const [open, setOpen] = useState<Set<string>>(() => {
+    try {
+      return new Set(
+        JSON.parse(localStorage.getItem(GROUP_KEY) ?? "[]") as string[],
+      );
+    } catch {
+      return new Set();
+    }
+  });
+  const toggle = (id: string) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        localStorage.setItem(GROUP_KEY, JSON.stringify([...next]));
+      } catch {
+        // Private mode: the choice lasts until the page closes.
+      }
+      return next;
+    });
+  return [open, toggle];
+}
 
 type Props = {
   brand: string;
@@ -46,6 +84,8 @@ type Props = {
   headerEnd?: ReactNode;
   /** Phone header, right: the compact version of headerEnd. */
   mobileHeaderEnd?: ReactNode;
+  /** Modules of the side menu (items point to them through NavItem.group). */
+  groups?: NavGroup[];
   /** Use the whole width (the agenda); other screens keep a readable max width. */
   wide?: boolean;
   children: ReactNode;
@@ -114,10 +154,47 @@ export function AppShell({
   headerStart,
   headerEnd,
   mobileHeaderEnd,
+  groups = [],
   wide,
   children,
 }: Props) {
   const [autoHide, setAutoHide] = useAutoHideNav();
+  const [openGroups, toggleGroup] = useOpenGroups();
+  const navLink = (item: NavItem, sub = false) => {
+    const active = item.id === current;
+    return (
+      <a
+        key={item.id}
+        href={item.href ?? "#"}
+        onClick={(event) => followLink(event, () => onNavigate(item.id))}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "relative flex items-center gap-3 rounded-md px-3 text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
+          sub
+            ? "h-8 gap-2.5 !px-2.5 text-[13px] font-normal"
+            : "h-9 font-medium",
+          active
+            ? "bg-sidebar-accent text-white"
+            : "hover:bg-sidebar-accent/60 hover:text-white",
+        )}
+      >
+        {active && (
+          <motion.span
+            layoutId="nav-indicator"
+            className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-sidebar-primary"
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
+          />
+        )}
+        <item.icon
+          className={cn(
+            sub ? "size-[15px]" : "size-4",
+            active && "text-sidebar-primary",
+          )}
+        />
+        <span className="truncate">{item.label}</span>
+      </a>
+    );
+  };
   const [peek, setPeek] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const openPeek = () => {
@@ -340,35 +417,51 @@ export function AppShell({
           className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-3"
           aria-label="Menu principal"
         >
-          {items.map((item) => {
-            const active = item.id === current;
+          {items.map((item, index) => {
+            const group = item.group
+              ? groups.find((g) => g.id === item.group)
+              : undefined;
+            if (!group) return navLink(item);
+            // The module header is drawn once, before its first sub-screen.
+            if (items.findIndex((other) => other.group === group.id) !== index)
+              return null;
+            const children = items.filter((other) => other.group === group.id);
+            const holdsCurrent = children.some((child) => child.id === current);
+            const open = holdsCurrent || openGroups.has(group.id);
             return (
-              <a
-                key={item.id}
-                href={item.href ?? "#"}
-                onClick={(event) =>
-                  followLink(event, () => onNavigate(item.id))
-                }
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "relative flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
-                  active
-                    ? "bg-sidebar-accent text-white"
-                    : "hover:bg-sidebar-accent/60 hover:text-white",
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="nav-indicator"
-                    className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-sidebar-primary"
-                    transition={{ duration: reduceMotion ? 0 : 0.2 }}
+              <div key={group.id} className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => !holdsCurrent && toggleGroup(group.id)}
+                  aria-expanded={open}
+                  className={cn(
+                    "flex h-9 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
+                    holdsCurrent
+                      ? "text-white"
+                      : "hover:bg-sidebar-accent/60 hover:text-white",
+                  )}
+                >
+                  <group.icon
+                    className={cn(
+                      "size-4",
+                      holdsCurrent && "text-sidebar-primary",
+                    )}
                   />
+                  <span className="flex-1 truncate">{group.label}</span>
+                  <ChevronDown
+                    aria-hidden
+                    className={cn(
+                      "size-4 opacity-60 transition-transform duration-150",
+                      !open && "-rotate-90",
+                    )}
+                  />
+                </button>
+                {open && (
+                  <div className="mt-0.5 ml-[1.1rem] flex flex-col gap-0.5 border-l border-sidebar-border pl-1.5">
+                    {children.map((child) => navLink(child, true))}
+                  </div>
                 )}
-                <item.icon
-                  className={cn("size-4", active && "text-sidebar-primary")}
-                />
-                {item.label}
-              </a>
+              </div>
             );
           })}
         </nav>

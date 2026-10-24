@@ -193,45 +193,24 @@ export function SettingsPage({
 
   return (
     <>
+      {/* Each tab has its own entry in the menu (Configurações > Negócio / Meu perfil / Cobrança). */}
       {!mobile && (
         <PageHeader
-          title="Configurações"
-          description="Dados do negócio, seu perfil e cobrança."
+          title={
+            tab === "profile"
+              ? "Meu perfil"
+              : tab === "billing"
+                ? "Cobrança"
+                : "Negócio"
+          }
+          description={
+            tab === "profile"
+              ? "Seus dados pessoais e sua senha."
+              : tab === "billing"
+                ? "Plano, forma de pagamento e histórico."
+                : "Dados do negócio, atendente e regras de agendamento."
+          }
         />
-      )}
-      {(billing || profile) && (
-        <div
-          className="mb-4 flex gap-1.5"
-          role="tablist"
-          aria-label="Configurações"
-        >
-          {(
-            [
-              ["business", "Negócio"],
-              ["profile", "Meu perfil"],
-              ["billing", "Cobrança"],
-            ] as const
-          )
-            .filter(([id]) =>
-              id === "billing" ? billing : id === "profile" ? profile : true,
-            )
-            .map(([id, label]) => (
-              <button
-                key={id}
-                role="tab"
-                aria-selected={tab === id}
-                onClick={() => onTab?.(id)}
-                className={cn(
-                  "h-9 rounded-md border px-4 text-sm transition-colors duration-150",
-                  tab === id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "bg-card hover:border-primary/40",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-        </div>
       )}
       {tab === "billing" && billing ? (
         billing

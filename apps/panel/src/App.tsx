@@ -1,5 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  Bot,
+  Layers,
   Building2,
   CalendarDays,
   Clock,
@@ -15,6 +17,8 @@ import {
   MessageSquareText,
   Receipt,
   Smartphone,
+  Store,
+  UserRound,
   UserRoundCheck,
   Users,
   UsersRound,
@@ -39,7 +43,12 @@ import {
   tenantFromPath,
   usePathPage,
 } from "./lib/routes";
-import { AppShell, ThemeToggle, type NavItem } from "./components/app-shell";
+import {
+  AppShell,
+  ThemeToggle,
+  type NavGroup,
+  type NavItem,
+} from "./components/app-shell";
 import { LogoMark } from "./components/logo";
 import { Skeleton } from "./components/ui/skeleton";
 import { useIsMobile } from "./hooks/use-mobile";
@@ -303,30 +312,79 @@ function BusinessWorkspace({
   const t = tenant.data;
   const shown = !assistant && ASSISTANT_PAGES.has(page) ? "agenda" : page;
 
-  const main: NavItem[] = [
+  // Menu by modules: the day-to-day screens on top, then each module with its sub-screens.
+  const groups: NavGroup[] = [
+    { id: "registers", label: "Cadastros", icon: Layers },
+    { id: "assistant", label: `Atendente ${t.assistantName}`, icon: Bot },
+    { id: "config", label: "Configurações", icon: Settings },
+  ];
+  const allItems: NavItem[] = [
     { id: "home", label: "Início", icon: House },
     { id: "agenda", label: "Agenda", icon: CalendarDays },
     { id: "customers", label: "Clientes", icon: Users },
-    { id: "services", label: "Serviços", icon: Scissors },
-  ];
-  const secondary: NavItem[] = [
-    { id: "professionals", label: "Profissionais", icon: UsersRound },
-    { id: "hours", label: "Horários", icon: Clock },
-    { id: "faq", label: "Respostas prontas", icon: MessageSquareText },
-    { id: "prices", label: "Tabela de preços", icon: Receipt },
-    { id: "handoff", label: "Passar para a equipe", icon: UserRoundCheck },
-    { id: "train", label: `Treinar a ${t.assistantName}`, icon: GraduationCap },
+    { id: "services", label: "Serviços", icon: Scissors, group: "registers" },
+    {
+      id: "professionals",
+      label: "Profissionais",
+      icon: UsersRound,
+      group: "registers",
+    },
+    {
+      id: "hours",
+      label: "Horários e folgas",
+      icon: Clock,
+      group: "registers",
+    },
+    // Connect, teach, then test: "Testar" closes the module, to try everything that was set up.
+    { id: "whatsapp", label: "WhatsApp", icon: Smartphone, group: "assistant" },
+    {
+      id: "train",
+      label: `Treinar a ${t.assistantName}`,
+      icon: GraduationCap,
+      group: "assistant",
+    },
+    {
+      id: "faq",
+      label: "Respostas prontas",
+      icon: MessageSquareText,
+      group: "assistant",
+    },
+    {
+      id: "prices",
+      label: "Tabela de preços",
+      icon: Receipt,
+      group: "assistant",
+    },
+    {
+      id: "handoff",
+      label: "Passar para a equipe",
+      icon: UserRoundCheck,
+      group: "assistant",
+    },
     {
       id: "test-chat",
       label: `Testar a ${t.assistantName}`,
       icon: MessagesSquare,
+      group: "assistant",
     },
-    { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
+    { id: "settings", label: "Negócio", icon: Store, group: "config" },
+    { id: "profile", label: "Meu perfil", icon: UserRound, group: "config" },
+    { id: "billing", label: "Cobrança", icon: CreditCard, group: "config" },
     ...(role === "admin"
-      ? [{ id: "access", label: "Acesso do responsável", icon: KeyRound }]
+      ? [
+          {
+            id: "access",
+            label: "Acesso do responsável",
+            icon: KeyRound,
+            group: "config",
+          },
+        ]
       : []),
-    { id: "settings", label: "Configurações", icon: Settings },
   ].filter((item) => assistant || !ASSISTANT_PAGES.has(item.id));
+  // Phone: the 3 most used in the bottom bar, everything else in "Mais".
+  const barIds = ["home", "agenda", "customers"];
+  const barItems = allItems.filter((item) => barIds.includes(item.id));
+  const moreItems = allItems.filter((item) => !barIds.includes(item.id));
   const back: NavItem[] = onBackToBusinesses
     ? [{ id: "businesses", label: "Todos os negócios", icon: Building2 }]
     : [];
@@ -363,9 +421,10 @@ function BusinessWorkspace({
     <AppShell
       brand={BRAND}
       context={t.name}
-      items={[...main, ...secondary].map(withHref)}
-      mobileItems={[main[0]!, main[1]!, main[2]!, more].map(withHref)}
-      current={shown === "billing" || shown === "profile" ? "settings" : shown}
+      items={allItems.map(withHref)}
+      groups={groups}
+      mobileItems={[...barItems, more].map(withHref)}
+      current={shown}
       wide={shown === "agenda" || shown === "home"}
       onNavigate={navigate}
       onBack={onBackToBusinesses && (() => navigate("businesses"))}
@@ -457,7 +516,8 @@ function BusinessWorkspace({
       {shown === "access" && role === "admin" && <AccessPage tenant={t} />}
       {shown === "more" && (
         <MorePage
-          items={mobile ? [main[3]!, ...secondary, ...back] : secondary}
+          items={mobile ? [...moreItems, ...back] : moreItems}
+          groups={groups}
           onNavigate={navigate}
           onLogout={onLogout}
           header={
