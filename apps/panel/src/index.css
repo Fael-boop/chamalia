@@ -9,12 +9,12 @@
  * 1) Escalas (azul = marca/ações, grafite = estrutura). Para trocar a cor da
  *    marca, troque só a escala --brand-*.
  * 2) Tokens do shadcn (papéis: primary, sidebar, border…) apontam para as escalas.
- * 3) Status de agendamento: tons discretos, só para status.
+ * 3) Status de agendamento: cores firmes (legíveis sobre fundo claro), só para status.
  */
 :root {
   --radius: 0.5rem;
 
-  --background: var(--graphite-50);
+  --background: #e8eaef;
   --foreground: var(--graphite-950);
   --card: #ffffff;
   --card-foreground: var(--graphite-950);
@@ -22,15 +22,15 @@
   --popover-foreground: var(--graphite-950);
   --primary: var(--brand-600);
   --primary-foreground: #ffffff;
-  --secondary: var(--graphite-100);
+  --secondary: var(--graphite-200);
   --secondary-foreground: var(--graphite-900);
-  --muted: var(--graphite-100);
-  --muted-foreground: var(--graphite-500);
-  --accent: var(--brand-50);
+  --muted: var(--graphite-200);
+  --muted-foreground: var(--graphite-600);
+  --accent: var(--brand-100);
   --accent-foreground: var(--brand-700);
   --destructive: #d92d20;
-  --border: var(--graphite-200);
-  --input: var(--graphite-300);
+  --border: var(--graphite-300);
+  --input: var(--graphite-400);
   --ring: var(--brand-500);
 
   --sidebar: var(--graphite-950);
@@ -42,18 +42,18 @@
   --sidebar-border: var(--graphite-800);
   --sidebar-ring: var(--brand-400);
 
-  --status-confirmed: #067647;
-  --status-confirmed-bg: #ecfdf3;
-  --status-confirmed-border: #abefc6;
-  --status-pending: #b54708;
-  --status-pending-bg: #fffaeb;
-  --status-pending-border: #fedf89;
-  --status-cancelled: #b42318;
-  --status-cancelled-bg: #fef3f2;
-  --status-cancelled-border: #fecdca;
-  --status-done: var(--graphite-600);
-  --status-done-bg: var(--graphite-100);
-  --status-done-border: var(--graphite-200);
+  --status-confirmed: #14532d;
+  --status-confirmed-bg: #bbf7d0;
+  --status-confirmed-border: #16a34a;
+  --status-pending: #78350f;
+  --status-pending-bg: #fde68a;
+  --status-pending-border: #d97706;
+  --status-cancelled: #7f1d1d;
+  --status-cancelled-bg: #fecaca;
+  --status-cancelled-border: #dc2626;
+  --status-done: var(--graphite-800);
+  --status-done-bg: var(--graphite-200);
+  --status-done-border: var(--graphite-400);
 }
 
 .dark {
