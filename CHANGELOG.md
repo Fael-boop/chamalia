@@ -8,6 +8,18 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.6.0 · 2026-10-24
+
+- **Início:** nova tela inicial com saudação (Bom dia, Fulano), nome e logo do negócio, data, resumo do dia, atalhos para as telas, números da agenda, clientes e valor dos atendimentos concluídos, e o trabalho da atendente. Período: hoje, semana, mês ou mês passado.
+- **Agenda nova (PC):** grade por hora que cabe na tela sem rolar, uma coluna por profissional com foto, linha da hora de agora, clique no espaço livre para agendar, painel lateral com calendário, busca de cliente, filtro de profissionais e de situação, e a exibição "Só marcados". Histórico da cliente dentro do agendamento. Cores firmes nos cartões (cor por profissional).
+- **Folgas e feriados:** em Horários e folgas, bloqueio do negócio todo ou de uma profissional (dia inteiro ou faixa de horas). A agenda mostra o dia fechado e a Lia explica o motivo e oferece outro dia.
+- **Fotos dos profissionais** (Profissionais e agenda).
+- **Perfil da pessoa:** Configurações > Meu perfil, com foto, nome, "como quer ser chamado", e-mail, WhatsApp e senha. A logo do negócio ficou em Configurações > Negócio.
+- **Menu por módulos:** Cadastros, Atendente Lia e Configurações, um aberto por vez. Menu que recolhe sozinho em uma faixa de ícones e abre ao chegar com o mouse, empurrando a página; clicar na logo leva ao Início. Barra lateral clara no tema claro.
+- **Tema claro** com fundo cinza suave, bordas e cores de status mais fortes.
+- **Site:** aviso de cookies com Aceitar e Recusar.
+- Banco: migrations 022 (foto do profissional) e 023 (apelido, telefone e foto da pessoa), só acrescentam colunas.
+
 ## 1.5.0 · 2026-10-24
 
 - Barra superior no painel: o negócio (com a logo) à esquerda e, à direita, avisos (sininho com os agendamentos pendentes), ajuda, tema e o menu do perfil. A agência vê "Todos os negócios / <negócio>".
