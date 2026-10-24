@@ -1,11 +1,12 @@
 import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, Copy, CreditCard, Loader2, MessageCircle, Minus, Plus, QrCode } from "lucide-react";
+import { Check, Copy, Loader2, Lock, MessageCircle, Minus, Plus, ShieldCheck, Undo2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { api, type AutoDebit, type Subscription } from "@/api";
+import { CardBrands, PixMark } from "@/components/payment-brands";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,55 +30,389 @@ export const whatsappLink = (text: string) => `https://wa.me/${SUPPORT_PHONE}?te
 
 const PRESETS = [1, 3, 6, 12] as const;
 const monthsLabel = (n: number) => (n === 1 ? "1 mês" : `${n} meses`);
+const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+type Method = "card" | "pix";
+
+/** What the order costs, line by line, for the summary. */
+type Order = {
+  periodLabel: string;
+  baseCents: number;
+  yearlyDiscountCents: number;
+  autoDiscountCents: number;
+  totalCents: number;
+  /** Card: renews at this amount; Pix: one payment. */
+  renews: boolean;
+  every: "mês" | "ano";
+  until: Date;
+};
 
 /**
- * Renewing a subscription: Pix (choose the months, pay, released by itself) or automatic card
- * debit (5% off, renews by itself, cancel in one click). Used on the blocked page and in Configurações > Cobrança.
+ * Checkout for renewing a subscription, laid out like a professional payment page: choose the
+ * method (card with automatic debit, or Pix), the period, see the order summary with discounts
+ * and the security notes, then pay. Card data is typed only into Mercado Pago's secure fields.
+ * `split` = summary in a side column (payment page); `stacked` = one column (Configurações).
  */
-export function RenewPanel({ tenantId, subscription }: { tenantId: string; subscription: Subscription }) {
-  const { autoDebit } = subscription;
-  const [method, setMethod] = useState<"pix" | "card">(subscription.pending ? "pix" : subscription.cardAvailable ? "card" : "pix");
+export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { tenantId: string; subscription: Subscription; layout?: "split" | "stacked" }) {
+  const { autoDebit, plan } = subscription;
+  const refresh = useRefresh(tenantId);
+  const [method, setMethod] = useState<Method>(subscription.pending || !subscription.cardAvailable ? "pix" : "card");
+  const [months, setMonths] = useState<number>(subscription.pending?.months ?? 1);
+  const [custom, setCustom] = useState(false);
+  const [frequency, setFrequency] = useState<1 | 12>(1);
+  const [terms, setTerms] = useState(subscription.termsAccepted);
+  const [email, setEmail] = useState(subscription.billingEmail ?? "");
+  const [cardStep, setCardStep] = useState<"details" | "card">("details");
+  const [choosingPix, setChoosingPix] = useState(!subscription.pending);
+
+  const checkout = useMutation({
+    mutationFn: () => api<Subscription>(`/tenants/${tenantId}/subscription/checkout`, { method: "POST", body: { months, acceptTerms: true } }),
+    onSuccess: (data) => {
+      refresh(data);
+      setChoosingPix(false);
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const report = useMutation({
+    mutationFn: () => api<Subscription>(`/tenants/${tenantId}/payments/${subscription.pending!.id}/report`, { method: "POST" }),
+    onSuccess: refresh,
+    onError: (e) => toast.error((e as Error).message),
+  });
 
   // An active debit renews by itself: nothing to choose, only to manage.
   if (autoDebit && autoDebit.status !== "paused") return <AutoDebitStatus tenantId={tenantId} subscription={subscription} autoDebit={autoDebit} />;
+  if (plan.priceCentsMonthly === null) return <NoPrice tenantName={subscription.tenantName} />;
 
-  return (
-    <div className="space-y-6">
+  const monthly = plan.priceCentsMonthly;
+  const pixTotal = (n: number) => ((PRESETS as readonly number[]).includes(n) ? subscription.prices.pix[n as 1 | 3 | 6 | 12] : quote(plan, n)) ?? 0;
+  const order: Order =
+    method === "card"
+      ? {
+          periodLabel: frequency === 1 ? "Mensal" : "Anual (12 meses)",
+          baseCents: monthly * frequency,
+          yearlyDiscountCents: frequency === 12 ? monthly * 12 - pixTotal(12) : 0,
+          autoDiscountCents: pixTotal(frequency) - (subscription.prices.card[frequency] ?? pixTotal(frequency)),
+          totalCents: subscription.prices.card[frequency] ?? pixTotal(frequency),
+          renews: true,
+          every: frequency === 1 ? "mês" : "ano",
+          until: paidUntilAfter(subscription.paidUntil, frequency),
+        }
+      : {
+          periodLabel: monthsLabel(months),
+          baseCents: monthly * months,
+          yearlyDiscountCents: months === 12 ? monthly * 12 - pixTotal(12) : 0,
+          autoDiscountCents: 0,
+          totalCents: pixTotal(months),
+          renews: false,
+          every: "mês",
+          until: paidUntilAfter(subscription.paidUntil, months),
+        };
+
+  const showingPix = method === "pix" && subscription.pending && !choosingPix;
+  const summary = showingPix ? null : <OrderSummary planName={plan.name} order={order} method={method} />;
+  const split = layout === "split";
+
+  const submitCard = async (card: CardResult) => {
+    try {
+      const data = await api<Subscription>(`/tenants/${tenantId}/subscription/card`, {
+        method: "POST",
+        body: { cardToken: card.token, cardBrand: card.cardBrand, lastFour: card.lastFour, email: email.trim(), frequencyMonths: frequency, acceptTerms: true },
+      });
+      refresh(data);
+      toast.success("Débito automático ativado.");
+    } catch (error) {
+      toast.error((error as Error).message);
+      // Rejecting lets the card form show the error and stay editable.
+      throw error;
+    }
+  };
+
+  const main = (
+    <div className="min-w-0 space-y-8">
       {autoDebit && <AutoDebitStatus tenantId={tenantId} subscription={subscription} autoDebit={autoDebit} />}
 
-      {subscription.cardAvailable && (
-        <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Forma de pagamento">
-          <MethodTab active={method === "card"} onClick={() => setMethod("card")} icon={<CreditCard />} title="Cartão" note="5% de desconto · renova sozinho" />
-          <MethodTab active={method === "pix"} onClick={() => setMethod("pix")} icon={<QrCode />} title="Pix" note="Escolha quantos meses" />
-        </div>
-      )}
-
-      {method === "card" && subscription.cardAvailable ? (
-        <CardSubscribe tenantId={tenantId} subscription={subscription} />
+      {showingPix ? (
+        <PixPay subscription={subscription} busy={report.isPending} onReport={() => report.mutate()} onChangePeriod={() => setChoosingPix(true)} />
       ) : (
-        <PixRenew tenantId={tenantId} subscription={subscription} />
+        <>
+          <Step number={1} title="Forma de pagamento">
+            <div className="space-y-2" role="radiogroup" aria-label="Forma de pagamento">
+              {subscription.cardAvailable && (
+                <MethodOption
+                  selected={method === "card"}
+                  onSelect={() => setMethod("card")}
+                  title="Cartão de crédito"
+                  note={
+                    <>
+                      Renovação automática · <span className="font-medium text-status-confirmed">5% de desconto</span>
+                    </>
+                  }
+                  logos={<CardBrands />}
+                />
+              )}
+              <MethodOption
+                selected={method === "pix"}
+                onSelect={() => setMethod("pix")}
+                title="Pix"
+                note="Pagamento único · aprovado na hora"
+                logos={<PixMark withName />}
+              />
+            </div>
+          </Step>
+
+          <Step number={2} title={method === "card" ? "Frequência da cobrança" : "Por quanto tempo"}>
+            {method === "card" ? (
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Frequência da cobrança">
+                {([1, 12] as const).map((n) => {
+                  const value = subscription.prices.card[n] ?? 0;
+                  return (
+                    <PeriodOption
+                      key={n}
+                      selected={frequency === n}
+                      disabled={cardStep === "card"}
+                      onSelect={() => setFrequency(n)}
+                      title={n === 1 ? "Mensal" : "Anual"}
+                      price={`${formatPrice(value)} /${n === 1 ? "mês" : "ano"}`}
+                      note={n === 12 ? `2 meses grátis · ${formatPrice(Math.round(value / 12))}/mês` : undefined}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Período">
+                  {PRESETS.map((n) => (
+                    <PeriodOption
+                      key={n}
+                      selected={!custom && months === n}
+                      onSelect={() => {
+                        setCustom(false);
+                        setMonths(n);
+                      }}
+                      title={monthsLabel(n)}
+                      price={formatPrice(pixTotal(n))}
+                      note={n === 12 ? "2 meses grátis" : undefined}
+                    />
+                  ))}
+                </div>
+                <div className="mt-3">
+                  {custom ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Outro período:</span>
+                      <Button variant="outline" size="icon" aria-label="Menos um mês" onClick={() => setMonths((m) => Math.max(1, m - 1))}>
+                        <Minus />
+                      </Button>
+                      <Input
+                        className="w-16 text-center tabular-nums"
+                        inputMode="numeric"
+                        aria-label="Quantidade de meses"
+                        value={months}
+                        onChange={(e) => {
+                          const value = Number(e.target.value.replace(/\D/g, ""));
+                          if (value >= 1) setMonths(Math.min(value, 36));
+                        }}
+                      />
+                      <Button variant="outline" size="icon" aria-label="Mais um mês" onClick={() => setMonths((m) => Math.min(36, m + 1))}>
+                        <Plus />
+                      </Button>
+                      <span className="text-sm text-muted-foreground">{months === 1 ? "mês" : "meses"}</span>
+                    </div>
+                  ) : (
+                    <Button variant="link" className="h-auto px-0" onClick={() => setCustom(true)}>
+                      Escolher outra quantidade de meses
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+          </Step>
+
+          {split && <div className="lg:hidden">{summary}</div>}
+          {!split && summary}
+
+          <Step number={3} title={method === "card" ? "Pagamento" : "Confirmar"}>
+            {method === "card" ? (
+              cardStep === "details" ? (
+                <div className="space-y-4">
+                  <label className="block space-y-1.5 text-sm">
+                    <span className="font-medium">E-mail para recibos</span>
+                    <Input type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" />
+                  </label>
+                  <TermsCheck checked={terms} onChange={setTerms} />
+                  <Button size="lg" className="h-12 w-full text-base" disabled={!validEmail(email) || !terms} onClick={() => setCardStep("card")}>
+                    <Lock /> Continuar para os dados do cartão
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Lock className="size-4 shrink-0" aria-hidden /> Ambiente seguro do Mercado Pago
+                    </span>
+                    <CardBrands className="hidden sm:flex" />
+                  </div>
+                  <CardForm
+                    publicKey={subscription.mercadoPagoPublicKey!}
+                    amountCents={order.totalCents}
+                    email={email.trim()}
+                    submitLabel="Assinar"
+                    note={`${formatPrice(order.totalCents)} por ${order.every}, cobrado no cartão · cancele quando quiser`}
+                    onSubmit={submitCard}
+                  />
+                  <Button variant="link" className="h-auto px-0" onClick={() => setCardStep("details")}>
+                    Voltar
+                  </Button>
+                </div>
+              )
+            ) : (
+              <div className="space-y-4">
+                <TermsCheck checked={terms} onChange={setTerms} />
+                <Button size="lg" className="h-12 w-full text-base" disabled={!terms || checkout.isPending} onClick={() => checkout.mutate()}>
+                  {checkout.isPending ? <Loader2 className="animate-spin" /> : <PixMark />}
+                  Gerar Pix de {formatPrice(order.totalCents)}
+                </Button>
+              </div>
+            )}
+          </Step>
+        </>
       )}
+    </div>
+  );
+
+  if (!split) return main;
+  return (
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      {main}
+      <aside className="hidden lg:sticky lg:top-6 lg:block">{summary}</aside>
     </div>
   );
 }
 
-function MethodTab({ active, onClick, icon, title, note }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; note: string }) {
+function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+  return (
+    <section aria-label={title}>
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+        <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground tabular-nums">{number}</span>
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function MethodOption({ selected, onSelect, title, note, logos }: { selected: boolean; onSelect: () => void; title: string; note: ReactNode; logos: ReactNode }) {
   return (
     <button
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
       className={cn(
-        "flex items-center gap-3 rounded-lg border bg-card px-3 py-3 text-left transition-colors duration-150 [&_svg]:size-5 [&_svg]:shrink-0",
-        active ? "border-primary ring-1 ring-primary" : "hover:border-primary/50",
+        "flex w-full items-center gap-3 rounded-lg border bg-card px-4 py-3.5 text-left transition-colors duration-150",
+        selected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50",
       )}
     >
-      {icon}
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold">{title}</span>
-        <span className="block truncate text-xs text-muted-foreground">{note}</span>
+      <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-full border", selected ? "border-primary" : "border-muted-foreground/50")}>
+        {selected && <span className="size-2 rounded-full bg-primary" />}
       </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-xs text-muted-foreground">{note}</span>
+        {/* Phones: the logos go under the text, so they are still seen. */}
+        <span className="mt-2 block sm:hidden">{logos}</span>
+      </span>
+      <span className="hidden shrink-0 sm:block">{logos}</span>
     </button>
+  );
+}
+
+function PeriodOption({
+  selected,
+  disabled,
+  onSelect,
+  title,
+  price,
+  note,
+}: {
+  selected: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+  title: string;
+  price: string;
+  note?: string;
+}) {
+  return (
+    <button
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      className={cn(
+        "flex min-h-[76px] flex-col items-start justify-center rounded-lg border bg-card px-3 py-2.5 text-left transition-colors duration-150 disabled:opacity-60",
+        selected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50",
+      )}
+    >
+      <span className="text-sm font-semibold">{title}</span>
+      <span className="text-sm text-muted-foreground tabular-nums">{price}</span>
+      {note && <span className="text-xs font-medium text-status-confirmed">{note}</span>}
+    </button>
+  );
+}
+
+/** The order at a glance: plan, period, discounts, total and what happens next, with the security notes. */
+function OrderSummary({ planName, order, method }: { planName: string; order: Order; method: Method }) {
+  return (
+    <div className="space-y-4 rounded-xl border bg-card p-5">
+      <h2 className="text-sm font-semibold">Resumo</h2>
+      <dl className="space-y-2 text-sm">
+        <Line label="Plano" value={planName} />
+        <Line label="Período" value={order.periodLabel} />
+        <Line label="Valor" value={formatPrice(order.baseCents)} />
+        {order.yearlyDiscountCents > 0 && <Line label="Anual: 2 meses grátis" value={`− ${formatPrice(order.yearlyDiscountCents)}`} discount />}
+        {order.autoDiscountCents > 0 && <Line label="Débito automático (5%)" value={`− ${formatPrice(order.autoDiscountCents)}`} discount />}
+      </dl>
+      <div className="flex items-baseline justify-between border-t pt-4">
+        <span className="text-sm font-medium">Total hoje</span>
+        <span className="text-2xl font-semibold tracking-tight tabular-nums">{formatPrice(order.totalCents)}</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {order.renews
+          ? `Depois, ${formatPrice(order.totalCents)} a cada ${order.every}, a partir de ${formatDate(order.until)}. Cancele quando quiser, sem multa.`
+          : `Acesso liberado até ${formatDate(order.until)}. Sem renovação automática.`}
+      </p>
+
+      <ul className="space-y-2.5 border-t pt-4 text-xs text-muted-foreground">
+        <li className="flex gap-2">
+          <Lock className="mt-0.5 size-3.5 shrink-0 text-foreground" aria-hidden />
+          <span>
+            <span className="font-medium text-foreground">Pagamento seguro</span> processado pelo Mercado Pago.
+            {method === "card" && " A Chama Lia não vê nem guarda os dados do seu cartão."}
+          </span>
+        </li>
+        <li className="flex gap-2">
+          <Undo2 className="mt-0.5 size-3.5 shrink-0 text-foreground" aria-hidden />
+          <span>
+            <span className="font-medium text-foreground">7 dias de garantia:</span> desistiu, devolvemos o valor.
+          </span>
+        </li>
+        <li className="flex gap-2">
+          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-foreground" aria-hidden />
+          <span>Seus dados são tratados conforme a LGPD.</span>
+        </li>
+      </ul>
+      <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+        <CardBrands />
+        <PixMark withName />
+      </div>
+    </div>
+  );
+}
+
+function Line({ label, value, discount }: { label: string; value: string; discount?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={cn("tabular-nums", discount ? "font-medium text-status-confirmed" : "font-medium")}>{value}</dd>
+    </div>
   );
 }
 
@@ -106,123 +441,7 @@ export function useRefresh(tenantId: string) {
   return (data: Subscription) => queryClient.setQueryData(subscriptionKey(tenantId), data);
 }
 
-// --- Pix ---
-
-export function PixRenew({ tenantId, subscription }: { tenantId: string; subscription: Subscription }) {
-  const refresh = useRefresh(tenantId);
-  const { plan, pending } = subscription;
-  const [months, setMonths] = useState<number>(pending?.months ?? 1);
-  const [custom, setCustom] = useState(pending ? !(PRESETS as readonly number[]).includes(pending.months) : false);
-  const [choosing, setChoosing] = useState(!pending);
-  const [terms, setTerms] = useState(subscription.termsAccepted);
-
-  const checkout = useMutation({
-    mutationFn: () => api<Subscription>(`/tenants/${tenantId}/subscription/checkout`, { method: "POST", body: { months, acceptTerms: true } }),
-    onSuccess: (data) => {
-      refresh(data);
-      setChoosing(false);
-    },
-    onError: (e) => toast.error((e as Error).message),
-  });
-  const report = useMutation({
-    mutationFn: () => api<Subscription>(`/tenants/${tenantId}/payments/${pending!.id}/report`, { method: "POST" }),
-    onSuccess: refresh,
-    onError: (e) => toast.error((e as Error).message),
-  });
-
-  if (!choosing && pending) {
-    return <PixPay subscription={subscription} busy={report.isPending} onReport={() => report.mutate()} onChangePeriod={() => setChoosing(true)} />;
-  }
-
-  const total = (PRESETS as readonly number[]).includes(months) ? subscription.prices.pix[months as 1 | 3 | 6 | 12] : quote(plan, months);
-
-  return (
-    <section className="space-y-6" aria-labelledby="periodo">
-      <div>
-        <h2 id="periodo" className="text-sm font-medium">
-          Por quanto tempo quer renovar?
-        </h2>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-labelledby="periodo">
-          {PRESETS.map((n) => {
-            const price = subscription.prices.pix[n];
-            const selected = !custom && months === n;
-            return (
-              <button
-                key={n}
-                role="radio"
-                aria-checked={selected}
-                onClick={() => {
-                  setCustom(false);
-                  setMonths(n);
-                }}
-                className={cn(
-                  "flex min-h-20 flex-col items-start justify-center rounded-lg border bg-card px-3 py-2.5 text-left transition-colors duration-150",
-                  selected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50",
-                )}
-              >
-                <span className="text-sm font-semibold">{monthsLabel(n)}</span>
-                <span className="text-sm text-muted-foreground tabular-nums">{price === null ? "—" : formatPrice(price)}</span>
-                {n === 12 && price !== null && <span className="text-xs font-medium text-status-confirmed">2 meses grátis</span>}
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-3">
-          {custom ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Outro período:</span>
-              <Button variant="outline" size="icon" aria-label="Menos um mês" onClick={() => setMonths((m) => Math.max(1, m - 1))}>
-                <Minus />
-              </Button>
-              <Input
-                className="w-16 text-center tabular-nums"
-                inputMode="numeric"
-                aria-label="Quantidade de meses"
-                value={months}
-                onChange={(e) => {
-                  const value = Number(e.target.value.replace(/\D/g, ""));
-                  if (value >= 1) setMonths(Math.min(value, 36));
-                }}
-              />
-              <Button variant="outline" size="icon" aria-label="Mais um mês" onClick={() => setMonths((m) => Math.min(36, m + 1))}>
-                <Plus />
-              </Button>
-              <span className="text-sm text-muted-foreground">{months === 1 ? "mês" : "meses"}</span>
-            </div>
-          ) : (
-            <Button variant="link" className="h-auto px-0" onClick={() => setCustom(true)}>
-              Escolher outra quantidade de meses
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {total === null ? (
-        <NoPrice tenantName={subscription.tenantName} />
-      ) : (
-        <>
-          <dl className="divide-y rounded-lg border bg-card text-sm">
-            <SummaryRow label="Plano" value={plan.name} />
-            <SummaryRow label="Período" value={monthsLabel(months)} />
-            <SummaryRow label="Acesso liberado até" value={formatDate(paidUntilAfter(subscription.paidUntil, months))} />
-            <div className="flex items-baseline justify-between px-4 py-3">
-              <dt className="font-medium">Total</dt>
-              <dd className="text-xl font-semibold tabular-nums">{formatPrice(total)}</dd>
-            </div>
-          </dl>
-          <TermsCheck checked={terms} onChange={setTerms} />
-          <Button size="lg" className="h-12 w-full text-base" disabled={!terms || checkout.isPending} onClick={() => checkout.mutate()}>
-            {checkout.isPending && <Loader2 className="animate-spin" />}
-            Pagar {formatPrice(total)} com Pix
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Pagamento único, sem renovação automática. Desistiu em até 7 dias? Devolvemos o valor, é só pedir.
-          </p>
-        </>
-      )}
-    </section>
-  );
-}
+// --- Pix: pay the generated code ---
 
 function PixPay({
   subscription,
@@ -248,10 +467,10 @@ function PixPay({
 
   return (
     <section className="space-y-5" aria-labelledby="pagar">
-      <div className="rounded-lg border bg-card">
-        <div className="flex items-baseline justify-between border-b px-4 py-3">
-          <h2 id="pagar" className="text-sm font-medium">
-            {monthsLabel(pending.months)} · até {until}
+      <div className="rounded-xl border bg-card">
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+          <h2 id="pagar" className="flex items-center gap-2 text-sm font-medium">
+            <PixMark /> {monthsLabel(pending.months)} · até {until}
           </h2>
           <span className="text-xl font-semibold tabular-nums">{formatPrice(pending.amountCents)}</span>
         </div>
@@ -306,7 +525,7 @@ function PixPay({
       )}
 
       <Button variant="link" className="h-auto w-full px-0" onClick={onChangePeriod}>
-        Escolher outro período
+        Escolher outra forma ou período
       </Button>
     </section>
   );
@@ -324,124 +543,83 @@ function ensureMercadoPago(publicKey: string) {
   mercadoPagoKey = publicKey;
 }
 
-export function CardSubscribe({ tenantId, subscription }: { tenantId: string; subscription: Subscription }) {
-  const refresh = useRefresh(tenantId);
-  const { resolved } = useTheme();
-  const [frequency, setFrequency] = useState<1 | 12>(1);
-  const [email, setEmail] = useState(subscription.billingEmail ?? "");
-  const [terms, setTerms] = useState(subscription.termsAccepted);
-  const [step, setStep] = useState<"details" | "card">("details");
+type BrickController = {
+  getFormData: () => Promise<{ token: string; payment_method_id?: string } | undefined>;
+  getAdditionalData?: () => Promise<{ lastFourDigits?: string } | undefined>;
+};
 
-  const price = subscription.prices.card[frequency];
-  const pixPrice = subscription.prices.pix[frequency];
-  if (price === null || pixPrice === null) return <NoPrice tenantName={subscription.tenantName} />;
-  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const per = frequency === 1 ? "por mês" : "por ano";
-
-  const submit = async (card: CardResult) => {
-    try {
-      const data = await api<Subscription>(`/tenants/${tenantId}/subscription/card`, {
-        method: "POST",
-        body: { cardToken: card.token, cardBrand: card.cardBrand, lastFour: card.lastFour, email: email.trim(), frequencyMonths: frequency, acceptTerms: true },
-      });
-      refresh(data);
-      toast.success("Débito automático ativado.");
-    } catch (error) {
-      toast.error((error as Error).message);
-      // Rejecting lets the card form show the error and stay editable.
-      throw error;
-    }
-  };
-
-  return (
-    <section className="space-y-5" aria-labelledby="cartao">
-      <h2 id="cartao" className="sr-only">
-        Débito automático no cartão
-      </h2>
-      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Frequência da cobrança">
-        {([1, 12] as const).map((n) => {
-          const value = subscription.prices.card[n];
-          return (
-            <button
-              key={n}
-              role="radio"
-              aria-checked={frequency === n}
-              disabled={step === "card"}
-              onClick={() => setFrequency(n)}
-              className={cn(
-                "flex min-h-20 flex-col items-start justify-center rounded-lg border bg-card px-3 py-2.5 text-left transition-colors duration-150 disabled:opacity-60",
-                frequency === n ? "border-primary ring-1 ring-primary" : "hover:border-primary/50",
-              )}
-            >
-              <span className="text-sm font-semibold">{n === 1 ? "Mensal" : "Anual"}</span>
-              <span className="text-sm text-muted-foreground tabular-nums">
-                {value === null ? "—" : `${formatPrice(value)} ${n === 1 ? "por mês" : "por ano"}`}
-              </span>
-              <span className="text-xs font-medium text-status-confirmed">{n === 1 ? "5% de desconto" : "2 meses grátis + 5%"}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="rounded-lg border bg-card p-4 text-sm">
-        <p>
-          <span className="font-semibold">{formatPrice(price)} {per}</span>{" "}
-          <span className="text-muted-foreground">
-            (em vez de <span className="line-through">{formatPrice(pixPrice)}</span>)
-          </span>
-          , cobrado automaticamente no cartão de crédito até você cancelar.
-        </p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-          <li>A primeira cobrança é feita agora e o acesso é liberado na hora.</li>
-          <li>Cancele quando quiser em Configurações &gt; Cobrança, com um clique e sem multa. O que já foi pago vale até o fim do período.</li>
-          <li>Desistiu em até 7 dias da primeira cobrança? Devolvemos o valor.</li>
-          <li>O cartão é digitado no ambiente seguro do Mercado Pago. A Chama Lia não vê nem guarda os dados do cartão.</li>
-        </ul>
-      </div>
-
-      {step === "details" ? (
-        <div className="space-y-4">
-          <label className="block space-y-1.5 text-sm">
-            <span className="font-medium">E-mail para recibos</span>
-            <Input type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" />
-          </label>
-          <TermsCheck checked={terms} onChange={setTerms} />
-          <Button size="lg" className="h-12 w-full text-base" disabled={!validEmail || !terms} onClick={() => setStep("card")}>
-            Continuar para o cartão
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <CardForm publicKey={subscription.mercadoPagoPublicKey!} amountCents={price} email={email.trim()} dark={resolved === "dark"} onSubmit={submit} />
-          <Button variant="link" className="h-auto w-full px-0" onClick={() => setStep("details")}>
-            Voltar
-          </Button>
-        </div>
-      )}
-    </section>
-  );
-}
-
-/** Mercado Pago's secure card fields (Card Payment Brick): the card never touches our servers. */
+/**
+ * Mercado Pago's secure card fields (Card Payment Brick): the card never touches our servers.
+ * Its own button is hidden; ours (same look as the rest of the panel) asks it for the card token.
+ */
 export function CardForm({
   publicKey,
   amountCents,
   email,
-  dark,
-  submitLabel = "Assinar com débito automático",
+  submitLabel = "Assinar",
+  note,
   onSubmit,
 }: {
   publicKey: string;
   amountCents: number;
   email: string;
-  dark: boolean;
   submitLabel?: string;
+  /** Small line under the button ("R$ 0,95 por mês · cancele quando quiser"). */
+  note?: string;
   onSubmit: (card: CardResult) => Promise<void>;
 }) {
   ensureMercadoPago(publicKey);
+  const { resolved } = useTheme();
   const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  // The brick re-mounts whenever these objects change: keep them stable.
+  const initialization = useMemo(() => ({ amount: amountCents / 100, payer: { email } }), [amountCents, email]);
+  const customization = useMemo(
+    () => ({
+      paymentMethods: { maxInstallments: 1, types: { excluded: ["debit_card" as const, "prepaid_card" as const] } },
+      visual: {
+        hideFormTitle: true,
+        hidePaymentButton: true,
+        style: {
+          theme: resolved === "dark" ? ("dark" as const) : ("default" as const),
+          customVariables: {
+            baseColor: resolved === "dark" ? "#3b82f6" : "#2563eb",
+            formBackgroundColor: "transparent",
+            formPadding: "0px",
+            borderRadiusSmall: "6px",
+            borderRadiusMedium: "8px",
+            borderRadiusLarge: "10px",
+          },
+        },
+      },
+    }),
+    [resolved],
+  );
+  const handleReady = useCallback(() => setReady(true), []);
+  const handleError = useCallback((error: unknown) => console.warn("card form", error), []);
+  // Submission goes through our button; the brick's own submit is never shown.
+  const handleBrickSubmit = useCallback(async () => {}, []);
+
+  const submit = async () => {
+    const controller = (window as unknown as { cardPaymentBrickController?: BrickController }).cardPaymentBrickController;
+    if (!controller) return;
+    setBusy(true);
+    try {
+      // Validates the fields (the brick shows what is missing) and returns a one-time token.
+      const formData = await controller.getFormData();
+      if (!formData?.token) return;
+      const additional = await controller.getAdditionalData?.();
+      await onSubmit({ token: formData.token, cardBrand: formData.payment_method_id, lastFour: additional?.lastFourDigits });
+    } catch {
+      // onSubmit already told the user; invalid fields are highlighted by the brick.
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="min-h-40">
+    <div className="space-y-4">
       {!ready && (
         <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" /> Abrindo o ambiente seguro do Mercado Pago…
@@ -449,17 +627,21 @@ export function CardForm({
       )}
       <CardPayment
         locale="pt-BR"
-        initialization={{ amount: amountCents / 100, payer: { email } }}
-        customization={{
-          paymentMethods: { maxInstallments: 1, types: { excluded: ["debit_card", "prepaid_card"] } },
-          visual: { style: { theme: dark ? "dark" : "default" }, texts: { formSubmit: submitLabel } },
-        }}
-        onReady={() => setReady(true)}
-        onError={(error) => console.warn("card form", error)}
-        onSubmit={(formData, additional) =>
-          onSubmit({ token: formData.token, cardBrand: formData.payment_method_id, lastFour: additional?.lastFourDigits })
-        }
+        initialization={initialization}
+        customization={customization}
+        onReady={handleReady}
+        onError={handleError}
+        onSubmit={handleBrickSubmit}
       />
+      {ready && (
+        <div className="space-y-2">
+          <Button size="lg" className="h-12 w-full text-base font-semibold" disabled={busy} onClick={submit}>
+            {busy ? <Loader2 className="animate-spin" /> : <Lock />}
+            {submitLabel}
+          </Button>
+          {note && <p className="text-center text-xs text-muted-foreground">{note}</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -479,20 +661,18 @@ function AutoDebitStatus({ tenantId, subscription, autoDebit }: { tenantId: stri
   const firstChargePending = subscription.expired && autoDebit.status !== "paused";
 
   return (
-    <section className="space-y-4 rounded-lg border bg-card p-4" aria-labelledby="debito">
+    <section className="space-y-4 rounded-xl border bg-card p-4" aria-labelledby="debito">
       <div>
         <h2 id="debito" className="text-sm font-semibold">
           {autoDebit.status === "paused" ? "Débito automático com problema" : "Débito automático ativo"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {formatPrice(autoDebit.amountCents)} {per} no cartão · recibos em {autoDebit.payerEmail}
+          {formatPrice(autoDebit.amountCents)} {per} no cartão{autoDebit.cardLastFour && ` final ${autoDebit.cardLastFour}`} · recibos em {autoDebit.payerEmail}
           {!subscription.expired && subscription.paidUntil && ` · pago até ${formatDate(subscription.paidUntil)}`}
         </p>
       </div>
       {autoDebit.status === "paused" ? (
-        <p className="text-sm">
-          A última cobrança não passou no cartão. Pague por Pix abaixo, ou cancele e assine de novo com outro cartão.
-        </p>
+        <p className="text-sm">A última cobrança não passou no cartão. Pague por Pix abaixo, ou troque o cartão em Configurações &gt; Cobrança.</p>
       ) : (
         firstChargePending && <Waiting>Processando a cobrança no cartão. O acesso é liberado assim que ela for aprovada.</Waiting>
       )}
@@ -521,7 +701,7 @@ function AutoDebitStatus({ tenantId, subscription, autoDebit }: { tenantId: stri
 
 // --- Shared bits ---
 
-function Waiting({ children }: { children: React.ReactNode }) {
+function Waiting({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-start gap-3 rounded-lg border bg-card p-4 text-sm" role="status">
       <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
@@ -539,15 +719,6 @@ function NoPrice({ tenantName }: { tenantName: string }) {
           <MessageCircle /> Falar no WhatsApp
         </a>
       </Button>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between px-4 py-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value}</dd>
     </div>
   );
 }

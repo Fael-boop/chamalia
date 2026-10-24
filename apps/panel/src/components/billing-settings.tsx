@@ -3,7 +3,7 @@ import { CreditCard, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, type AutoDebit, type OwnerPayment, type Subscription } from "@/api";
-import { CardForm, CardSubscribe, PixRenew, useRefresh, whatsappLink, type CardResult } from "@/components/renew-panel";
+import { CardForm, RenewPanel, useRefresh, whatsappLink, type CardResult } from "@/components/renew-panel";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
 import {
   AlertDialog,
@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice } from "@/format";
 import { accessStatus, CYCLE_LABELS, formatDate, PRIVACY_URL, TERMS_URL, TONE_STYLES } from "@/lib/billing";
-import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const BRANDS: Record<string, string> = {
@@ -94,8 +93,8 @@ export function BillingSettings({ tenantId, subscription }: { tenantId: string; 
             <PaymentMethod tenantId={tenantId} subscription={subscription} />
           </Section>
           {!activeDebit && (
-            <Section title="Renovar com Pix" description="Pagamento único, sem renovação automática.">
-              <PixRenew tenantId={tenantId} subscription={subscription} />
+            <Section title="Pagar ou renovar" description="Cartão com débito automático (5% de desconto) ou Pix.">
+              <RenewPanel tenantId={tenantId} subscription={subscription} />
             </Section>
           )}
         </>
@@ -132,36 +131,21 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function PaymentMethod({ tenantId, subscription }: { tenantId: string; subscription: Subscription }) {
   const { autoDebit } = subscription;
-  const [subscribing, setSubscribing] = useState(false);
-
-  if (!autoDebit) {
-    if (!subscription.cardAvailable) return <p className="text-sm text-muted-foreground">Pix, sem renovação automática.</p>;
-    return subscribing ? (
-      <div className="space-y-3">
-        <CardSubscribe tenantId={tenantId} subscription={subscription} />
-        <Button variant="link" className="h-auto px-0" onClick={() => setSubscribing(false)}>
-          Agora não
-        </Button>
-      </div>
-    ) : (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-3">
-        <div className="text-sm">
-          <p className="font-medium">Pix, sem renovação automática</p>
-          <p className="text-muted-foreground">Ative o débito automático no cartão e ganhe 5% de desconto.</p>
-        </div>
-        <Button size="sm" onClick={() => setSubscribing(true)}>
-          <CreditCard /> Ativar débito automático
-        </Button>
-      </div>
-    );
-  }
-
-  return <DebitCard tenantId={tenantId} subscription={subscription} debit={autoDebit} />;
+  if (autoDebit) return <DebitCard tenantId={tenantId} subscription={subscription} debit={autoDebit} />;
+  return (
+    <div className="rounded-md border px-3 py-3 text-sm">
+      <p className="font-medium">Pix, sem renovação automática</p>
+      <p className="text-muted-foreground">
+        {subscription.cardAvailable
+          ? "Ative o débito automático no cartão logo abaixo e ganhe 5% de desconto."
+          : "Renove pelo Pix logo abaixo quando estiver perto de vencer."}
+      </p>
+    </div>
+  );
 }
 
 function DebitCard({ tenantId, subscription, debit }: { tenantId: string; subscription: Subscription; debit: AutoDebit }) {
   const refresh = useRefresh(tenantId);
-  const { resolved } = useTheme();
   const [changing, setChanging] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const paused = debit.status === "paused";
@@ -229,7 +213,7 @@ function DebitCard({ tenantId, subscription, debit }: { tenantId: string; subscr
         description="As próximas cobranças vão para o novo cartão. Nada é cobrado agora, a não ser que uma cobrança esteja atrasada."
       >
         {changing && subscription.mercadoPagoPublicKey && (
-          <CardForm publicKey={subscription.mercadoPagoPublicKey} amountCents={debit.amountCents} email={debit.payerEmail} dark={resolved === "dark"} submitLabel="Salvar novo cartão" onSubmit={updateCard} />
+          <CardForm publicKey={subscription.mercadoPagoPublicKey} amountCents={debit.amountCents} email={debit.payerEmail} submitLabel="Salvar cartão" note="Nada é cobrado agora." onSubmit={updateCard} />
         )}
       </ResponsiveSheet>
 

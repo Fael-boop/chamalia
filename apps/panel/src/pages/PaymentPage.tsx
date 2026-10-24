@@ -13,21 +13,21 @@ export function PaymentPage({ tenantId, subscription, onLogout }: { tenantId: st
   const neverPaid = !subscription.paidUntil;
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="mx-auto flex w-full max-w-xl items-center justify-between px-4 py-4">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4">
         <Logo />
         <Button variant="ghost" size="sm" onClick={onLogout}>
           <LogOut /> Sair
         </Button>
       </header>
 
-      <main className="mx-auto w-full max-w-xl flex-1 px-4 pb-10">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-10">
         <h1 className="text-2xl font-semibold tracking-tight">{neverPaid ? "Ative sua assinatura" : "Sua assinatura venceu"}</h1>
         <p className="mt-1.5 mb-8 text-sm text-muted-foreground">
           {subscription.tenantName} · plano {subscription.plan.name}
           {subscription.paidUntil && ` · venceu em ${formatDate(subscription.paidUntil)}`}. Seus dados continuam guardados.
         </p>
 
-        <RenewPanel tenantId={tenantId} subscription={subscription} />
+        <RenewPanel tenantId={tenantId} subscription={subscription} layout="split" />
 
         <div className="mt-10 border-t pt-5 text-center text-sm text-muted-foreground">
           <p>Não quer pagar agora?</p>
