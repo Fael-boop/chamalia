@@ -79,7 +79,7 @@ Hoje os negócios (Luciana, exemplo) estão no Supabase. Para a VPS:
 ## 6. Depois de no ar
 - Trocar `VITE_APP_URL`? Não precisa: o botão Entrar do site já aponta para `https://app.chamalia.com.br`.
 - Ligar a nuvem laranja do Cloudflare no `app` só depois que tudo estiver funcionando, se quiser.
-- **Backup**: ligar o backup automático da Hostinger e, no Easypanel, o backup do Postgres.
+- **Backup**: diário na própria VPS (ver `docs/BACKUP.md`). Falta uma cópia fora do servidor: backup da Hostinger e/ou `scp` para o PC.
 - Testar: login no painel, mensagem para o chip, áudio, lembrete da véspera.
 
 ## Segurança (conferir antes de divulgar)
