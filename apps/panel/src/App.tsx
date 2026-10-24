@@ -448,7 +448,7 @@ function BusinessWorkspace({
           <NotificationsButton
             tenant={t}
             onOpenDay={openDay}
-            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           />
           {profile(true)}
         </>

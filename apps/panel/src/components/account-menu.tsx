@@ -76,7 +76,7 @@ export function BusinessAvatar({
   ) : (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-white",
+        "flex shrink-0 items-center justify-center rounded-md bg-foreground text-xs font-semibold text-background",
         className,
       )}
     >

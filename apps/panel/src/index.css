@@ -33,14 +33,15 @@
   --input: var(--graphite-400);
   --ring: var(--brand-500);
 
-  --sidebar: var(--graphite-950);
-  --sidebar-foreground: var(--graphite-300);
-  --sidebar-primary: var(--brand-500);
+  /* Light theme: a light menu (white, blue active item), in step with the page. */
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--graphite-600);
+  --sidebar-primary: var(--brand-600);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--graphite-800);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: var(--graphite-800);
-  --sidebar-ring: var(--brand-400);
+  --sidebar-accent: var(--brand-50);
+  --sidebar-accent-foreground: var(--brand-700);
+  --sidebar-border: var(--graphite-300);
+  --sidebar-ring: var(--brand-500);
 
   --status-confirmed: #14532d;
   --status-confirmed-bg: #bbf7d0;
@@ -79,8 +80,11 @@
 
   --sidebar: #000000;
   --sidebar-foreground: var(--graphite-400);
+  --sidebar-primary: var(--brand-500);
   --sidebar-accent: var(--graphite-900);
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: var(--graphite-900);
+  --sidebar-ring: var(--brand-400);
 
   --status-confirmed: #75e0a7;
   --status-confirmed-bg: color-mix(in srgb, #17b26a 14%, transparent);

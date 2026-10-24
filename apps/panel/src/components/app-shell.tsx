@@ -159,8 +159,8 @@ export function AppShell({
             ? "h-8 gap-2.5 !px-2.5 text-[13px] font-normal"
             : "h-9 font-medium",
           active
-            ? "bg-sidebar-accent text-white"
-            : "hover:bg-sidebar-accent/60 hover:text-white",
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
         )}
       >
         {active && (
@@ -254,12 +254,12 @@ export function AppShell({
     return (
       <div className="min-h-dvh pb-[calc(4rem+env(safe-area-inset-bottom))]">
         {skipLink}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-sidebar px-4 text-white">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-sidebar-border bg-sidebar px-4 text-foreground">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-white active:scale-95"
+              className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
               aria-label="Voltar para todos os negócios"
             >
               <ChevronLeft className="size-6" />
@@ -323,7 +323,7 @@ export function AppShell({
           aria-label="Menu recolhido"
           onMouseEnter={openPeek}
           onMouseLeave={closePeek}
-          className="fixed top-0 left-0 z-40 flex h-dvh w-14 flex-col items-center gap-1 bg-sidebar py-3"
+          className="fixed top-0 left-0 z-40 flex h-dvh w-14 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar py-3"
         >
           {homeLink(<LogoMark size={28} />, "Ir para o início")}
           <div className="mt-3 flex flex-1 flex-col items-center gap-1 overflow-y-auto">
@@ -341,7 +341,7 @@ export function AppShell({
                   "flex size-9 items-center justify-center rounded-md text-sidebar-foreground transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
                   item.id === current
                     ? "bg-sidebar-accent text-sidebar-primary"
-                    : "hover:bg-sidebar-accent/60 hover:text-white",
+                    : "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
                 )}
               >
                 <item.icon className="size-[18px]" />
@@ -351,7 +351,7 @@ export function AppShell({
           <button
             type="button"
             onClick={toggleAutoHide}
-            className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
             aria-label="Fixar o menu na tela"
             title="Fixar o menu"
           >
@@ -363,7 +363,7 @@ export function AppShell({
         onMouseEnter={autoHide ? openPeek : undefined}
         onMouseLeave={autoHide ? closePeek : undefined}
         className={cn(
-          "top-0 flex h-dvh w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground",
+          "top-0 flex h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
           autoHide
             ? "fixed left-0 z-50 shadow-2xl has-[:focus-visible]:translate-x-0 " +
                 (animate
@@ -375,13 +375,13 @@ export function AppShell({
       >
         <div className="flex h-14 items-center justify-between gap-2 px-5">
           {homeLink(
-            <Logo size={28} onDark textClassName="text-[15px]" />,
+            <Logo size={28} textClassName="text-[15px]" />,
             "Chama Lia, ir para o início",
           )}
           <button
             type="button"
             onClick={toggleAutoHide}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
             aria-label={
               autoHide
                 ? "Fixar o menu na tela"
@@ -422,8 +422,8 @@ export function AppShell({
                   className={cn(
                     "flex h-9 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none",
                     holdsCurrent
-                      ? "text-white"
-                      : "hover:bg-sidebar-accent/60 hover:text-white",
+                      ? "text-sidebar-accent-foreground"
+                      : "hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
                   )}
                 >
                   <group.icon
