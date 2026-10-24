@@ -110,10 +110,12 @@ const AUTO_HIDE_KEY = "chamalia.navAutoHide";
 /** Desktop menu preference: pinned (default) or hidden until the mouse reaches the left edge. */
 function useAutoHideNav(): [boolean, (value: boolean) => void] {
   const [autoHide, setAutoHide] = useState(() => {
+    // Folded by default (the page gets the room); whoever pins the menu is remembered.
     try {
-      return localStorage.getItem(AUTO_HIDE_KEY) === "1";
+      const saved = localStorage.getItem(AUTO_HIDE_KEY);
+      return saved === null ? true : saved === "1";
     } catch {
-      return false;
+      return true;
     }
   });
   const save = (value: boolean) => {
