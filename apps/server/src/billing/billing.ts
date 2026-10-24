@@ -30,8 +30,6 @@ export function isExpired(subscription: Pick<Subscription, "billingCycle" | "pai
 
 /** Paying 12 months at once costs 10: two months free. */
 export const YEARLY_MONTHS_CHARGED = 10;
-/** Automatic card debit gets 5% off, to make it the easy choice. */
-export const AUTO_DEBIT_DISCOUNT = 0.05;
 
 /**
  * Price of `months` months. 12 months = the plan's yearly price, or 10 × the monthly one
@@ -43,10 +41,13 @@ export function quote(plan: Pick<Plan, "priceCentsMonthly" | "priceCentsYearly">
   return plan.priceCentsMonthly * (months === 12 ? YEARLY_MONTHS_CHARGED : months);
 }
 
-/** Card with automatic renewal, charged every 1 or 12 months: the same price minus 5%. */
+/**
+ * Card with automatic renewal, charged every 1 or 12 months: the same price as Pix. The card fee
+ * (~5%) already costs more than Pix (~1%), so the pull is convenience, not a discount; the
+ * discount lives in the yearly plan (two months free), for any payment method.
+ */
 export function cardQuote(plan: Pick<Plan, "priceCentsMonthly" | "priceCentsYearly">, frequencyMonths: 1 | 12): number | null {
-  const base = quote(plan, frequencyMonths);
-  return base === null ? null : Math.round(base * (1 - AUTO_DEBIT_DISCOUNT));
+  return quote(plan, frequencyMonths);
 }
 
 /**

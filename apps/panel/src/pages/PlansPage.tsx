@@ -596,8 +596,8 @@ function PlanEditor({ plan, onClose }: { plan: Plan | null; onClose: () => void 
           <Input inputMode="decimal" value={yearly} onChange={(e) => setYearly(e.target.value)} placeholder="Vazio = 10 × o preço do mês" />
           <span className="block text-xs text-muted-foreground">
             {monthlyCents !== null && !Number.isNaN(monthlyCents) && yearly.trim() === ""
-              ? `Automático: ${formatPrice(monthlyCents * 10)} por ano (2 meses grátis). No débito automático, 5% a menos.`
-              : "Vazio: o ano custa 10 mensalidades (2 meses grátis). No débito automático, 5% a menos."}
+              ? `Automático: ${formatPrice(monthlyCents * 10)} por ano (2 meses grátis), no Pix e no cartão.`
+              : "Vazio: o ano custa 10 mensalidades (2 meses grátis), no Pix e no cartão."}
           </span>
         </label>
         <label className="flex items-center gap-3 text-sm">

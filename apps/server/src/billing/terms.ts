@@ -3,4 +3,4 @@
  * /privacidade. Change it together with the texts: businesses accept the new version on
  * their next payment, and the acceptance is stored with date and version.
  */
-export const TERMS_VERSION = "2026-10-24";
+export const TERMS_VERSION = "2026-10-24.2";

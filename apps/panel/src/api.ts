@@ -132,7 +132,7 @@ export type OwnerPayment = {
 export type Subscription = {
   tenantName: string;
   plan: Pick<Plan, "id" | "name" | "includesAssistant" | "priceCentsMonthly" | "priceCentsYearly">;
-  /** Totals right now (null = no price): 12 months = 10; card = 5% off. */
+  /** Totals right now (null = no price): 12 months = 10 (two free); card = same as Pix. */
   prices: { pix: Record<1 | 3 | 6 | 12, number | null>; card: Record<1 | 12, number | null> };
   billingCycle: BillingCycle;
   paidUntil: string | null;

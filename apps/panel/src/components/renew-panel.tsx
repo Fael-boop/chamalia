@@ -39,7 +39,6 @@ type Order = {
   periodLabel: string;
   baseCents: number;
   yearlyDiscountCents: number;
-  autoDiscountCents: number;
   totalCents: number;
   /** Card: renews at this amount; Pix: one payment. */
   renews: boolean;
@@ -91,7 +90,6 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
           periodLabel: frequency === 1 ? "Mensal" : "Anual (12 meses)",
           baseCents: monthly * frequency,
           yearlyDiscountCents: frequency === 12 ? monthly * 12 - pixTotal(12) : 0,
-          autoDiscountCents: pixTotal(frequency) - (subscription.prices.card[frequency] ?? pixTotal(frequency)),
           totalCents: subscription.prices.card[frequency] ?? pixTotal(frequency),
           renews: true,
           every: frequency === 1 ? "mês" : "ano",
@@ -101,7 +99,6 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
           periodLabel: monthsLabel(months),
           baseCents: monthly * months,
           yearlyDiscountCents: months === 12 ? monthly * 12 - pixTotal(12) : 0,
-          autoDiscountCents: 0,
           totalCents: pixTotal(months),
           renews: false,
           every: "mês",
@@ -144,7 +141,7 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
                   title="Cartão de crédito"
                   note={
                     <>
-                      Renovação automática · <span className="font-medium text-status-confirmed">5% de desconto</span>
+                      <span className="font-medium text-foreground">Renovação automática</span> · você nunca fica sem acesso
                     </>
                   }
                   logos={<CardBrands />}
@@ -169,7 +166,6 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
                     <PeriodOption
                       key={n}
                       selected={frequency === n}
-                      disabled={cardStep === "card"}
                       onSelect={() => setFrequency(n)}
                       title={n === 1 ? "Mensal" : "Anual"}
                       price={`${formatPrice(value)} /${n === 1 ? "mês" : "ano"}`}
@@ -251,9 +247,11 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
                     </span>
                     <CardBrands className="hidden sm:flex" />
                   </div>
+                  {/* The form only turns the card into a token (the charge is the subscription's), so its amount
+                      stays fixed: switching monthly/yearly neither reloads it nor erases what was typed. */}
                   <CardForm
                     publicKey={subscription.mercadoPagoPublicKey!}
-                    amountCents={order.totalCents}
+                    amountCents={subscription.prices.card[1] ?? order.totalCents}
                     email={email.trim()}
                     submitLabel="Assinar"
                     note={`${formatPrice(order.totalCents)} por ${order.every}, cobrado no cartão · cancele quando quiser`}
@@ -368,11 +366,16 @@ function OrderSummary({ planName, order, method }: { planName: string; order: Or
         <Line label="Período" value={order.periodLabel} />
         <Line label="Valor" value={formatPrice(order.baseCents)} />
         {order.yearlyDiscountCents > 0 && <Line label="Anual: 2 meses grátis" value={`− ${formatPrice(order.yearlyDiscountCents)}`} discount />}
-        {order.autoDiscountCents > 0 && <Line label="Débito automático (5%)" value={`− ${formatPrice(order.autoDiscountCents)}`} discount />}
       </dl>
-      <div className="flex items-baseline justify-between border-t pt-4">
-        <span className="text-sm font-medium">Total hoje</span>
-        <span className="text-2xl font-semibold tracking-tight tabular-nums">{formatPrice(order.totalCents)}</span>
+      <div className="border-t pt-4">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm font-medium">Total hoje</span>
+          <span className="text-2xl font-semibold tracking-tight tabular-nums">{formatPrice(order.totalCents)}</span>
+        </div>
+        {/* Anchoring: the yearly plan read as a monthly price. */}
+        {order.yearlyDiscountCents > 0 && (
+          <p className="mt-1 text-right text-xs font-medium text-status-confirmed">Equivale a {formatPrice(Math.round(order.totalCents / 12))} por mês</p>
+        )}
       </div>
       <p className="text-xs text-muted-foreground">
         {order.renews

@@ -93,7 +93,7 @@ export function BillingSettings({ tenantId, subscription }: { tenantId: string; 
             <PaymentMethod tenantId={tenantId} subscription={subscription} />
           </Section>
           {!activeDebit && (
-            <Section title="Pagar ou renovar" description="Cartão com débito automático (5% de desconto) ou Pix.">
+            <Section title="Pagar ou renovar" description="Cartão com renovação automática ou Pix. No anual, 2 meses grátis.">
               <RenewPanel tenantId={tenantId} subscription={subscription} />
             </Section>
           )}
@@ -137,7 +137,7 @@ function PaymentMethod({ tenantId, subscription }: { tenantId: string; subscript
       <p className="font-medium">Pix, sem renovação automática</p>
       <p className="text-muted-foreground">
         {subscription.cardAvailable
-          ? "Ative o débito automático no cartão logo abaixo e ganhe 5% de desconto."
+          ? "Ative a renovação automática no cartão logo abaixo e não se preocupe mais com o vencimento."
           : "Renove pelo Pix logo abaixo quando estiver perto de vencer."}
       </p>
     </div>

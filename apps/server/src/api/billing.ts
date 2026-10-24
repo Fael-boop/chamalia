@@ -302,7 +302,7 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
         priceCentsMonthly: plan.priceCentsMonthly,
         priceCentsYearly: plan.priceCentsYearly,
       },
-      // What each choice costs right now: 12 months = 10, card = 5% off.
+      // What each choice costs right now: 12 months = 10 (two free); card = same as Pix.
       prices: {
         pix: { 1: quote(plan, 1), 3: quote(plan, 3), 6: quote(plan, 6), 12: quote(plan, 12) },
         card: { 1: cardQuote(plan, 1), 12: cardQuote(plan, 12) },

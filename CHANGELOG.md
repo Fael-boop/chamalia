@@ -8,6 +8,13 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.2.0 · 2026-10-24
+
+- Cartão sem desconto: o atrativo é a renovação automática ("você nunca fica sem acesso"). O desconto fica no plano anual (2 meses grátis), no Pix e no cartão, com o equivalente por mês no resumo.
+- Dá para trocar mensal/anual a qualquer momento, sem apagar o que foi digitado no cartão.
+- Endereço próprio para a cobrança: app.chamalia.com.br/pagamento (para mandar como link; F5 e voltar funcionam).
+- Termos de Uso versão 2026-10-24.2 (sem o desconto de 5% no cartão).
+
 ## 1.1.0 · 2026-10-24
 
 - Página de pagamento refeita no padrão de checkout: passos numerados, bandeiras dos cartões e símbolo do Pix, resumo do pedido sempre visível com descontos e total, bloco de segurança (Mercado Pago, 7 dias de garantia, LGPD).

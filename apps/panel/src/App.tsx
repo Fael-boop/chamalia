@@ -51,6 +51,8 @@ import { TrainPage } from "./pages/TrainPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 
 const BRAND = "Chama Lia";
+/** Address of Configurações > Cobrança, to send as a link ("renove aqui"). */
+const BILLING_PATH = "/pagamento";
 /** Screens of the WhatsApp assistant, hidden on the "Agenda Online" plan. */
 const ASSISTANT_PAGES = new Set(["faq", "prices", "handoff", "train", "whatsapp", "test-chat"]);
 
@@ -77,6 +79,7 @@ export function App() {
   }, [checkSession, queryClient]);
 
   const logout = () => {
+    window.history.replaceState(null, "", "/");
     setToken("");
     setSession(null);
     queryClient.clear();
@@ -161,7 +164,20 @@ function BusinessWorkspace({
   const subscription = useSubscription(tenantId);
   const blocked = role === "owner" && subscription.data?.expired === true;
   const tenant = useTenant(tenantId, !blocked);
-  const [page, setPage] = useState("agenda");
+  const [page, setPageState] = useState(() => (window.location.pathname === BILLING_PATH ? "billing" : "agenda"));
+  // Only the payment area has its own address (app.chamalia.com.br/pagamento): it can be sent as a
+  // link, and reload/back keep working there. The other screens stay at "/".
+  const setPage = useCallback((id: string) => {
+    setPageState(id);
+    const path = id === "billing" ? BILLING_PATH : "/";
+    if (window.location.pathname !== path) window.history.pushState(null, "", path);
+  }, []);
+  useEffect(() => {
+    const onBack = () =>
+      setPageState((current) => (window.location.pathname === BILLING_PATH ? "billing" : current === "billing" ? "agenda" : current));
+    window.addEventListener("popstate", onBack);
+    return () => window.removeEventListener("popstate", onBack);
+  }, []);
   // Set by an agenda alert's "Ver": the agenda opens on that day.
   const [agendaFocus, setAgendaFocus] = useState<{ date: string; key: number } | null>(null);
 
@@ -206,8 +222,11 @@ function BusinessWorkspace({
   const more: NavItem = { id: "more", label: "Mais", icon: Ellipsis };
 
   const navigate = (id: string) => {
-    if (id === "businesses") onBackToBusinesses?.();
-    else setPage(id);
+    if (id === "businesses") {
+      // Back to the agency's list: /pagamento belongs to the business that was open.
+      window.history.replaceState(null, "", "/");
+      onBackToBusinesses?.();
+    } else setPage(id);
   };
 
   return (
@@ -219,7 +238,7 @@ function BusinessWorkspace({
       current={shown === "billing" ? "settings" : shown}
       onNavigate={navigate}
       onLogout={onLogout}
-      onBack={onBackToBusinesses}
+      onBack={onBackToBusinesses && (() => navigate("businesses"))}
     >
       <AgendaAlerts
         key={t.id}
@@ -267,7 +286,7 @@ function RenewSoonBanner({ daysLeft, card, onRenew }: { daysLeft: number; card: 
       <span>
         <span className="font-medium">Sua assinatura vence {when}.</span>{" "}
         <span className="text-muted-foreground">
-          {card ? "Renove agora pelo Pix, ou ative o débito automático e ganhe 5% de desconto." : "Renove agora para não ficar sem acesso."}
+          {card ? "Renove agora pelo Pix, ou ative a renovação automática no cartão e não se preocupe mais com isso." : "Renove agora para não ficar sem acesso."}
         </span>
       </span>
       <Button size="sm" onClick={onRenew}>

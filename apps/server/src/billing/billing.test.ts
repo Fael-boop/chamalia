@@ -27,10 +27,9 @@ describe("quote", () => {
   it("12 months cost 10 when there is no yearly price (two months free)", () => {
     expect(quote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 12)).toBe(100000);
   });
-  it("automatic card debit is 5% off, monthly or yearly", () => {
-    expect(cardQuote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 1)).toBe(9500);
-    expect(cardQuote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 12)).toBe(95000);
-    expect(cardQuote({ priceCentsMonthly: 29700, priceCentsYearly: null }, 1)).toBe(28215);
+  it("automatic card renewal costs the same as Pix; the yearly plan keeps its two free months", () => {
+    expect(cardQuote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 1)).toBe(10000);
+    expect(cardQuote({ priceCentsMonthly: 10000, priceCentsYearly: null }, 12)).toBe(100000);
     expect(cardQuote({ priceCentsMonthly: null, priceCentsYearly: null }, 1)).toBeNull();
   });
   it("is null when the plan has no price", () => {
