@@ -8,6 +8,10 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.4.0 · 2026-10-24
+
+- Aviso "Nova versão da Chama Lia disponível" com botão Atualizar: o painel percebe um deploy novo em até 1 minuto e atualiza com um clique, sem Ctrl+Shift+R.
+
 ## 1.3.0 · 2026-10-24
 
 - Cada tela do painel tem o próprio endereço (/clientes, /servicos, /configuracoes, /pagamento...): dá para mandar link, abrir em outra aba, e o F5 e o voltar do navegador funcionam.
