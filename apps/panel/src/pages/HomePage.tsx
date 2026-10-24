@@ -7,7 +7,23 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  GraduationCap,
+  MessageSquareText,
+  MessagesSquare,
+  Receipt,
+  Scissors,
+  Smartphone,
+  UserRoundCheck,
+  Users,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type AppointmentStatus, type Tenant } from "@/api";
 import { PageHeader } from "@/components/page-header";
@@ -411,6 +427,21 @@ export function HomePage({
   );
 }
 
+/** Same icons as the menu, so a card and its menu entry look alike. */
+const SHORTCUT_ICONS: Record<string, LucideIcon> = {
+  agenda: CalendarDays,
+  customers: Users,
+  services: Scissors,
+  professionals: UsersRound,
+  hours: Clock,
+  faq: MessageSquareText,
+  prices: Receipt,
+  handoff: UserRoundCheck,
+  train: GraduationCap,
+  "test-chat": MessagesSquare,
+  whatsapp: Smartphone,
+};
+
 type Shortcut = { id: string; title: string; text: string; pending?: boolean };
 
 /** Cards to reach the rest of the system; what is still missing to set up comes first. */
@@ -458,9 +489,21 @@ function Shortcuts({
             <button
               type="button"
               onClick={() => onNavigate(card.id)}
-              className="flex h-full min-h-32 w-full flex-col justify-between rounded-lg border bg-card p-4 text-left transition-colors hover:bg-muted"
+              className="flex h-full min-h-40 w-full flex-col justify-between rounded-lg border bg-card p-4 text-left transition-colors hover:bg-muted"
             >
               <span>
+                <span
+                  className={cn(
+                    "mb-3 flex size-9 items-center justify-center rounded-md bg-muted text-foreground",
+                    card.pending && "bg-status-pending-bg text-status-pending",
+                  )}
+                  aria-hidden
+                >
+                  {(() => {
+                    const Icon = SHORTCUT_ICONS[card.id] ?? ArrowRight;
+                    return <Icon className="size-[18px]" />;
+                  })()}
+                </span>
                 <span className="block text-sm font-semibold">
                   {card.title}
                 </span>
