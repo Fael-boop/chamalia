@@ -17,6 +17,7 @@ import { registerProfilePhotoRoutes } from "./api/profile-photo.js";
 import { registerTestChatRoutes } from "./api/test-chat.js";
 import { registerUserRoutes } from "./api/users.js";
 import { registerWebhookRoutes } from "./api/webhooks.js";
+import { MercadoPagoClient } from "./billing/mercadopago.js";
 import { EvolutionChannel, EvolutionClient } from "./channels/evolution.js";
 import { groqTranscriber } from "./channels/transcribe.js";
 import type { Config } from "./config.js";
@@ -54,7 +55,16 @@ export async function buildApp(config: Config, sql?: Sql) {
 
   if (sql) {
     registerUserRoutes(app, sql);
-    registerBillingRoutes(app, sql);
+    registerBillingRoutes(app, sql, {
+      log: app.log,
+      mercadoPago: config.MERCADOPAGO_ACCESS_TOKEN
+        ? {
+            client: new MercadoPagoClient(config.MERCADOPAGO_ACCESS_TOKEN),
+            webhookSecret: config.MERCADOPAGO_WEBHOOK_SECRET,
+            publicUrl: config.PUBLIC_URL.replace(/\/$/, ""),
+          }
+        : undefined,
+    });
     registerAgendaRoutes(app, sql);
     registerNicheRoutes(app, sql);
     const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : undefined;

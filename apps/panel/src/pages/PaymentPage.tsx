@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Loader2, LogOut, MessageCircle, Minus, Plus } from "lucide-react";
+import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -249,7 +250,19 @@ function PayStep({
         )}
       </div>
 
-      {pending.reportedAt ? (
+      {pending.automatic ? (
+        <div className="flex items-start gap-3 rounded-lg border bg-card p-4 text-sm" role="status">
+          <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+          <p>
+            Aguardando o pagamento. Assim que o Pix for pago, seu acesso é liberado na hora e esta tela se atualiza sozinha.
+            {pending.expiresAt && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Este Pix vale até {format(new Date(pending.expiresAt), "dd/MM 'às' HH:mm")}.
+              </span>
+            )}
+          </p>
+        </div>
+      ) : pending.reportedAt ? (
         <div className="flex items-start gap-3 rounded-lg border bg-card p-4 text-sm" role="status">
           <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
           <p>

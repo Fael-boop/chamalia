@@ -48,10 +48,17 @@ export const formatDate = (iso: string | Date) => format(typeof iso === "string"
 
 export const subscriptionKey = (tenantId: string) => ["subscription", tenantId] as const;
 
-/** While blocked, checks every 15 s so the panel opens by itself once the payment is confirmed. */
+/**
+ * While blocked, checks often so the panel opens by itself once paid: every 4 s with a
+ * Mercado Pago Pix open (it confirms by itself), every 15 s otherwise.
+ */
 export const useSubscription = (tenantId: string) =>
   useQuery({
     queryKey: subscriptionKey(tenantId),
     queryFn: () => api<Subscription>(`/tenants/${tenantId}/subscription`),
-    refetchInterval: (query) => (query.state.data?.expired ? 15_000 : 5 * 60_000),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.expired) return 5 * 60_000;
+      return data.pending?.automatic ? 4_000 : 15_000;
+    },
   });

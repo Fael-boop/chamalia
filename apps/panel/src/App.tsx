@@ -18,7 +18,8 @@ import {
   Users,
   UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { api, ApiError, setExpiredHandler, setToken, setUnauthorizedHandler, type SessionInfo } from "./api";
 import { useSubscription } from "./lib/billing";
 import { AppShell, type NavItem } from "./components/app-shell";
@@ -165,6 +166,13 @@ function BusinessWorkspace({
   useEffect(() => {
     if (tenant.data) document.title = role === "owner" ? tenant.data.name : `${tenant.data.name} · ${BRAND}`;
   }, [tenant.data, role]);
+
+  // Unblocked while looking at the payment page: say it, the panel opens right after.
+  const wasBlocked = useRef(blocked);
+  useEffect(() => {
+    if (wasBlocked.current && !blocked) toast.success("Pagamento confirmado. Bem-vindo de volta!");
+    wasBlocked.current = blocked;
+  }, [blocked]);
 
   if (subscription.isLoading) return <SplashSkeleton />;
   // Expired: the business only gets the payment page (the agency still opens everything).

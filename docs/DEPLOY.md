@@ -61,7 +61,9 @@ Abra `http://IP-DA-VPS:3000`, crie o usuário administrador (senha forte) e um p
    EVOLUTION_PUBLIC_URL=http://<servico-evolution>:8080
    EVOLUTION_WEBHOOK_BASE_URL=http://<servico-app>:3000
    ```
-   O Pix das assinaturas não vai aqui: é configurado no painel, em Planos → Recebimento por Pix (QR code do banco).
+   Assinaturas: com `MERCADOPAGO_ACCESS_TOKEN` (e, opcional, `MERCADOPAGO_WEBHOOK_SECRET`) o Pix é do Mercado Pago e
+   libera sozinho quando pago (aviso em `https://app.chamalia.com.br/webhooks/mercadopago`, sempre conferido na API).
+   Sem o token, vale o Pix configurado no painel em Planos → Recebimento por Pix (QR code do banco), confirmado à mão.
    Senha do banco com símbolos precisa ser codificada na URL (`#` vira `%23`, `@` vira `%40`).
 3. **Domínio**: `app.chamalia.com.br`, porta `3000`, HTTPS automático ligado.
 4. **Deploy**. O servidor aplica as migrations sozinho ao subir.

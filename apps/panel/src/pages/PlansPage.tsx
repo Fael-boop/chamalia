@@ -391,7 +391,9 @@ function SubscriptionSheet({
             </p>
             <p className="text-xs text-muted-foreground">
               Gerado em {formatDate(pending.createdAt)}.{" "}
-              {pending.reportedAt
+              {pending.automatic
+                ? "Pix do Mercado Pago: libera sozinho quando for pago."
+                : pending.reportedAt
                 ? `Avisou que pagou em ${format(new Date(pending.reportedAt), "dd/MM 'às' HH:mm")}. Confira no banco.`
                 : "Ainda não avisou que pagou."}{" "}
               Ao confirmar, fica liberado até {formatDate(paidUntilAfter(tenant.paidUntil, pending.months))}.

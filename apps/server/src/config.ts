@@ -40,6 +40,11 @@ const envSchema = z
     ADMIN_PASSWORD: optionalString,
     // Assina os logins do painel. Trocar desconecta todo mundo.
     SESSION_SECRET: optionalString,
+
+    // Mercado Pago: Pix das assinaturas confirmado sozinho. Sem o token, vale o Pix do QR do banco (confirmação manual).
+    MERCADOPAGO_ACCESS_TOKEN: optionalString,
+    // Assinatura secreta dos webhooks (Suas integrações > Webhooks). Opcional: o pagamento sempre é conferido na API.
+    MERCADOPAGO_WEBHOOK_SECRET: optionalString,
   })
   .refine((env) => env.NODE_ENV !== "production" || (env.ADMIN_PASSWORD?.length ?? 0) >= 12, {
     path: ["ADMIN_PASSWORD"],

@@ -85,8 +85,11 @@ export type Payment = {
   paidAt: string | null;
   note: string | null;
   createdAt: string;
-  /** Pix copy-and-paste with the amount, when the agency set a Pix key. */
+  /** Pix copy-and-paste with the amount (Mercado Pago charge or the agency's own Pix). */
   pixCode: string | null;
+  /** Mercado Pago charge: released by itself as soon as it is paid. */
+  automatic: boolean;
+  expiresAt: string | null;
 };
 
 export type BillingTenant = {
