@@ -262,11 +262,33 @@ export function AppShell({
             : "sticky",
         )}
       >
-        <div className="flex h-14 items-center px-5">
+        <div className="flex h-14 items-center justify-between gap-2 px-5">
           {homeLink(
             <Logo size={28} onDark textClassName="text-[15px]" />,
             "Chama Lia, ir para o início",
           )}
+          <button
+            type="button"
+            onClick={() => {
+              setAutoHide(!autoHide);
+              setPeek(false);
+            }}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
+            aria-label={
+              autoHide
+                ? "Fixar o menu na tela"
+                : "Esconder o menu quando o mouse sair"
+            }
+            title={
+              autoHide ? "Fixar o menu" : "Esconder o menu automaticamente"
+            }
+          >
+            {autoHide ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
+          </button>
         </div>
         <nav
           className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-3"
@@ -311,28 +333,6 @@ export function AppShell({
           >
             Chama Lia v{APP_VERSION}
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setAutoHide(!autoHide);
-              setPeek(false);
-            }}
-            className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-primary focus-visible:outline-none"
-            aria-label={
-              autoHide
-                ? "Fixar o menu na tela"
-                : "Esconder o menu quando o mouse sair"
-            }
-            title={
-              autoHide ? "Fixar o menu" : "Esconder o menu automaticamente"
-            }
-          >
-            {autoHide ? (
-              <PanelLeftOpen className="size-4" />
-            ) : (
-              <PanelLeftClose className="size-4" />
-            )}
-          </button>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
