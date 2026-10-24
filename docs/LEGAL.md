@@ -38,8 +38,7 @@ escalar as vendas.
 
 ## Recomendações abertas
 
-- **Painel do Easypanel** (`http://IP:3000`) está aberto na internet sem HTTPS. Recomendado: fechar a
-  porta 3000 no firewall e acessar só por túnel SSH, ou dar a ele um domínio com HTTPS.
+- ~~Painel do Easypanel aberto sem HTTPS~~: resolvido em 2026-10-24 (`https://painel.chamalia.com.br`, porta 3000 fechada).
 - **Banco de dev (Supabase)** tem uma cópia real dos dados da Luciana. Recomendado: apagar ou trocar
   por dados fictícios.
 - **WhatsApp não oficial** (Evolution): risco de bloqueio do número pela Meta, informado nos Termos.
