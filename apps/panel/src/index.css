@@ -57,6 +57,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: var(--graphite-950);
   --foreground: var(--graphite-50);
   --card: var(--graphite-900);

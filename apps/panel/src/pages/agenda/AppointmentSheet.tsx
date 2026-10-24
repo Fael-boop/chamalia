@@ -4,7 +4,14 @@ import { ptBR } from "date-fns/locale";
 import { CalendarClock, Check, MessageCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api, type Appointment, type AppointmentStatus, type CustomerDetail, type Slot, type Tenant } from "@/api";
+import {
+  api,
+  type Appointment,
+  type AppointmentStatus,
+  type CustomerDetail,
+  type Slot,
+  type Tenant,
+} from "@/api";
 import { ResponsiveSheet } from "@/components/responsive-sheet";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -19,9 +26,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDayLong, formatDuration, formatPhone, formatPrice, minutesOf, STATUS_LABELS, todayIn, zoned } from "@/format";
+import {
+  formatDayLong,
+  formatDuration,
+  formatPhone,
+  formatPrice,
+  minutesOf,
+  STATUS_LABELS,
+  todayIn,
+  zoned,
+} from "@/format";
 
 import { keys, useProfessionals } from "@/lib/queries";
 import { cn } from "@/lib/utils";
@@ -37,25 +59,38 @@ export function useUpdateStatus(tenantId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) =>
-      api(`/tenants/${tenantId}/appointments/${id}`, { method: "PATCH", body: { status } }),
+      api(`/tenants/${tenantId}/appointments/${id}`, {
+        method: "PATCH",
+        body: { status },
+      }),
     // Optimistic: the color changes right away (with a CSS transition).
     onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: keys.allAppointments(tenantId) });
-      const snapshot = queryClient.getQueriesData<Appointment[]>({ queryKey: keys.allAppointments(tenantId) });
-      queryClient.setQueriesData<Appointment[]>({ queryKey: keys.allAppointments(tenantId) }, (list) =>
-        list?.map((a) => (a.id === id ? { ...a, status } : a)),
+      await queryClient.cancelQueries({
+        queryKey: keys.allAppointments(tenantId),
+      });
+      const snapshot = queryClient.getQueriesData<Appointment[]>({
+        queryKey: keys.allAppointments(tenantId),
+      });
+      queryClient.setQueriesData<Appointment[]>(
+        { queryKey: keys.allAppointments(tenantId) },
+        (list) => list?.map((a) => (a.id === id ? { ...a, status } : a)),
       );
       return { snapshot };
     },
     onError: (error, _vars, context) => {
-      context?.snapshot.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      context?.snapshot.forEach(([key, data]) =>
+        queryClient.setQueryData(key, data),
+      );
       toast.error((error as Error).message);
     },
     onSuccess: (_data, { status }) => {
       const message = STATUS_TOAST[status];
       if (message) toast.success(message);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.allAppointments(tenantId) }),
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: keys.allAppointments(tenantId),
+      }),
   });
 }
 
@@ -81,15 +116,21 @@ export function AppointmentSheet({
 
   const start = zoned(appointment.startsAt, tenant.timezone);
   const end = zoned(appointment.endsAt, tenant.timezone);
-  const active = appointment.status === "scheduled" || appointment.status === "confirmed";
-  const setStatus = (status: AppointmentStatus) => updateStatus.mutate({ id: appointment.id, status });
+  const active =
+    appointment.status === "scheduled" || appointment.status === "confirmed";
+  const setStatus = (status: AppointmentStatus) =>
+    updateStatus.mutate({ id: appointment.id, status });
 
   return (
     <>
       <ResponsiveSheet
         open={open}
         onOpenChange={(open) => !open && onClose()}
-        title={mode === "view" ? (appointment.customerName ?? "Cliente sem nome") : "Remarcar"}
+        title={
+          mode === "view"
+            ? (appointment.customerName ?? "Cliente sem nome")
+            : "Remarcar"
+        }
         description={
           mode === "view"
             ? `${appointment.serviceName} · ${appointment.professionalName}`
@@ -104,7 +145,11 @@ export function AppointmentSheet({
                 </Button>
               )}
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="lg" onClick={() => setMode("reschedule")}>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setMode("reschedule")}
+                >
                   <CalendarClock /> Remarcar
                 </Button>
                 <Button
@@ -123,26 +168,39 @@ export function AppointmentSheet({
         {mode === "view" ? (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <StatusBadge status={appointment.status} className="h-6 px-2.5 text-xs" />
+              <StatusBadge
+                status={appointment.status}
+                className="h-6 px-2.5 text-xs"
+              />
               <span className="text-xs text-muted-foreground">
-                via {appointment.source === "whatsapp" ? `WhatsApp (${tenant.assistantName})` : "painel"}
+                via{" "}
+                {appointment.source === "whatsapp"
+                  ? `WhatsApp (${tenant.assistantName})`
+                  : "painel"}
               </span>
             </div>
 
             <dl className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-3 text-sm">
               <dt className="text-muted-foreground">Data</dt>
-              <dd className="first-letter:uppercase">{formatDayLong(start.date)}</dd>
+              <dd className="first-letter:uppercase">
+                {formatDayLong(start.date)}
+              </dd>
               <dt className="text-muted-foreground">Horário</dt>
               <dd>
                 {start.time} – {end.time}{" "}
                 <span className="text-muted-foreground">
-                  ({formatDuration(minutesOf(end.time) - minutesOf(start.time))})
+                  ({formatDuration(minutesOf(end.time) - minutesOf(start.time))}
+                  )
                 </span>
               </dd>
               <dt className="text-muted-foreground">Serviço</dt>
               <dd>
                 {appointment.serviceName}
-                {appointment.comboId && <span className="ml-1.5 text-xs text-muted-foreground">· parte de um combo (serviços em sequência)</span>}
+                {appointment.comboId && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    · parte de um combo (serviços em sequência)
+                  </span>
+                )}
               </dd>
               <dt className="text-muted-foreground">Profissional</dt>
               <dd>{appointment.professionalName}</dd>
@@ -166,18 +224,34 @@ export function AppointmentSheet({
 
             {appointment.status === "confirmed" && (
               <div className="flex gap-2 border-t pt-4">
-                <Button variant="ghost" size="sm" onClick={() => setStatus("completed")}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStatus("completed")}
+                >
                   Marcar como concluído
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setStatus("no_show")}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStatus("no_show")}
+                >
                   Faltou
                 </Button>
               </div>
             )}
-            {!active && <p className="text-xs text-muted-foreground">Este agendamento não pode mais ser alterado.</p>}
+            {!active && (
+              <p className="text-xs text-muted-foreground">
+                Este agendamento não pode mais ser alterado.
+              </p>
+            )}
           </div>
         ) : (
-          <Reschedule tenant={tenant} appointment={appointment} onDone={() => setMode("view")} />
+          <Reschedule
+            tenant={tenant}
+            appointment={appointment}
+            onDone={() => setMode("view")}
+          />
         )}
       </ResponsiveSheet>
 
@@ -186,7 +260,8 @@ export function AppointmentSheet({
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar este agendamento?</AlertDialogTitle>
             <AlertDialogDescription>
-              {appointment.customerName ?? "Cliente"} · {appointment.serviceName} · {start.time}. O horário fica livre
+              {appointment.customerName ?? "Cliente"} ·{" "}
+              {appointment.serviceName} · {start.time}. O horário fica livre
               para outras clientes.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -209,17 +284,31 @@ export function AppointmentSheet({
 }
 
 /** What the team wants to know before serving someone: how often she comes, misses, and her last visits. */
-function CustomerHistory({ tenant, appointment }: { tenant: Tenant; appointment: Appointment }) {
+function CustomerHistory({
+  tenant,
+  appointment,
+}: {
+  tenant: Tenant;
+  appointment: Appointment;
+}) {
   const customer = useQuery({
     queryKey: keys.customer(tenant.id, appointment.customerId),
-    queryFn: () => api<CustomerDetail>(`/tenants/${tenant.id}/customers/${appointment.customerId}`),
+    queryFn: () =>
+      api<CustomerDetail>(
+        `/tenants/${tenant.id}/customers/${appointment.customerId}`,
+      ),
   });
   if (customer.isLoading) return <Skeleton className="h-24" />;
   if (!customer.data) return null;
 
-  const others = customer.data.appointments.filter((a) => a.id !== appointment.id);
-  const count = (status: AppointmentStatus) => others.filter((a) => a.status === status).length;
-  const past = others.filter((a) => a.startsAt < appointment.startsAt).slice(0, 4);
+  const others = customer.data.appointments.filter(
+    (a) => a.id !== appointment.id,
+  );
+  const count = (status: AppointmentStatus) =>
+    others.filter((a) => a.status === status).length;
+  const past = others
+    .filter((a) => a.startsAt < appointment.startsAt)
+    .slice(0, 4);
   const since = zoned(customer.data.createdAt, tenant.timezone).date;
   const stats = [
     { label: "concluídos", value: count("completed") },
@@ -228,11 +317,16 @@ function CustomerHistory({ tenant, appointment }: { tenant: Tenant; appointment:
   ];
 
   return (
-    <section className="space-y-3 border-t pt-4" aria-label="Histórico da cliente">
+    <section
+      className="space-y-3 border-t pt-4"
+      aria-label="Histórico da cliente"
+    >
       <h3 className="text-sm font-medium">Histórico</h3>
       {customer.data.notes && (
         <p className="rounded-md bg-muted/60 px-3 py-2 text-sm whitespace-pre-line">
-          <span className="text-xs text-muted-foreground">Observações da equipe</span>
+          <span className="text-xs text-muted-foreground">
+            Observações da equipe
+          </span>
           <br />
           {customer.data.notes}
         </p>
@@ -244,44 +338,74 @@ function CustomerHistory({ tenant, appointment }: { tenant: Tenant; appointment:
           <div className="grid grid-cols-3 gap-2 text-center">
             {stats.map((item) => (
               <div key={item.label} className="rounded-md border px-2 py-1.5">
-                <div className="text-base font-semibold tabular-nums">{item.value}</div>
-                <div className="text-[11px] text-muted-foreground">{item.label}</div>
+                <div className="text-base font-semibold tabular-nums">
+                  {item.value}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {item.label}
+                </div>
               </div>
             ))}
           </div>
           {past.length > 0 && (
             <ul className="divide-y rounded-md border text-sm">
               {past.map((a) => (
-                <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between gap-3 px-3 py-2"
+                >
                   <span className="min-w-0">
                     <span className="block truncate">{a.serviceName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {format(parseISO(zoned(a.startsAt, tenant.timezone).date), "dd/MM/yyyy")} · {a.professionalName}
+                      {format(
+                        parseISO(zoned(a.startsAt, tenant.timezone).date),
+                        "dd/MM/yyyy",
+                      )}{" "}
+                      · {a.professionalName}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{STATUS_LABELS[a.status]}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {STATUS_LABELS[a.status]}
+                  </span>
                 </li>
               ))}
             </ul>
           )}
         </>
       )}
-      <p className="text-xs text-muted-foreground">Cliente desde {format(parseISO(since), "dd/MM/yyyy")}.</p>
+      <p className="text-xs text-muted-foreground">
+        Cliente desde {format(parseISO(since), "dd/MM/yyyy")}.
+      </p>
     </section>
   );
 }
 
-function Reschedule({ tenant, appointment, onDone }: { tenant: Tenant; appointment: Appointment; onDone: () => void }) {
+function Reschedule({
+  tenant,
+  appointment,
+  onDone,
+}: {
+  tenant: Tenant;
+  appointment: Appointment;
+  onDone: () => void;
+}) {
   const queryClient = useQueryClient();
   const today = todayIn(tenant.timezone);
   const [date, setDate] = useState(() => {
     const current = zoned(appointment.startsAt, tenant.timezone).date;
     return current < today ? today : current;
   });
-  const [professionalId, setProfessionalId] = useState(appointment.professionalId);
+  const [professionalId, setProfessionalId] = useState(
+    appointment.professionalId,
+  );
   const [time, setTime] = useState<string | null>(null);
   const professionals = useProfessionals(tenant.id);
-  const eligible = (professionals.data ?? []).filter((p) => p.active && p.kind === "professional" && p.serviceIds.includes(appointment.serviceId));
+  const eligible = (professionals.data ?? []).filter(
+    (p) =>
+      p.active &&
+      p.kind === "professional" &&
+      p.serviceIds.includes(appointment.serviceId),
+  );
 
   const slots = useQuery({
     queryKey: ["availability", tenant.id, appointment.id, date, professionalId],
@@ -298,8 +422,12 @@ function Reschedule({ tenant, appointment, onDone }: { tenant: Tenant; appointme
         body: { date, time, professionalId },
       }),
     onSuccess: () => {
-      toast.success(`Remarcado para ${format(parseISO(date), "dd/MM")} às ${time}`);
-      void queryClient.invalidateQueries({ queryKey: keys.allAppointments(tenant.id) });
+      toast.success(
+        `Remarcado para ${format(parseISO(date), "dd/MM")} às ${time}`,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: keys.allAppointments(tenant.id),
+      });
       onDone();
     },
     onError: (error) => toast.error((error as Error).message),
@@ -340,7 +468,10 @@ function Reschedule({ tenant, appointment, onDone }: { tenant: Tenant; appointme
             setDate(format(day, "yyyy-MM-dd"));
             setTime(null);
           }}
-          disabled={[{ before: parseISO(today) }, { after: addDays(parseISO(today), tenant.bookingHorizonDays) }]}
+          disabled={[
+            { before: parseISO(today) },
+            { after: addDays(parseISO(today), tenant.bookingHorizonDays) },
+          ]}
           className="rounded-md border p-2"
         />
       </div>
@@ -372,7 +503,9 @@ function Reschedule({ tenant, appointment, onDone }: { tenant: Tenant; appointme
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            {slots.error ? (slots.error as Error).message : "Nenhum horário livre neste dia. Escolha outro dia."}
+            {slots.error
+              ? (slots.error as Error).message
+              : "Nenhum horário livre neste dia. Escolha outro dia."}
           </p>
         )}
       </div>
@@ -381,8 +514,16 @@ function Reschedule({ tenant, appointment, onDone }: { tenant: Tenant; appointme
         <Button variant="outline" size="lg" onClick={onDone}>
           Voltar
         </Button>
-        <Button size="lg" disabled={!time || reschedule.isPending} onClick={() => reschedule.mutate()}>
-          {reschedule.isPending ? "Remarcando…" : time ? `Remarcar ${time}` : "Escolha o horário"}
+        <Button
+          size="lg"
+          disabled={!time || reschedule.isPending}
+          onClick={() => reschedule.mutate()}
+        >
+          {reschedule.isPending
+            ? "Remarcando…"
+            : time
+              ? `Remarcar ${time}`
+              : "Escolha o horário"}
         </Button>
       </div>
     </div>

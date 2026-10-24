@@ -274,6 +274,7 @@ function BusinessWorkspace({
       items={[...main, ...secondary].map(withHref)}
       mobileItems={[...main, more].map(withHref)}
       current={shown === "billing" ? "settings" : shown}
+      wide={shown === "agenda"}
       onNavigate={navigate}
       onBack={onBackToBusinesses && (() => navigate("businesses"))}
       headerStart={<BusinessBadge id={t.id} name={t.name} onBack={onBackToBusinesses && (() => navigate("businesses"))} />}
