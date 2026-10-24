@@ -185,7 +185,6 @@ export function TimeGrid(props: {
                     name={c.name}
                     src={props.photos[c.id]}
                     className="size-8"
-                    ringColor={props.colors.get(c.id)}
                   />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {c.name}

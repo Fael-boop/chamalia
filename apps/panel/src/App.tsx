@@ -63,6 +63,7 @@ import {
   AccountCard,
   BusinessBadge,
   ProfileMenu,
+  ProfileSettings,
 } from "./components/account-menu";
 import { HelpButton, NotificationsButton } from "./components/topbar-actions";
 import { Button } from "./components/ui/button";
@@ -352,6 +353,7 @@ function BusinessWorkspace({
       role={role}
       compact={compact}
       onBilling={() => setPage("billing")}
+      onProfile={() => setPage("profile")}
       onAccess={() => setPage("access")}
       onLogout={onLogout}
     />
@@ -363,7 +365,7 @@ function BusinessWorkspace({
       context={t.name}
       items={[...main, ...secondary].map(withHref)}
       mobileItems={[main[0]!, main[1]!, main[2]!, more].map(withHref)}
-      current={shown === "billing" ? "settings" : shown}
+      current={shown === "billing" || shown === "profile" ? "settings" : shown}
       wide={shown === "agenda" || shown === "home"}
       onNavigate={navigate}
       onBack={onBackToBusinesses && (() => navigate("businesses"))}
@@ -417,13 +419,28 @@ function BusinessWorkspace({
       {shown === "faq" && <FaqPage tenant={t} />}
       {shown === "prices" && <PriceTablePage tenant={t} />}
       {shown === "handoff" && <HandoffPage tenant={t} />}
-      {(shown === "settings" || shown === "billing") && (
+      {(shown === "settings" || shown === "billing" || shown === "profile") && (
         <SettingsPage
           tenant={t}
           role={role}
           assistant={assistant}
-          tab={shown === "billing" ? "billing" : "business"}
-          onTab={(tab) => setPage(tab === "billing" ? "billing" : "settings")}
+          tab={
+            shown === "billing"
+              ? "billing"
+              : shown === "profile"
+                ? "profile"
+                : "business"
+          }
+          onTab={(tab) =>
+            setPage(
+              tab === "billing"
+                ? "billing"
+                : tab === "profile"
+                  ? "profile"
+                  : "settings",
+            )
+          }
+          profile={<ProfileSettings role={role} />}
           billing={
             subscription.data && (
               <BillingSettings

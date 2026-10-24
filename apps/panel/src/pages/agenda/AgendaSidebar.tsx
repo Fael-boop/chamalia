@@ -91,7 +91,6 @@ export function AgendaSidebar(props: {
               name={p.name}
               src={props.photos[p.id]}
               className="size-6 text-[9px]"
-              ringColor={props.colors.get(p.id)}
             />
             <span className="truncate">{p.name}</span>
           </label>

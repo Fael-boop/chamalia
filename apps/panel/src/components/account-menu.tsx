@@ -128,6 +128,7 @@ export function ProfileMenu({
   compact = false,
   onBilling,
   onAccess,
+  onProfile,
   onLogout,
 }: {
   business?: { id: string; name: string };
@@ -135,6 +136,8 @@ export function ProfileMenu({
   /** Phone: the avatar only. */
   compact?: boolean;
   onBilling?: () => void;
+  /** Opens Configurações > Meu perfil (without it, the profile opens in a side sheet). */
+  onProfile?: () => void;
   /** Agency inside a business: shortcut to "Acesso do responsável" (create/reset the login). */
   onAccess?: () => void;
   onLogout: () => void;
@@ -202,8 +205,10 @@ export function ProfileMenu({
           <DropdownMenuSeparator />
           {business && (
             <>
-              <DropdownMenuItem onSelect={() => setSheet("profile")}>
-                <UserRound /> Perfil e logo
+              <DropdownMenuItem
+                onSelect={() => (onProfile ? onProfile() : setSheet("profile"))}
+              >
+                <UserRound /> Meu perfil
               </DropdownMenuItem>
               {role === "owner" && (
                 <DropdownMenuItem onSelect={() => setSheet("password")}>
@@ -371,14 +376,13 @@ function ProfileSheet({
               em Acesso do responsável.
             </p>
           )}
-          <LogoSection tenantId={tenantId} tenantName={tenantName} />
         </div>
       )}
     </ResponsiveSheet>
   );
 }
 
-function LogoSection({
+export function LogoSection({
   tenantId,
   tenantName,
 }: {
@@ -739,5 +743,44 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
         {change.isPending ? "Trocando…" : "Trocar senha"}
       </Button>
     </form>
+  );
+}
+
+/** Configurações > Meu perfil: only the person (photo, name, contacts, login, password). The business is in Negócio. */
+export function ProfileSettings({ role }: { role: "admin" | "owner" }) {
+  const [changing, setChanging] = useState(false);
+  return (
+    <div className="space-y-6 rounded-lg border bg-card p-4 md:p-6">
+      {role === "owner" ? (
+        <>
+          <AccountSection />
+          <section
+            className="space-y-3 border-t pt-6"
+            aria-labelledby="senha-titulo"
+          >
+            <h3 id="senha-titulo" className="text-sm font-semibold">
+              Senha
+            </h3>
+            {changing ? (
+              <PasswordForm onDone={() => setChanging(false)} />
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setChanging(true)}
+              >
+                <KeyRound /> Trocar senha
+              </Button>
+            )}
+          </section>
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Você está como agência. O perfil é de cada responsável: ele edita aqui
+          quando entra com o próprio login. Os logins ficam em Acesso do
+          responsável.
+        </p>
+      )}
+    </div>
   );
 }

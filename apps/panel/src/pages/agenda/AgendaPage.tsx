@@ -693,7 +693,6 @@ function DayTable(props: {
                   name={p.name}
                   src={props.photos[p.id]}
                   className="size-9"
-                  ringColor={props.colors.get(p.id)}
                 />
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{p.name}</div>
@@ -850,7 +849,6 @@ function MobileDay(props: {
                   name={p.name}
                   src={props.photos[p.id]}
                   className="mr-2 inline-flex size-5 align-middle text-[9px]"
-                  ringColor={props.colors.get(p.id)}
                 />
               ) : null}
               {p.name}
