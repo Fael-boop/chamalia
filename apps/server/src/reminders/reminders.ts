@@ -1,4 +1,5 @@
 import type { FastifyBaseLogger } from "fastify";
+import { ASSISTANT_ALLOWED } from "../billing/billing.js";
 import type { Channel } from "../channels/channel.js";
 import { sendProactiveMessage } from "../conversation/engine.js";
 import type { Sql } from "../db/client.js";
@@ -111,7 +112,7 @@ export async function findDueReminders(sql: Sql): Promise<DueReminder[]> {
   return sql<DueReminder[]>`
     select ${DUE_COLUMNS(sql)}
     ${DUE_JOINS(sql)}
-    where t.active and t.whatsapp_instance is not null
+    where t.active and t.whatsapp_instance is not null and ${sql.unsafe(ASSISTANT_ALLOWED)}
       and a.status in ('scheduled', 'confirmed')
       and a.reminder_24h_sent_at is null
       and a.starts_at > now() + make_interval(hours => ${MIN_HOURS_BEFORE})

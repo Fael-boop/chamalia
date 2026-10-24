@@ -75,6 +75,8 @@ try {
         addressCity: "São Paulo - SP",
         extraInfo: "Aceitamos Pix, débito e crédito.\nAtraso de mais de 15 minutos precisa remarcar.",
         minNoticeMinutes: 60,
+        // Example business: never expires.
+        billingCycle: "lifetime",
       })}
       returning id
     `;

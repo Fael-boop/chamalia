@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { ASSISTANT_ALLOWED } from "../billing/billing.js";
 import { EvolutionChannel, type EvolutionClient } from "../channels/evolution.js";
 import { MAX_AUDIO_SECONDS, type Transcriber } from "../channels/transcribe.js";
 import { handleIncomingMessage, handleOwnerMessage, type EngineDeps, type IncomingMessage } from "../conversation/engine.js";
@@ -85,11 +86,18 @@ export function registerWebhookRoutes(
     const body = request.body as EvolutionWebhook;
     if (body.event !== "messages.upsert" || !body.instance || !body.data?.key?.id) return { ignored: true };
 
-    const [tenant] = await sql<{ id: string }[]>`
-      select id from tenants where whatsapp_instance = ${body.instance} and whatsapp_provider = 'evolution' and active
+    const [tenant] = await sql<{ id: string; allowed: boolean }[]>`
+      select t.id, ${sql.unsafe(ASSISTANT_ALLOWED)} as allowed
+      from tenants t
+      where t.whatsapp_instance = ${body.instance} and t.whatsapp_provider = 'evolution' and t.active
     `;
     if (!tenant) {
       log.warn({ instance: body.instance }, "webhook for unknown instance");
+      return { ignored: true };
+    }
+    // Plan without the assistant, or subscription expired: the Lia stays quiet.
+    if (!tenant.allowed) {
+      log.info({ tenantId: tenant.id }, "webhook ignored: plan without assistant or expired");
       return { ignored: true };
     }
 

@@ -19,8 +19,8 @@ try {
     }
 
     const [tenant] = await tx<{ id: string }[]>`
-      insert into tenants (slug, name, assistant_name, business_type, owner_name)
-      values ('demo', 'Barbearia Demo', 'Lia', 'barbershop', 'Dono da Demo')
+      insert into tenants (slug, name, assistant_name, business_type, owner_name, billing_cycle)
+      values ('demo', 'Barbearia Demo', 'Lia', 'barbershop', 'Dono da Demo', 'lifetime')
       returning id
     `;
     const tenantId = tenant!.id;

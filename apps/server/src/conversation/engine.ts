@@ -139,7 +139,6 @@ async function processMessage(deps: EngineDeps, channel: Channel, message: Incom
     log.warn({ tenantId: message.tenantId }, "message for unknown or inactive tenant ignored");
     return;
   }
-
   if (!message.unsupported && (await handleTeamDone(deps, channel, tenant, message))) {
     return { reply: null, ownerNotices: [], ownerPhoneMissing: !tenant.ownerPhone, withOwner: false };
   }

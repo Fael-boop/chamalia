@@ -57,7 +57,11 @@ const tenantCreate = tenantFields
     addressNeighborhood: true,
     addressCity: true,
   })
-  .partial({ assistantName: true, ownerName: true, ownerPhone: true, address: true, addressNeighborhood: true, addressCity: true });
+  .partial({ assistantName: true, ownerName: true, ownerPhone: true, address: true, addressNeighborhood: true, addressCity: true })
+  .extend({ planId: uuid.optional() });
+
+/** A new business starts with its first month released; the agency adjusts it in Planos. */
+const NEW_TENANT_DAYS = 30;
 
 // No defaults here: a PATCH must only touch the fields it sends.
 const serviceFields = z.object({
@@ -156,6 +160,10 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
     const body = tenantCreate.parse(request.body);
     const niche = await getNicheBySlug(sql, body.businessType);
     if (!niche) return reply.code(400).send({ error: "invalid_niche", message: "Nicho inválido." });
+    const [plan] = body.planId
+      ? await sql<{ id: string }[]>`select id from plans where id = ${body.planId}`
+      : await sql<{ id: string }[]>`select id from plans where slug = 'agenda-lia'`;
+    if (!plan) return reply.code(400).send({ error: "invalid_plan", message: "Plano inválido." });
     const tenant = await sql.begin(async (tx) => {
       const base = slugify(body.name);
       const taken = new Set(
@@ -173,6 +181,9 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
           ownerName: body.ownerName ?? null,
           ownerPhone: body.ownerPhone ?? null,
           address: body.address ?? null,
+          planId: plan.id,
+          billingCycle: "monthly",
+          paidUntil: new Date(Date.now() + NEW_TENANT_DAYS * 24 * 60 * 60 * 1000),
         })}
         returning id
       `;

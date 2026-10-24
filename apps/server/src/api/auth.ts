@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { verifyPassword } from "../auth/passwords.js";
 import { SHORT_SESSION_MS, signSession, verifySession, type Session } from "../auth/tokens.js";
+import { getSubscription, isExpired } from "../billing/billing.js";
 import type { Sql } from "../db/client.js";
 
 declare module "fastify" {
@@ -12,8 +13,16 @@ declare module "fastify" {
   interface FastifyContextConfig {
     /** Only the agency admin may call this route. */
     adminOnly?: boolean;
+    /** A business with an expired subscription may still call it (the payment page). */
+    allowExpired?: boolean;
   }
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Screens that only exist with the WhatsApp assistant (plan "Agenda Online + Lia"). */
+const ASSISTANT_ROUTE =
+  /^\/api\/tenants\/[^/]+\/(faq|handoff-topics|handoffs|conversations|price-table|assistant-photo|rules|whatsapp|test-chat)(\/|\?|$)/;
 
 export const ADMIN_LOGIN = "admin";
 const MAX_ATTEMPTS = 10;
@@ -119,13 +128,29 @@ export function registerAuth(
       return reply.code(401).send({ error: "unauthorized", message: "Entre com seu usuário e senha." });
     }
 
-    if (session?.role !== "owner") return;
-    if (request.routeOptions.config?.adminOnly) {
-      return reply.code(403).send({ error: "forbidden", message: "Acesso só da Chama Lia." });
-    }
     const tenantId = (request.params as { tenantId?: string } | undefined)?.tenantId;
-    if (tenantId && tenantId !== session.tenantId) {
-      return reply.code(403).send({ error: "forbidden", message: "Sem acesso a este cliente." });
+    if (session?.role === "owner") {
+      if (request.routeOptions.config?.adminOnly) {
+        return reply.code(403).send({ error: "forbidden", message: "Acesso só da Chama Lia." });
+      }
+      if (tenantId && tenantId !== session.tenantId) {
+        return reply.code(403).send({ error: "forbidden", message: "Sem acesso a este cliente." });
+      }
+    }
+
+    // Plan and subscription. An expired business only reaches the payment page (the agency
+    // still sees everything, to fix it); a plan without the assistant has none of its screens.
+    if (!tenantId || !sql || !UUID.test(tenantId)) return;
+    const owner = session?.role === "owner";
+    const assistantRoute = ASSISTANT_ROUTE.test(request.url);
+    if (!owner && !assistantRoute) return;
+    const subscription = await getSubscription(sql, tenantId);
+    if (!subscription) return;
+    if (owner && isExpired(subscription) && !request.routeOptions.config?.allowExpired) {
+      return reply.code(402).send({ error: "subscription_expired", message: "Sua assinatura venceu. Renove para continuar." });
+    }
+    if (assistantRoute && !subscription.plan.includesAssistant) {
+      return reply.code(403).send({ error: "plan_required", message: "Disponível no plano com a Lia." });
     }
   });
 
