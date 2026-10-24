@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Appointment, type Tenant, type TimeOff } from "@/api";
 import { PageHeader } from "@/components/page-header";
+import { PersonPhoto, useProfessionalPhotos } from "@/components/person-photo";
 import { blocksOnDay, closedAllDay, TimeOffNotice } from "@/components/time-off-section";
 import { STATUS_STYLES, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDayLong, formatWeekdayShort, minutesOf, shiftDate, todayIn, zoned } from "@/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { keys, useAppointments, useProfessionals } from "@/lib/queries";
+import { professionalColors } from "@/lib/professional-color";
 import { cn } from "@/lib/utils";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { NewAppointmentSheet } from "./NewAppointmentSheet";
@@ -53,7 +55,12 @@ export function AgendaPage({ tenant, focus }: { tenant: Tenant; focus?: { date: 
   const weekDays = Array.from({ length: 7 }, (_, i) => shiftDate(weekStart, i));
   const appointments = useAppointments(tenant.id, weekStart, weekDays[6]!);
   const professionals = useProfessionals(tenant.id);
+  const photos = useProfessionalPhotos(tenant.id);
   const fresh = useNewIds(appointments.data, weekStart);
+  const colors = useMemo(
+    () => professionalColors([...(professionals.data ?? []).filter((p) => p.kind === "professional").map((p) => p.id), ...(appointments.data ?? []).map((a) => a.professionalId)]),
+    [professionals.data, appointments.data],
+  );
   const timeOff = useQuery({ queryKey: keys.timeOff(tenant.id), queryFn: () => api<TimeOff[]>(`/tenants/${tenant.id}/time-off`) });
   const dayBlocks = blocksOnDay(timeOff.data, date, tenant.timezone);
 
@@ -142,6 +149,8 @@ export function AgendaPage({ tenant, focus }: { tenant: Tenant; focus?: { date: 
           loading={appointments.isLoading}
           list={professionalFilter ? dayList.filter((a) => a.professionalId === professionalFilter) : dayList}
           fresh={fresh}
+          colors={colors}
+          photos={photos.data ?? {}}
           professionals={(professionals.data ?? []).filter((p) => p.active && p.kind === "professional")}
           professionalFilter={professionalFilter}
           onFilter={setProfessionalFilter}
@@ -156,6 +165,8 @@ export function AgendaPage({ tenant, focus }: { tenant: Tenant; focus?: { date: 
           loading={appointments.isLoading || professionals.isLoading}
           list={dayList}
           fresh={fresh}
+          colors={colors}
+          photos={photos.data ?? {}}
           professionals={(professionals.data ?? []).filter((p) => p.active && p.kind === "professional")}
           onOpen={open}
           onNew={() => setNewOpen(true)}
@@ -222,6 +233,12 @@ function WeekStrip(props: {
   );
 }
 
+/** The professional's color, as a small dot; hidden from screen readers (the name is always written next to it). */
+function Dot({ color, small, className }: { color?: string; small?: boolean; className?: string }) {
+  if (!color) return null;
+  return <span aria-hidden className={cn("inline-block shrink-0 rounded-full", small ? "size-2" : "size-2.5", className)} style={{ backgroundColor: color }} />;
+}
+
 function blockClasses(a: Appointment) {
   return cn(
     "border border-l-[3px] transition-colors duration-200",
@@ -240,6 +257,8 @@ function DayTable(props: {
   loading: boolean;
   list: Appointment[];
   fresh: Set<string>;
+  colors: Map<string, string>;
+  photos: Record<string, string>;
   professionals: { id: string; name: string }[];
   onOpen: (a: Appointment) => void;
   onNew: () => void;
@@ -297,10 +316,13 @@ function DayTable(props: {
           {columns.map((p, c) => {
             const count = props.list.filter((a) => a.professionalId === p.id && a.status !== "cancelled").length;
             return (
-              <div key={p.id} className="border-b border-l px-3 py-2.5" style={{ gridRow: 1, gridColumn: c + 2 }}>
-                <div className="text-sm font-medium">{p.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {count} {count === 1 ? "atendimento" : "atendimentos"}
+              <div key={p.id} className="flex items-center gap-3 border-b border-l px-3 py-2.5" style={{ gridRow: 1, gridColumn: c + 2 }}>
+                <PersonPhoto name={p.name} src={props.photos[p.id]} className="size-9" ringColor={props.colors.get(p.id)} />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{p.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {count} {count === 1 ? "atendimento" : "atendimentos"}
+                  </div>
                 </div>
               </div>
             );
@@ -336,7 +358,8 @@ function DayTable(props: {
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium tabular-nums">
+                    <span className="flex items-center gap-1.5 font-medium tabular-nums">
+                      <Dot color={props.colors.get(a.professionalId)} small />
                       {zoned(a.startsAt, tz).time}–{zoned(a.endsAt, tz).time}
                     </span>
                     {a.status === "scheduled" && <span className="text-[11px] font-medium">Pendente</span>}
@@ -362,6 +385,8 @@ function MobileDay(props: {
   loading: boolean;
   list: Appointment[];
   fresh: Set<string>;
+  colors: Map<string, string>;
+  photos: Record<string, string>;
   professionals: { id: string; name: string }[];
   professionalFilter: string | null;
   onFilter: (id: string | null) => void;
@@ -401,6 +426,7 @@ function MobileDay(props: {
                 props.professionalFilter === p.id ? "border-primary bg-primary text-primary-foreground" : "bg-card",
               )}
             >
+              {p.id ? <PersonPhoto name={p.name} src={props.photos[p.id]} className="mr-2 inline-flex size-5 align-middle text-[9px]" ringColor={props.colors.get(p.id)} /> : null}
               {p.name}
             </button>
           ))}
@@ -458,6 +484,7 @@ function MobileDay(props: {
                           {a.customerName ?? "Sem nome"}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">
+                          <Dot color={props.colors.get(a.professionalId)} small className="mr-1.5" />
                           {a.serviceName} · {a.professionalName}
                         </div>
                       </div>

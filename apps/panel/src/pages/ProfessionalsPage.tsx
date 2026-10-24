@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { api, type Professional, type Tenant } from "@/api";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { Hint, PageHeader } from "@/components/page-header";
+import { PhotoPicker, useProfessionalPhotos } from "@/components/person-photo";
 import { ProfessionalHours } from "@/components/professional-hours";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,6 +21,7 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
   const queryClient = useQueryClient();
   const professionals = useProfessionals(tenant.id);
   const services = useServices(tenant.id);
+  const photos = useProfessionalPhotos(tenant.id);
   const [newName, setNewName] = useState("");
   const activeServices = (services.data ?? []).filter((s) => s.active);
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.professionals(tenant.id) });
@@ -109,13 +111,16 @@ export function ProfessionalsPage({ tenant }: { tenant: Tenant }) {
         <div className="grid gap-3 md:grid-cols-2">
           {(professionals.data ?? []).map((p) => (
             <div key={p.id} className={cn("rounded-lg border bg-card", !p.active && "opacity-60")}>
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <div>
-                  <div className="text-sm font-medium">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {p.kind === "reception"
-                      ? "Recepção: não faz serviços, só recebe conversas"
-                      : `${p.serviceIds.filter((id) => activeServices.some((s) => s.id === id)).length} de ${activeServices.length} serviços`}
+              <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <PhotoPicker tenantId={tenant.id} professional={p} src={photos.data?.[p.id]} />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {p.kind === "reception"
+                        ? "Recepção: não faz serviços, só recebe conversas"
+                        : `${p.serviceIds.filter((id) => activeServices.some((s) => s.id === id)).length} de ${activeServices.length} serviços`}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
