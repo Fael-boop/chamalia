@@ -8,6 +8,13 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.6.2 · 2026-10-25
+
+- Cada Lia é do negócio dela: a regra de "química" (coloração, mechas, progressiva…) deixou de estar no texto base, que valia para todos, e virou um assunto de "Passar para a equipe" que cada negócio mantém, edita ou apaga. Negócios que já existem ficam exatamente como estavam; salões novos começam com o assunto e os outros nichos sem. As palavras fixas "salão" também passaram a seguir o tipo de local de cada negócio.
+- Teste automático de isolamento: uma Lia nunca recebe dados, regras ou respostas de outro negócio.
+- O menu do perfil mostra a versão do sistema (útil para conferir se a aba está atualizada).
+- Banco: migration 024 (assuntos iniciais por nicho), só acrescenta coluna e dados.
+
 ## 1.6.1 · 2026-10-24
 
 - Menu lateral recolhido por padrão: só a faixa de ícones, e o menu aparece ao chegar com o mouse na borda. Quem quiser manter o menu aberto clica no botão ao lado da logo (a escolha fica salva; quem já tinha escolhido mantém).
