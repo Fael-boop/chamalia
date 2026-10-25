@@ -162,7 +162,7 @@ export const tools: Anthropic.Tool[] = [
   {
     name: "transfer_to_owner",
     description:
-      "Passa a conversa para a pessoa certa da equipe (quem foi definida para o caso, ou o responsável pelo negócio). Depois disso você para de responder esta cliente. Use para química, combos, encaixe, serviço fora da lista, os serviços e assuntos marcados e qualquer pedido que você não consiga resolver. Informe service_id ou topic_id quando o motivo for um deles. Se a cliente pediu por nome uma pessoa específica da lista de Profissionais ou Equipe, informe também professional_id: tem prioridade sobre as outras regras.",
+      "Passa a conversa para a pessoa certa da equipe (quem foi definida para o caso, ou o responsável pelo negócio). Depois disso você para de responder esta cliente. Use para combos de mais de 3 serviços, encaixe, serviço fora da lista, os serviços e assuntos marcados e qualquer pedido que você não consiga resolver. Informe service_id ou topic_id quando o motivo for um deles. Se a cliente pediu por nome uma pessoa específica da lista de Profissionais ou Equipe, informe também professional_id: tem prioridade sobre as outras regras.",
     input_schema: {
       type: "object",
       properties: {
@@ -401,7 +401,7 @@ const handlers: { [K in ToolName]: (ctx: ToolContext, input: z.infer<(typeof inp
     ctx.handoffCode = code;
     if (person) {
       ctx.handoffTo = person.name;
-      ctx.teamNotices.push({ name: person.name, phone: person.notifyPhone, text: `${notice}\nPara falar com o cliente, use o WhatsApp do salão.` });
+      ctx.teamNotices.push({ name: person.name, phone: person.notifyPhone, text: `${notice}\nPara falar com o cliente, use o WhatsApp do negócio.` });
     } else {
       ctx.handoffTo = ctx.tenant.ownerName ?? "equipe";
       ctx.ownerNotices.push(notice);

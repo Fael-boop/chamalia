@@ -213,6 +213,16 @@ export function registerPanelRoutes(app: FastifyInstance, sql: Sql, whatsapp?: W
           )}
         `;
       }
+      if (niche.starterHandoffTopics.length > 0) {
+        await tx`
+          insert into handoff_topics ${tx(
+            niche.starterHandoffTopics.map((row) => ({ tenantId, topic: row.topic, reason: row.reason })),
+            "tenantId",
+            "topic",
+            "reason",
+          )}
+        `;
+      }
       await tx`
         insert into business_hours ${tx(
           niche.starterHours.map((row) => ({ tenantId, ...row })),

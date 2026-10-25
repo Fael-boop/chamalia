@@ -6,6 +6,7 @@
 import type { Sql } from "../db/client.js";
 
 export type StarterService = { name: string; durationMinutes: number; priceCents: number | null };
+export type StarterTopic = { topic: string; reason: string | null };
 export type StarterHour = { weekday: number; opensAt: string; closesAt: string };
 
 export type Niche = {
@@ -18,18 +19,20 @@ export type Niche = {
   customerWord: string;
   starterServices: StarterService[];
   starterHours: StarterHour[];
+  /** "Passar para a equipe" topics a new business of this niche starts with (editable by it). */
+  starterHandoffTopics: StarterTopic[];
 };
 
 export async function listNiches(sql: Sql): Promise<Niche[]> {
   return sql<Niche[]>`
-    select id, slug, label, place, customer_word, starter_services, starter_hours
+    select id, slug, label, place, customer_word, starter_services, starter_hours, starter_handoff_topics
     from niches order by label
   `;
 }
 
 export async function getNicheBySlug(sql: Sql, slug: string): Promise<Niche | undefined> {
   const [niche] = await sql<Niche[]>`
-    select id, slug, label, place, customer_word, starter_services, starter_hours
+    select id, slug, label, place, customer_word, starter_services, starter_hours, starter_handoff_topics
     from niches where slug = ${slug}
   `;
   return niche;
