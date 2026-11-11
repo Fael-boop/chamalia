@@ -87,6 +87,28 @@ describe("MercadoPagoSubscriptions", () => {
     });
   });
 
+  it("schedules the first charge when access is already paid", async () => {
+    const { impl, calls } = fakeFetch(() => ({ status: 201, body: { id: "pre-2", status: "authorized", external_reference: "sub-2" } }));
+    const subs = new MercadoPagoSubscriptions(new MercadoPagoClient("T", impl));
+    await subs.create({
+      cardToken: "tok-123",
+      payerEmail: "dona@salao.com",
+      amountCents: 29700,
+      frequencyMonths: 1,
+      reason: "Chama Lia · plano",
+      externalReference: "sub-2",
+      backUrl: "https://app.example",
+      startDate: new Date("2026-12-11T03:00:00Z"),
+    });
+    expect(JSON.parse(String(calls[0]!.init.body)).auto_recurring).toEqual({
+      frequency: 1,
+      frequency_type: "months",
+      transaction_amount: 297,
+      currency_id: "BRL",
+      start_date: "2026-12-11T03:00:00.000Z",
+    });
+  });
+
   it("reads a charge: paid only when its payment was approved", async () => {
     const charge = (payment: string) =>
       new MercadoPagoSubscriptions(

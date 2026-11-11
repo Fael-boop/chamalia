@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardQuote, extendPaidUntil, isExpired, quote } from "./billing.js";
+import { cardQuote, extendPaidUntil, firstChargeDate, isExpired, quote } from "./billing.js";
 import { crc16, pixCopyPaste, readPixCode } from "./pix.js";
 
 describe("isExpired", () => {
@@ -34,6 +34,20 @@ describe("quote", () => {
   });
   it("is null when the plan has no price", () => {
     expect(quote({ priceCentsMonthly: null, priceCentsYearly: null }, 1)).toBeNull();
+  });
+});
+
+describe("firstChargeDate", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  it("waits for the paid access to end before the first card charge", () => {
+    const paidUntil = new Date("2026-12-11T03:00:00Z");
+    expect(firstChargeDate({ billingCycle: "monthly", paidUntil }, now)).toEqual(paidUntil);
+  });
+  it("charges now when expired, ending within the hour, never paid or lifetime", () => {
+    expect(firstChargeDate({ billingCycle: "monthly", paidUntil: new Date("2026-11-10T12:00:00Z") }, now)).toBeNull();
+    expect(firstChargeDate({ billingCycle: "monthly", paidUntil: new Date("2026-11-11T12:30:00Z") }, now)).toBeNull();
+    expect(firstChargeDate({ billingCycle: "monthly", paidUntil: null }, now)).toBeNull();
+    expect(firstChargeDate({ billingCycle: "lifetime", paidUntil: new Date("2030-01-01T00:00:00Z") }, now)).toBeNull();
   });
 });
 

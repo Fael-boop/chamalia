@@ -1,7 +1,7 @@
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { cardQuote, confirmPayment, getSubscription, isExpired, PLAN_COLUMNS, quote } from "../billing/billing.js";
+import { cardQuote, confirmPayment, firstChargeDate, getSubscription, isExpired, PLAN_COLUMNS, quote } from "../billing/billing.js";
 import { cardSync, liveCardSubscription } from "../billing/card.js";
 import { MercadoPagoClient, MercadoPagoError, MercadoPagoSubscriptions, validWebhookSignature } from "../billing/mercadopago.js";
 import { pixCopyPaste, readPixCode, type PixReceiver } from "../billing/pix.js";
@@ -410,6 +410,9 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
     if (!amount) return reply.code(409).send({ error: "no_price", message: "Este plano ainda não tem preço. Fale com a gente pelo WhatsApp." });
 
     const id = randomUUID();
+    // Never charge for time already paid: with access paid ahead, the first charge is on the day
+    // it ends (and each charge then extends from there). Expired, or ending within the hour: now.
+    const startDate = firstChargeDate(subscription);
     let created;
     try {
       created = await mercadoPago.subscriptions.create({
@@ -420,6 +423,7 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
         reason: `Chama Lia · ${subscription.plan.name} · ${body.frequencyMonths === 1 ? "mensal" : "anual"}`,
         externalReference: id,
         backUrl: mercadoPago.publicUrl,
+        startDate,
       });
     } catch (error) {
       log.warn({ err: error, tenantId }, "card subscription refused");
@@ -436,7 +440,7 @@ export function registerBillingRoutes(app: FastifyInstance, sql: Sql, options: {
               ${body.frequencyMonths}, ${amount}, ${body.email}, ${body.cardBrand ?? null}, ${body.lastFour ?? null})
     `;
     await sql`update tenants set billing_email = ${body.email} where id = ${tenantId}`;
-    // The first charge usually happens right away.
+    // Without a start date the first charge usually happens right away.
     const sub = await liveCardSubscription(sql, tenantId);
     if (sub) await card.sync(sub, true);
     return reply.code(201).send(await subscriptionView(tenantId));

@@ -23,6 +23,15 @@ export type Subscription = {
 export const PLAN_COLUMNS = ["id", "slug", "name", "includes_assistant", "price_cents_monthly", "price_cents_yearly", "active"];
 
 /** Lifetime never expires; otherwise access lasts until paid_until (never paid = expired). */
+/**
+ * When the automatic card debit first charges: on the day the paid access ends, so nobody pays
+ * twice for the same time. null = charge now (expired, lifetime, or ending within the hour).
+ */
+export function firstChargeDate(subscription: Pick<Subscription, "billingCycle" | "paidUntil">, now = new Date()): Date | null {
+  if (subscription.billingCycle === "lifetime" || !subscription.paidUntil) return null;
+  return subscription.paidUntil.getTime() - now.getTime() > 60 * 60 * 1000 ? subscription.paidUntil : null;
+}
+
 export function isExpired(subscription: Pick<Subscription, "billingCycle" | "paidUntil">, now = new Date()): boolean {
   if (subscription.billingCycle === "lifetime") return false;
   return !subscription.paidUntil || subscription.paidUntil.getTime() <= now.getTime();

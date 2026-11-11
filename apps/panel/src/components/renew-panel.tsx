@@ -44,7 +44,16 @@ type Order = {
   renews: boolean;
   every: "mês" | "ano";
   until: Date;
+  /** Card with access already paid: nothing today, the first charge is on this day. */
+  firstChargeAt: Date | null;
 };
+
+/** Same rule as the server: with access paid ahead, the card is only charged when it ends. */
+function firstChargeDate(subscription: Subscription): Date | null {
+  if (subscription.billingCycle === "lifetime" || subscription.expired || !subscription.paidUntil) return null;
+  const end = new Date(subscription.paidUntil);
+  return end.getTime() - Date.now() > 60 * 60 * 1000 ? end : null;
+}
 
 /**
  * Checkout for renewing a subscription, laid out like a professional payment page: choose the
@@ -52,10 +61,21 @@ type Order = {
  * and the security notes, then pay. Card data is typed only into Mercado Pago's secure fields.
  * `split` = summary in a side column (payment page); `stacked` = one column (Configurações).
  */
-export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { tenantId: string; subscription: Subscription; layout?: "split" | "stacked" }) {
+export function RenewPanel({
+  tenantId,
+  subscription,
+  layout = "stacked",
+  only,
+}: {
+  tenantId: string;
+  subscription: Subscription;
+  layout?: "split" | "stacked";
+  /** Shows one way to pay, without the choice (e.g. access already paid: card set up apart from Pix). */
+  only?: Method;
+}) {
   const { autoDebit, plan } = subscription;
   const refresh = useRefresh(tenantId);
-  const [method, setMethod] = useState<Method>(subscription.pending || !subscription.cardAvailable ? "pix" : "card");
+  const [method, setMethod] = useState<Method>(only ?? (subscription.pending || !subscription.cardAvailable ? "pix" : "card"));
   const [months, setMonths] = useState<number>(subscription.pending?.months ?? 1);
   const [custom, setCustom] = useState(false);
   const [frequency, setFrequency] = useState<1 | 12>(1);
@@ -94,6 +114,7 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
           renews: true,
           every: frequency === 1 ? "mês" : "ano",
           until: paidUntilAfter(subscription.paidUntil, frequency),
+          firstChargeAt: firstChargeDate(subscription),
         }
       : {
           periodLabel: monthsLabel(months),
@@ -103,7 +124,11 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
           renews: false,
           every: "mês",
           until: paidUntilAfter(subscription.paidUntil, months),
+          firstChargeAt: null,
         };
+  const firstCharge = order.firstChargeAt ? formatDate(order.firstChargeAt) : null;
+  // Without the method choice the steps start at 1.
+  const stepOffset = only ? 1 : 0;
 
   const showingPix = method === "pix" && subscription.pending && !choosingPix;
   const summary = showingPix ? null : <OrderSummary planName={plan.name} order={order} method={method} />;
@@ -116,7 +141,7 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
         body: { cardToken: card.token, cardBrand: card.cardBrand, lastFour: card.lastFour, email: email.trim(), frequencyMonths: frequency, acceptTerms: true },
       });
       refresh(data);
-      toast.success("Débito automático ativado.");
+      toast.success(firstCharge ? `Renovação automática ativada. A primeira cobrança será em ${firstCharge}.` : "Débito automático ativado.");
     } catch (error) {
       toast.error((error as Error).message);
       // Rejecting lets the card form show the error and stay editable.
@@ -132,7 +157,7 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
         <PixPay subscription={subscription} busy={report.isPending} onReport={() => report.mutate()} onChangePeriod={() => setChoosingPix(true)} />
       ) : (
         <>
-          <Step number={1} title="Forma de pagamento">
+          {!only && <Step number={1} title="Forma de pagamento">
             <div className="space-y-2" role="radiogroup" aria-label="Forma de pagamento">
               {subscription.cardAvailable && (
                 <MethodOption
@@ -155,9 +180,9 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
                 logos={<PixMark withName />}
               />
             </div>
-          </Step>
+          </Step>}
 
-          <Step number={2} title={method === "card" ? "Frequência da cobrança" : "Por quanto tempo"}>
+          <Step number={2 - stepOffset} title={method === "card" ? "Frequência da cobrança" : "Por quanto tempo"}>
             {method === "card" ? (
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Frequência da cobrança">
                 {([1, 12] as const).map((n) => {
@@ -226,7 +251,7 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
           {split && <div className="lg:hidden">{summary}</div>}
           {!split && summary}
 
-          <Step number={3} title={method === "card" ? "Pagamento" : "Confirmar"}>
+          <Step number={3 - stepOffset} title={method === "card" ? (firstCharge ? "Cartão" : "Pagamento") : "Confirmar"}>
             {method === "card" ? (
               cardStep === "details" ? (
                 <div className="space-y-4">
@@ -253,8 +278,12 @@ export function RenewPanel({ tenantId, subscription, layout = "stacked" }: { ten
                     publicKey={subscription.mercadoPagoPublicKey!}
                     amountCents={subscription.prices.card[1] ?? order.totalCents}
                     email={email.trim()}
-                    submitLabel="Assinar"
-                    note={`${formatPrice(order.totalCents)} por ${order.every}, cobrado no cartão · cancele quando quiser`}
+                    submitLabel={firstCharge ? "Ativar renovação automática" : "Assinar"}
+                    note={
+                      firstCharge
+                        ? `Nada é cobrado hoje. Primeira cobrança de ${formatPrice(order.totalCents)} em ${firstCharge} · cancele quando quiser`
+                        : `${formatPrice(order.totalCents)} por ${order.every}, cobrado no cartão · cancele quando quiser`
+                    }
                     onSubmit={submitCard}
                   />
                   <Button variant="link" className="h-auto px-0" onClick={() => setCardStep("details")}>
@@ -366,11 +395,12 @@ function OrderSummary({ planName, order, method }: { planName: string; order: Or
         <Line label="Período" value={order.periodLabel} />
         <Line label="Valor" value={formatPrice(order.baseCents)} />
         {order.yearlyDiscountCents > 0 && <Line label="Anual: 2 meses grátis" value={`− ${formatPrice(order.yearlyDiscountCents)}`} discount />}
+        {order.firstChargeAt && <Line label="Primeira cobrança" value={`${formatDate(order.firstChargeAt)} · ${formatPrice(order.totalCents)}`} />}
       </dl>
       <div className="border-t pt-4">
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-medium">Total hoje</span>
-          <span className="text-2xl font-semibold tracking-tight tabular-nums">{formatPrice(order.totalCents)}</span>
+          <span className="text-2xl font-semibold tracking-tight tabular-nums">{formatPrice(order.firstChargeAt ? 0 : order.totalCents)}</span>
         </div>
         {/* Anchoring: the yearly plan read as a monthly price. */}
         {order.yearlyDiscountCents > 0 && (
@@ -378,9 +408,11 @@ function OrderSummary({ planName, order, method }: { planName: string; order: Or
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        {order.renews
-          ? `Depois, ${formatPrice(order.totalCents)} a cada ${order.every}, a partir de ${formatDate(order.until)}. Cancele quando quiser, sem multa.`
-          : `Acesso liberado até ${formatDate(order.until)}. Sem renovação automática.`}
+        {order.firstChargeAt
+          ? `Seu acesso já está pago até ${formatDate(order.firstChargeAt)}. Nesse dia o cartão é cobrado em ${formatPrice(order.totalCents)} e depois a cada ${order.every}. Cancele quando quiser, sem multa.`
+          : order.renews
+            ? `Depois, ${formatPrice(order.totalCents)} a cada ${order.every}, a partir de ${formatDate(order.until)}. Cancele quando quiser, sem multa.`
+            : `Acesso liberado até ${formatDate(order.until)}. Sem renovação automática.`}
       </p>
 
       <ul className="space-y-2.5 border-t pt-4 text-xs text-muted-foreground">

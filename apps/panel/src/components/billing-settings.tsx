@@ -55,6 +55,8 @@ export function BillingSettings({ tenantId, subscription }: { tenantId: string; 
   const lifetime = subscription.billingCycle === "lifetime";
   const status = accessStatus(subscription.billingCycle, subscription.paidUntil);
   const activeDebit = autoDebit && autoDebit.status !== "paused" ? autoDebit : null;
+  // Access paid ahead with no Pix waiting: nothing to pay now, only to set up the renewal.
+  const paidAhead = !lifetime && !subscription.expired && !!subscription.paidUntil && !subscription.pending;
 
   return (
     <div className="rounded-lg border bg-card p-4 md:p-6">
@@ -92,11 +94,14 @@ export function BillingSettings({ tenantId, subscription }: { tenantId: string; 
           <Section title="Forma de pagamento" description="Cartão com renovação automática ou Pix.">
             <PaymentMethod tenantId={tenantId} subscription={subscription} />
           </Section>
-          {!activeDebit && (
-            <Section title="Pagar ou renovar" description="Cartão com renovação automática ou Pix. No anual, 2 meses grátis.">
-              <RenewPanel tenantId={tenantId} subscription={subscription} />
-            </Section>
-          )}
+          {!activeDebit &&
+            (paidAhead ? (
+              <PaidAheadOptions tenantId={tenantId} subscription={subscription} />
+            ) : (
+              <Section title="Pagar ou renovar" description="Cartão com renovação automática ou Pix. No anual, 2 meses grátis.">
+                <RenewPanel tenantId={tenantId} subscription={subscription} />
+              </Section>
+            ))}
         </>
       )}
 
@@ -117,6 +122,40 @@ export function BillingSettings({ tenantId, subscription }: { tenantId: string; 
         </p>
       </Section>
     </div>
+  );
+}
+
+/**
+ * Access already paid: like the billing portals of big SaaS products, nothing asks to pay again.
+ * The main action is turning on the automatic renewal (card saved now, first charge when the paid
+ * time ends); paying ahead by Pix stays available, folded, and open when the end is near.
+ */
+function PaidAheadOptions({ tenantId, subscription }: { tenantId: string; subscription: Subscription }) {
+  const [pix, setPix] = useState(subscription.renewSoon);
+  const until = formatDate(subscription.paidUntil!);
+  return (
+    <>
+      {subscription.cardAvailable && (
+        <Section
+          title="Renovação automática"
+          description={`Seu acesso está pago até ${until}. Cadastre o cartão agora: nada é cobrado hoje, a primeira cobrança é nesse dia.`}
+        >
+          <RenewPanel tenantId={tenantId} subscription={subscription} only="card" />
+        </Section>
+      )}
+      <Section
+        title={subscription.cardAvailable ? "Pagar adiantado por Pix" : "Renovar por Pix"}
+        description={`Opcional. O tempo pago soma ao que você já tem (até ${until}).`}
+      >
+        {pix ? (
+          <RenewPanel tenantId={tenantId} subscription={subscription} only="pix" />
+        ) : (
+          <Button variant="outline" onClick={() => setPix(true)}>
+            {subscription.cardAvailable ? "Pagar adiantado por Pix" : "Renovar por Pix"}
+          </Button>
+        )}
+      </Section>
+    </>
   );
 }
 

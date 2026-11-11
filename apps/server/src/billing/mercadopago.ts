@@ -125,6 +125,8 @@ export class MercadoPagoSubscriptions {
     /** Our card_subscriptions id: comes back on every charge. */
     externalReference: string;
     backUrl: string;
+    /** First charge on this date (access already paid until then). Omitted: charges right away. */
+    startDate?: Date | null;
   }): Promise<CardSubscription> {
     const data = await this.client.call<{ id: string; status: string; external_reference?: string }>("/preapproval", {
       method: "POST",
@@ -141,6 +143,7 @@ export class MercadoPagoSubscriptions {
           frequency_type: "months",
           transaction_amount: input.amountCents / 100,
           currency_id: "BRL",
+          ...(input.startDate ? { start_date: input.startDate.toISOString() } : {}),
         },
       }),
     });
