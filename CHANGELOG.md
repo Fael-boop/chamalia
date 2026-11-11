@@ -8,6 +8,12 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.6.5 · 2026-11-11
+
+- Avisos do painel não se empilham mais: "Novo agendamento" vira um cartão só, que se atualiza ("3 novos agendamentos (último: …)"), e o de pendentes também.
+- Todo aviso tem botão de fechar, inclusive no celular.
+- Testar a Lia: o aviso "WhatsApp do responsável não cadastrado" não se repete a cada conversa passada para a equipe.
+
 ## 1.6.4 · 2026-11-11
 
 - Confirmação de agendamento padronizada: a Lia manda uma frase, a lista (Serviço, Profissional, Dia, Valor; em combo, Serviços, Dia, Horário e Valor) com os rótulos em negrito do WhatsApp, um item por linha, e a pergunta final. Vale para todos os negócios; quem preferir outro jeito cria uma regra em Treinar a Lia, que vale mais que o padrão.
