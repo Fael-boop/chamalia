@@ -79,10 +79,9 @@ type Overview = {
 function rangeOf(
   period: Period,
   today: string,
-): { from: string; to: string; label: string } {
+): { from: string; to: string } {
   const day = parseISO(today);
   const fmt = (d: Date) => format(d, "yyyy-MM-dd");
-  const short = (iso: string) => format(parseISO(iso), "dd/MM");
   let from = today;
   let to = today;
   if (period === "week") {
@@ -96,11 +95,29 @@ function rangeOf(
     from = fmt(startOfMonth(last));
     to = fmt(endOfMonth(last));
   }
-  return {
-    from,
-    to,
-    label: from === to ? short(from) : `${short(from)} até ${short(to)}`,
-  };
+  return { from, to };
+}
+
+const upperFirst = (text: string) =>
+  text.charAt(0).toUpperCase() + text.slice(1);
+
+/** The period written out in full, e.g. "Hoje, 11 de novembro" or "28 de outubro a 3 de novembro". */
+function periodTitle(period: Period, from: string, to: string): string {
+  const start = parseISO(from);
+  const end = parseISO(to);
+  const f = (date: Date, pattern: string) =>
+    format(date, pattern, { locale: ptBR });
+  if (period === "today") return f(start, "'Hoje,' d 'de' MMMM");
+  if (period === "month" || period === "last-month") {
+    return upperFirst(f(start, "MMMM 'de' yyyy"));
+  }
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `${f(start, "d 'de' MMMM 'de' yyyy")} a ${f(end, "d 'de' MMMM 'de' yyyy")}`;
+  }
+  if (start.getMonth() !== end.getMonth()) {
+    return `${f(start, "d 'de' MMMM")} a ${f(end, "d 'de' MMMM")}`;
+  }
+  return `${f(start, "d")} a ${f(end, "d 'de' MMMM")}`;
 }
 
 /** "Início": an overview of the business, for the period chosen. */
@@ -119,6 +136,7 @@ export function HomePage({
   const today = todayIn(tenant.timezone);
   const [period, setPeriod] = useState<Period>("month");
   const range = rangeOf(period, today);
+  const title = periodTitle(period, range.from, range.to);
 
   const overview = useQuery({
     queryKey: ["overview", tenant.id, range.from, range.to],
@@ -283,10 +301,9 @@ export function HomePage({
           <Shortcuts cards={shortcuts} onNavigate={onNavigate} />
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold">Resumo</h2>
-              <p className="text-xs text-muted-foreground">{range.label}</p>
-            </div>
+            <h2 className="text-base font-semibold" aria-live="polite">
+              {title}
+            </h2>
             <div
               className={
                 mobile ? "-mx-4 max-w-[100vw] overflow-x-auto px-4" : undefined
@@ -299,7 +316,6 @@ export function HomePage({
           <div className="grid gap-4 lg:grid-cols-2">
             <Panel
               title="Agenda"
-              subtitle={range.label}
               action={{
                 label: "Abrir agenda",
                 onClick: () => onNavigate("agenda"),
@@ -331,7 +347,6 @@ export function HomePage({
 
             <Panel
               title="Clientes e valores"
-              subtitle={range.label}
               action={{
                 label: "Ver clientes",
                 onClick: () => onNavigate("customers"),
@@ -341,7 +356,7 @@ export function HomePage({
                 <Stat label="Clientes" value={data.customers.total} />
                 <Stat label="Novas no período" value={data.customers.added} />
                 <Stat
-                  label="Atendimentos concluídos"
+                  label="Faturamento"
                   value={formatPrice(data.appointments.valueCents)}
                   hint="Soma do preço dos serviços concluídos"
                 />
@@ -352,7 +367,6 @@ export function HomePage({
           {assistant && (
             <Panel
               title={`Atendente ${tenant.assistantName}`}
-              subtitle={range.label}
               action={{
                 label: `Treinar a ${tenant.assistantName}`,
                 onClick: () => onNavigate("train"),
@@ -379,7 +393,7 @@ export function HomePage({
           )}
 
           <Panel
-            title="Hoje na agenda"
+            title="Agenda de hoje"
             subtitle={`${upcoming.length} ${upcoming.length === 1 ? "atendimento" : "atendimentos"}`}
             action={{ label: "Ver o dia", onClick: () => onOpenDay(today) }}
           >
@@ -652,7 +666,12 @@ function Panel({
 }) {
   return (
     <section className="rounded-lg border bg-card p-4">
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div
+        className={cn(
+          "mb-3 flex justify-between gap-3",
+          subtitle ? "items-start" : "items-center",
+        )}
+      >
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
           {subtitle && (
