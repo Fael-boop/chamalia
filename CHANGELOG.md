@@ -8,6 +8,12 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.6.4 · 2026-11-11
+
+- Confirmação de agendamento padronizada: a Lia manda uma frase, a lista (Serviço, Profissional, Dia, Valor; em combo, Serviços, Dia, Horário e Valor) com os rótulos em negrito do WhatsApp, um item por linha, e a pergunta final. Vale para todos os negócios; quem preferir outro jeito cria uma regra em Treinar a Lia, que vale mais que o padrão.
+- Serviço sem preço aparece como "sob consulta" na confirmação.
+- Testar a Lia mostra o negrito como no WhatsApp (antes apareciam os asteriscos).
+
 ## 1.6.3 · 2026-11-11
 
 - Transparência no uso de IA: na primeira resposta de cada conversa (ou depois de 24 h sem conversa) a Lia se apresenta como atendente virtual do negócio. Se perguntarem se é robô ou pessoa, ela diz que é a atendente virtual e oferece chamar alguém da equipe; nunca finge ser gente. Vale para todos os negócios e não pode ser desligado.
