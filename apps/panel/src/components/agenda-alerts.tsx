@@ -5,6 +5,12 @@ import { shiftDate, todayIn, zoned } from "@/format";
 import { useAgendaAlertsEnabled } from "@/lib/agenda-alerts";
 import { useAppointments } from "@/lib/queries";
 
+// Fixed ids: a new alert replaces the one on screen instead of stacking another card.
+const PENDING_TOAST = "agenda-pending";
+const NEW_TOAST = "agenda-new";
+
+type Booked = { name: string; date: string; time: string };
+
 /**
  * Tells the team about the agenda without them having to look at it: once when the panel opens
  * (pending bookings waiting) and whenever the assistant books a new time. Works on any screen.
@@ -15,6 +21,8 @@ export function AgendaAlerts({ tenant, onOpen }: { tenant: Tenant; onOpen: (date
   const from = todayIn(tenant.timezone);
   const list = useAppointments(tenant.id, from, shiftDate(from, 28));
   const seen = useRef<Set<string> | null>(null);
+  // New bookings not yet acknowledged: the single "new booking" card counts them all.
+  const unread = useRef<Booked[]>([]);
   const onOpenRef = useRef(onOpen);
   onOpenRef.current = onOpen;
 
@@ -29,7 +37,8 @@ export function AgendaAlerts({ tenant, onOpen }: { tenant: Tenant; onOpen: (date
       if (enabled && waiting.length > 0) {
         const first = waiting[0]!;
         toast.info(waiting.length === 1 ? "Você tem 1 agendamento pendente" : `Você tem ${waiting.length} agendamentos pendentes`, {
-          duration: 12_000,
+          id: PENDING_TOAST,
+          duration: 10_000,
           action: { label: "Ver", onClick: () => onOpenRef.current(zoned(first.startsAt, tenant.timezone).date) },
         });
       }
@@ -39,14 +48,34 @@ export function AgendaAlerts({ tenant, onOpen }: { tenant: Tenant; onOpen: (date
     const added = data.filter((a) => !seen.current!.has(a.id));
     added.forEach((a) => seen.current!.add(a.id));
     const booked = added.filter((a) => a.source === "whatsapp" && a.status !== "cancelled");
-    const first = booked[0];
-    if (!enabled || !first) return;
-    const when = zoned(first.startsAt, tenant.timezone);
+    if (!enabled || booked.length === 0) return;
+
+    for (const a of booked) {
+      const when = zoned(a.startsAt, tenant.timezone);
+      unread.current.push({ name: a.customerName ?? "cliente", date: when.date, time: when.time });
+    }
+    const all = unread.current;
+    const last = all[all.length - 1]!;
+    const clear = () => {
+      unread.current = [];
+    };
     toast.info(
-      booked.length === 1
-        ? `Novo agendamento: ${first.customerName ?? "cliente"}, ${when.date.slice(8)}/${when.date.slice(5, 7)} às ${when.time}`
-        : `${booked.length} novos agendamentos`,
-      { duration: 12_000, action: { label: "Ver", onClick: () => onOpenRef.current(when.date) } },
+      all.length === 1
+        ? `Novo agendamento: ${last.name}, ${last.date.slice(8)}/${last.date.slice(5, 7)} às ${last.time}`
+        : `${all.length} novos agendamentos (último: ${last.name}, ${last.date.slice(8)}/${last.date.slice(5, 7)} às ${last.time})`,
+      {
+        id: NEW_TOAST,
+        duration: 10_000,
+        action: {
+          label: "Ver",
+          onClick: () => {
+            clear();
+            onOpenRef.current(last.date);
+          },
+        },
+        onDismiss: clear,
+        onAutoClose: clear,
+      },
     );
   }, [list.data, list.isPlaceholderData, enabled, tenant.timezone]);
 

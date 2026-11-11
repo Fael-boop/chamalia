@@ -18,10 +18,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={resolved}
-      // Phones: at the top like a system notification, no close button (swipe to dismiss), at most two stacked.
+      // Phones: at the top like a system notification, at most two stacked.
       // Computer: bottom-right corner, out of the way of the page header.
+      // Close button everywhere: swiping is not obvious and a card must always be closable.
       position={mobile ? "top-center" : "bottom-right"}
-      closeButton={!mobile}
+      closeButton
       visibleToasts={mobile ? 2 : 3}
       mobileOffset={{ top: "calc(0.5rem + env(safe-area-inset-top))", left: 12, right: 12 }}
       className="toaster group"

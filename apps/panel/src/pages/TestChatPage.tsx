@@ -94,7 +94,10 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
         ...result.ownerNotices.map((notice, index) => ({ id: `${now}-${index}`, text: notice, createdAt: now })),
       ]);
       if (result.ownerNotices.length && result.ownerPhoneMissing) {
-        toast.info("WhatsApp do responsável não cadastrado: no WhatsApp real esse aviso não seria enviado.");
+        // Fixed id: repeated hand-offs in the same test refresh one card instead of stacking.
+        toast.info("WhatsApp do responsável não cadastrado: no WhatsApp real esse aviso não seria enviado.", {
+          id: "owner-phone-missing",
+        });
       }
       await load();
     } catch (e) {
