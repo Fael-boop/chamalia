@@ -8,6 +8,11 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.7.0 · 2026-11-11
+
+- Cobrança com o acesso já pago: a tela não pede para pagar de novo. A ação principal é "Renovação automática": cadastra o cartão agora, nada é cobrado hoje ("Total hoje R$ 0,00") e a primeira cobrança é no dia em que o período pago acaba. Pagar adiantado por Pix continua disponível, recolhido (abre sozinho a 3 dias do vencimento).
+- No servidor, a assinatura do cartão no Mercado Pago passa a ter data de início igual ao fim do período pago: o cartão nunca é cobrado por um tempo que já está pago. Vencido (ou vencendo em menos de 1 hora): cobra na hora, como antes.
+
 ## 1.6.5 · 2026-11-11
 
 - Avisos do painel não se empilham mais: "Novo agendamento" vira um cartão só, que se atualiza ("3 novos agendamentos (último: …)"), e o de pendentes também.
