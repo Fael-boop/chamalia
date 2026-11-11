@@ -8,6 +8,10 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.7.1 · 2026-11-11
+
+- Início: o título do resumo mostra o período por extenso ("Hoje, 11 de novembro", "Novembro de 2026", "28 de outubro a 3 de novembro") e os painéis deixam de repetir a data. "Atendimentos concluídos" virou "Faturamento" e "Hoje na agenda" virou "Agenda de hoje".
+
 ## 1.7.0 · 2026-11-11
 
 - Cobrança com o acesso já pago: a tela não pede para pagar de novo. A ação principal é "Renovação automática": cadastra o cartão agora, nada é cobrado hoje ("Total hoje R$ 0,00") e a primeira cobrança é no dia em que o período pago acaba. Pagar adiantado por Pix continua disponível, recolhido (abre sozinho a 3 dias do vencimento).
