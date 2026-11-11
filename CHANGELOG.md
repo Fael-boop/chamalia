@@ -8,6 +8,11 @@ Versão no formato `MAIOR.MENOR.CORREÇÃO` (versionamento semântico):
 
 A versão em produção aparece em `https://app.chamalia.com.br/health` e no rodapé do menu do painel.
 
+## 1.6.3 · 2026-11-11
+
+- Transparência no uso de IA: na primeira resposta de cada conversa (ou depois de 24 h sem conversa) a Lia se apresenta como atendente virtual do negócio. Se perguntarem se é robô ou pessoa, ela diz que é a atendente virtual e oferece chamar alguém da equipe; nunca finge ser gente. Vale para todos os negócios e não pode ser desligado.
+- Lembrete da véspera diz quem está escrevendo ("Aqui é Lia, atendente virtual") e o nome do negócio, inclusive para quem marcou pelo painel e nunca falou com a Lia.
+
 ## 1.6.2 · 2026-10-25
 
 - Cada Lia é do negócio dela: a regra de "química" (coloração, mechas, progressiva…) deixou de estar no texto base, que valia para todos, e virou um assunto de "Passar para a equipe" que cada negócio mantém, edita ou apaga. Negócios que já existem ficam exatamente como estavam; salões novos começam com o assunto e os outros nichos sem. As palavras fixas "salão" também passaram a seguir o tipo de local de cada negócio.
