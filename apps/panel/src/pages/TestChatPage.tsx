@@ -11,6 +11,7 @@ import { useServices } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { WhatsAppText } from "@/components/whatsapp-text";
 import { formatPhone, formatTime } from "@/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -214,7 +215,7 @@ export function TestChatPage({ tenant }: { tenant: Tenant }) {
                 {item.message.attachment?.kind === "price_table" ? (
                   <PriceTableAttachment tenant={tenant} name={item.message.attachment.name} />
                 ) : (
-                  item.message.body
+                  <WhatsAppText text={item.message.body} />
                 )}
                 <div
                   className={cn(

@@ -159,6 +159,17 @@ describe("each business has its own assistant", () => {
   });
 });
 
+describe("booking confirmation format", () => {
+  it("is the same list with bold labels for every business", () => {
+    for (const prompt of [buildSystemPrompt(salon), buildSystemPrompt(barbershop)]) {
+      expect(prompt).toContain("• *Serviço:* [serviço] ([duração])");
+      expect(prompt).toContain("• *Valor:*");
+      expect(prompt).toContain("a menos que uma regra da equipe peça outro");
+      expect(prompt).not.toContain("sem asteriscos");
+    }
+  });
+});
+
 describe("transparency on AI use", () => {
   it("always says she is a virtual assistant, never a person", () => {
     for (const prompt of [buildSystemPrompt(salon), buildSystemPrompt(barbershop)]) {
