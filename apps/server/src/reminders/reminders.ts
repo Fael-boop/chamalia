@@ -22,6 +22,8 @@ export type DueReminder = {
   appointmentId: string;
   tenantId: string;
   timezone: string;
+  tenantName: string;
+  assistantName: string;
   whatsappInstance: string | null;
   customerPhone: string;
   customerName: string | null;
@@ -31,7 +33,7 @@ export type DueReminder = {
 };
 
 const DUE_COLUMNS = (sql: Sql) => sql`
-  a.id as appointment_id, a.tenant_id, t.timezone, t.whatsapp_instance,
+  a.id as appointment_id, a.tenant_id, t.timezone, t.name as tenant_name, t.assistant_name, t.whatsapp_instance,
   c.phone as customer_phone, c.name as customer_name,
   s.name as service_name, p.name as professional_name, a.starts_at
 `;
@@ -60,9 +62,12 @@ export function reminderText(reminder: DueReminder, now: Date): string {
         ? `amanhã (${weekdayName(local.weekday)}, ${day}/${month})`
         : `${weekdayName(local.weekday)} (${day}/${month})`;
   const firstName = reminder.customerName?.split(" ")[0];
+  // The customer may have booked through the panel and never talked to the assistant:
+  // say who is writing and that it is automated (transparency on AI use).
   return (
-    `Oi${firstName ? `, ${firstName}` : ""}! Passando para lembrar do seu horário ${dayLabel} às ${spokenTime(local.time)}: ` +
-    `${reminder.serviceName} com ${reminder.professionalName}.\n` +
+    `Oi${firstName ? `, ${firstName}` : ""}! Aqui é ${reminder.assistantName}, atendente virtual. ` +
+    `Passando para lembrar do seu horário ${dayLabel} às ${spokenTime(local.time)}: ` +
+    `${reminder.serviceName} com ${reminder.professionalName} (${reminder.tenantName}).\n` +
     `Já está confirmado. Se não puder vir, responda 2 que eu te ajudo a remarcar.`
   );
 }

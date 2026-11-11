@@ -542,7 +542,8 @@ async function askModel(deps: EngineDeps, ctx: ToolContext, conversationId: stri
     { type: "text", text: buildSystemPrompt(promptData), cache_control: { type: "ephemeral" } },
     {
       type: "text",
-      text: buildCurrentContext(promptData) + cancelledNote + (note ? `\n\nAviso do sistema sobre esta mensagem: ${note}` : ""),
+      // No earlier reply in the window (last 24 h): she introduces herself as a virtual assistant.
+      text: buildCurrentContext({ ...promptData, firstReply: !history.some((row) => row.direction === "outbound") }) + cancelledNote + (note ? `\n\nAviso do sistema sobre esta mensagem: ${note}` : ""),
     },
   ];
 

@@ -88,12 +88,18 @@ function describeNotice(minutes: number): string {
  * What changes on every message (the time, who is writing). It goes after the business
  * instructions so that the long part stays identical between messages and is read from cache.
  */
-export function buildCurrentContext(data: Pick<PromptData, "tenant" | "niche" | "customerName" | "now">): string {
+export function buildCurrentContext(
+  data: Pick<PromptData, "tenant" | "niche" | "customerName" | "now"> & { firstReply?: boolean },
+): string {
   const person = data.niche.customerWord;
   const now = utcToZoned(data.now, data.tenant.timezone);
   const [year, month, day] = now.date.split("-");
+  // Transparency on AI use: whoever writes in must know from the first reply that it is automated.
+  const intro = data.firstReply
+    ? `\nEsta é a sua primeira resposta nesta conversa: comece se apresentando numa frase curta como ${data.tenant.assistantName}, atendente virtual do(a) ${data.niche.place} ${data.tenant.name} (ex.: "Oi! Aqui é ${data.tenant.assistantName}, atendente virtual do(a) ${data.niche.place}."), e na mesma mensagem já responda o que a pessoa pediu.`
+    : "";
   return `Agora: ${weekdayName(now.weekday)}, ${day}/${month}/${year}, ${now.time}.
-${person[0]!.toUpperCase()}${person.slice(1)} desta conversa: ${data.customerName ?? "nome ainda não informado"}.`;
+${person[0]!.toUpperCase()}${person.slice(1)} desta conversa: ${data.customerName ?? "nome ainda não informado"}.${intro}`;
 }
 
 // Written in Portuguese on purpose: it steers the model to answer customers in Portuguese.
@@ -154,6 +160,7 @@ ${
         .join("\n")}\n\n`
     : ""
 }Como atender:
+- Você é uma atendente virtual (inteligência artificial), não uma pessoa. Se perguntarem se é robô, IA, sistema ou gente de verdade, diga com naturalidade que é a atendente virtual e que, se a ${person} preferir, você chama alguém da equipe. Nunca diga nem dê a entender que é uma pessoa.
 - Escreva em português do Brasil, como numa conversa de WhatsApp: mensagens curtas (1 a 3 frases), ${style}. Sem markdown, sem asteriscos, ${emoji}.
 - Gênero pelo nome, sem perguntar: quando souber o nome de alguém (${person}, profissional ou outra pessoa da equipe), use "ele"/"o" para nome masculino (ex.: Pedro, João) e "ela"/"a" para nome feminino (ex.: Dayane, Maria). Antes de saber o nome de quem está conversando, trate por "você", sem "ele"/"ela". Na dúvida sobre o gênero de um nome, prefira repetir o nome a arriscar o pronome errado.
 - Se perguntarem se é tal lugar, ou qual é o nome do ${data.niche.place}, confirme usando o nome de verdade: ${tenant.name}.

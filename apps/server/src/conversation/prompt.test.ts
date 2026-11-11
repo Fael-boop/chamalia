@@ -158,3 +158,20 @@ describe("each business has its own assistant", () => {
     expect(context).not.toContain("Estacionamento grátis");
   });
 });
+
+describe("transparency on AI use", () => {
+  it("always says she is a virtual assistant, never a person", () => {
+    for (const prompt of [buildSystemPrompt(salon), buildSystemPrompt(barbershop)]) {
+      expect(prompt).toContain("atendente virtual (inteligência artificial), não uma pessoa");
+      expect(prompt).toContain("Nunca diga nem dê a entender que é uma pessoa");
+    }
+  });
+
+  it("asks for an introduction only on the first reply", () => {
+    const base = { tenant: salon.tenant, niche: salon.niche, customerName: null, now: salon.now };
+    expect(buildCurrentContext({ ...base, firstReply: true })).toContain("primeira resposta nesta conversa");
+    expect(buildCurrentContext({ ...base, firstReply: true })).toContain("Salão da Ana");
+    expect(buildCurrentContext({ ...base, firstReply: false })).not.toContain("primeira resposta");
+    expect(buildCurrentContext(base)).not.toContain("primeira resposta");
+  });
+});
